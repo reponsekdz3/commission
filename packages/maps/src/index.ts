@@ -77,7 +77,7 @@ export class MapboxProvider implements MapProvider {
     url.searchParams.set("limit","8");
     url.searchParams.set("country",countryBias.toLowerCase());
     url.searchParams.set("access_token",this.token);
-    const data=await this.getJson(url.toString());
+    const data=await this.getJson<{features?:any[]}>(url.toString());
     return (data.features ?? []).map(featureToGeocode);
   }
 
@@ -87,7 +87,7 @@ export class MapboxProvider implements MapProvider {
     url.searchParams.set("latitude",String(point.latitude));
     url.searchParams.set("limit","1");
     url.searchParams.set("access_token",this.token);
-    const data=await this.getJson(url.toString());
+    const data=await this.getJson<{features?:any[]}>(url.toString());
     return data.features?.[0] ? featureToGeocode(data.features[0]) : null;
   }
 
@@ -98,7 +98,7 @@ export class MapboxProvider implements MapProvider {
     url.searchParams.set("types","poi,address,place");
     url.searchParams.set("proximity",String(near.longitude)+","+String(near.latitude));
     url.searchParams.set("access_token",this.token);
-    const data=await this.getJson(url.toString());
+    const data=await this.getJson<{features?:any[]}>(url.toString());
     return (data.features ?? []).map((feature:any)=>({
       id:String(feature.properties?.mapbox_id ?? feature.id),
       name:String(feature.properties?.name ?? feature.properties?.full_address ?? "Place"),
@@ -115,7 +115,7 @@ export class MapboxProvider implements MapProvider {
     url.searchParams.set("overview","full");
     url.searchParams.set("geometries","polyline");
     url.searchParams.set("access_token",this.token);
-    const data=await this.getJson(url.toString());
+    const data=await this.getJson<{routes?:Array<{distance:number;duration:number;geometry?:string}>}>(url.toString());
     const route=data.routes?.[0];
     if(!route) throw new Error("No route found");
     return {distanceMeters:Math.round(Number(route.distance)),durationSeconds:Math.round(Number(route.duration)),polyline:String(route.geometry)};
