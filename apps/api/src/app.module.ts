@@ -5,6 +5,7 @@ import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { loadConfig } from "@imizi/config";
 import { PlatformStore } from "./store/platform.store";
 import { DatabaseService } from "./infra/database.service";
+import { FeatureService } from "./infra/feature.service";
 import { RequestIdInterceptor } from "./common/request-id.interceptor";
 import { AuthGuard } from "./common/auth.guard";
 import { HealthController } from "./modules/health/health.controller";
@@ -54,13 +55,13 @@ const config = loadConfig();
     ]),
   ],
   controllers: [
-    HealthController, AuthController, UsersController, PropertiesController, ListingsController, SearchController,
-    MapsController, FavoritesController, BookingsController, PaymentsController, OffersController, MessagesController,
-    ReviewsController, VerificationController, NotificationsController, AgenciesController, AdminController, MediaController,
-    MaintenanceController, AnalyticsController, PrivacyController, ViewingsController, LeasesController, RecommendationsController, CatalogController,
+    HealthController, AuthController, UsersController, PropertiesController, ListingsController, SearchController, MapsController,
+    FavoritesController, BookingsController, PaymentsController, OffersController, MessagesController, ReviewsController,
+    VerificationController, NotificationsController, AgenciesController, AdminController, MediaController, MaintenanceController,
+    AnalyticsController, PrivacyController, ViewingsController, LeasesController, RecommendationsController, CatalogController,
   ],
   providers: [
-    DatabaseService, PlatformStore, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService,
+    DatabaseService, FeatureService, PlatformStore, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService,
     MessagesGateway, JobsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
