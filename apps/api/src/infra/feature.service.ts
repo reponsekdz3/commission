@@ -321,6 +321,7 @@ export class FeatureService {
 
   async deleteAccount(userId:string) {
     await this.db.query("UPDATE users SET status='PENDING_DELETION',email='deleted-'||id||'@imizi.invalid',phone='deleted-'||id,updated_at=now() WHERE id=$1",[userId]);
+    await this.db.revokeAllSessions(userId);
     await this.audit(userId,"ACCOUNT_DELETE_REQUESTED","user",userId);
     return {status:"scheduled"};
   }
