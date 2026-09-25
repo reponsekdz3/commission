@@ -3,26 +3,45 @@ const path = require("path");
 
 async function main() {
   const url = process.env.DATABASE_URL;
-  if (!url) {
-    console.log("DATABASE_URL missing — skipped SQL apply. Schema lives in sql/001_init.sql");
-    return;
-  }
-  let Client;
-  try {
-    ({ Client } = require("pg"));
-  } catch {
-    console.log("pg not installed — skipped live migrate");
-    return;
-  }
-  const sql = fs.readFileSync(path.join(__dirname, "../sql/001_init.sql"), "utf8");
+  if (!url) throw new Error("DATABASE_URL is required to run database migrations");
+
+  const { Client } = require("pg");
+  const sqlDir = path.join(__dirname, "../sql");
+  const files = fs
+    .readdirSync(sqlDir)
+    .filter((name) => /^\\d+_.*\\.sql$/.test(name))
+    .sort();
+
   const client = new Client({ connectionString: url });
   await client.connect();
-  await client.query(sql);
-  await client.end();
-  console.log("Applied PostGIS schema");
+
+  try {
+    await client.query("CREATE TABLE IF NOT EXISTS schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())");
+
+    for (const file of files) {
+      const applied = await client.query("SELECT 1 FROM schema_migrations WHERE version = $1", [file]);
+      if (applied.rowCount) continue;
+
+      const sql = fs.readFileSync(path.join(sqlDir, file), "utf8");
+      await client.query("BEGIN");
+      try {
+        await client.query(sql);
+        await client.query("INSERT INTO schema_migrations(version) VALUES ($1)", [file]);
+        await client.query("COMMIT");
+        console.log(`Applied ${file}`);
+      } catch (err) {
+        await client.query("ROLLBACK");
+        throw err;
+      }
+    }
+  } finally {
+    await client.end();
+  }
+
+  console.log("Database migrations complete");
 }
 
 main().catch((err) => {
-  console.error(err.message);
-  process.exitCode = 0;
+  console.error(err);
+  process.exitCode = 1;
 });
