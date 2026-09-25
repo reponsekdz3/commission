@@ -12,7 +12,7 @@ import { Server, Socket } from "socket.io";
 @Controller("messages")
 export class MessagesController {
   constructor(private readonly features:FeatureService) {}
-  @Post("send")
+  @Post()
   send(@CurrentUser() user:UserRecord,@Body() body:unknown){
     const data=messageSchema.parse(body);
     return this.features.sendMessage(user.id,{conversationId:data.conversationId,recipientId:data.recipientId,propertyId:data.propertyId,bookingId:data.bookingId,body:data.body});
