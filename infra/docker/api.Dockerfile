@@ -9,6 +9,7 @@ COPY packages/maps/package.json packages/maps/package.json
 COPY packages/payments/package.json packages/payments/package.json
 COPY packages/database/package.json packages/database/package.json
 COPY packages/config/package.json packages/config/package.json
+COPY packages/auth/package.json packages/auth/package.json
 RUN npm install --omit=dev=false
 
 FROM node:20-alpine AS build

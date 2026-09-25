@@ -32,7 +32,8 @@ export class MediaController {
     if(!property)return{error:"not_found"};
     assertPropertyAccess(user,property,true);
     if(body.key.includes("..")||body.key.includes("/")===false)return{error:"invalid_key"};
-    await this.db.addMedia(body.propertyId,body.kind,body.key);
+    const media=await this.db.addMedia(body.propertyId,body.kind,body.key);
+    await this.db.enqueueJob("media.process",{mediaId:media.id});
     return (await this.db.hydrateProperty(body.propertyId))?.media ?? [];
   }
 }

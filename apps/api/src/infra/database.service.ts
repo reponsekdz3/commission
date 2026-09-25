@@ -627,6 +627,36 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return r.rows[0];
   }
 
+
+  async getMedia(id:string){
+    const r=await this.query("SELECT * FROM property_media WHERE id=$1",[id]);
+    return r.rows[0];
+  }
+
+  async updateMediaVariants(id:string,variants:Record<string,string>,checksum?:string){
+    const r=await this.query("UPDATE property_media SET variants=$2::jsonb,checksum=COALESCE($3,checksum) WHERE id=$1 RETURNING *",[id,JSON.stringify(variants),checksum ?? null]);
+    return r.rows[0];
+  }
+
+  async addDocument(propertyId:string,kind:string,key:string,expiresAt?:string){
+    const id=randomUUID();
+    const r=await this.query("INSERT INTO property_documents(id,property_id,kind,storage_key,expires_at) VALUES($1,$2,$3,$4,$5::date) RETURNING *",[id,propertyId,kind,key,expiresAt ?? null]);
+    return r.rows[0];
+  }
+
+  async listDocuments(propertyId:string){
+    return this.query("SELECT id,property_id,kind,storage_key,verification_status,expires_at,version,created_at FROM property_documents WHERE property_id=$1 ORDER BY created_at DESC",[propertyId]).then(r=>r.rows);
+  }
+
+  async getDocument(id:string){
+    const r=await this.query("SELECT * FROM property_documents WHERE id=$1",[id]);
+    return r.rows[0];
+  }
+
+  async verifyDocument(id:string,status:"VERIFIED"|"REJECTED"){
+    return this.query("UPDATE property_documents SET verification_status=$2 WHERE id=$1 RETURNING *",[id,status]).then(r=>r.rows[0]);
+  }
+
   private mapUser(row:any):UserRecord{
     return {
       id:String(row.id),email:String(row.email),phone:String(row.phone),passwordHash:String(row.password_hash),

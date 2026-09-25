@@ -31,6 +31,7 @@ import { NotificationsController } from "./modules/notifications/notifications.c
 import { AgenciesController } from "./modules/agencies/agencies.controller";
 import { AdminController } from "./modules/admin/admin.controller";
 import { MediaController } from "./modules/media/media.controller";
+import { DocumentsController } from "./modules/documents/documents.controller";
 import { MaintenanceController } from "./modules/maintenance/maintenance.controller";
 import { AnalyticsController } from "./modules/analytics/analytics.controller";
 import { PrivacyController } from "./modules/privacy/privacy.controller";
@@ -57,7 +58,7 @@ const config = loadConfig();
   controllers: [
     HealthController, AuthController, UsersController, PropertiesController, ListingsController, SearchController, MapsController,
     FavoritesController, BookingsController, PaymentsController, OffersController, MessagesController, ReviewsController,
-    VerificationController, NotificationsController, AgenciesController, AdminController, MediaController, MaintenanceController,
+    VerificationController, NotificationsController, AgenciesController, AdminController, MediaController, DocumentsController, MaintenanceController,
     AnalyticsController, PrivacyController, ViewingsController, LeasesController, RecommendationsController, CatalogController,
   ],
   providers: [

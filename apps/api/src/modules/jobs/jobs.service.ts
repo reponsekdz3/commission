@@ -1,11 +1,19 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
+import { createHash } from "crypto";
+import { execFile } from "child_process";
+import { promisify } from "util";
+import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
+import { join } from "path";
+import { tmpdir } from "os";
 import { DatabaseService } from "../../infra/database.service";
 import { Dependencies } from "../../infra/dependencies";
+import { StorageService } from "../../infra/storage.service";
 
 @Injectable()
 export class JobsService implements OnModuleInit {
   private readonly log=new Logger(JobsService.name);
-  constructor(private readonly db:DatabaseService,private readonly deps:Dependencies){}
+  private readonly exec=promisify(execFile);
+  constructor(private readonly db:DatabaseService,private readonly deps:Dependencies,private readonly storage:StorageService){}
   onModuleInit(){setInterval(()=>void this.drain(),5000).unref();void this.drain();}
   async drain(){
     if(!this.deps.databaseOk)return;
@@ -88,6 +96,33 @@ export class JobsService implements OnModuleInit {
               await this.db.query("INSERT INTO notifications(user_id,channel,event_type,title,body) VALUES($1,'in_app','RENTAL_COMPLETED','Rental completed',$2)",[booking.tenantId,"Your rental period has completed."]);
             }else{
               await this.db.enqueueJob("booking.complete",{bookingId:booking.id},Math.ceil((new Date(booking.endDate).getTime()-Date.now())/1000));
+            }
+          }
+        }
+
+
+        if(job.name==="media.process"){
+          const media=await this.db.getMedia(String(job.payload?.mediaId ?? ""));
+          if(media){
+            if(media.kind!=="PHOTO") return;
+            const input=await this.storage.readBuffer(String(media.storage_key));
+            const checksum=createHash("sha256").update(input).digest("hex");
+            const dir=await mkdtemp(join(tmpdir(),"imizi-media-"));
+            try{
+              const original=join(dir,"original.bin");
+              await writeFile(original,input);
+              const variants:Record<string,string>={};
+              for(const size of [480,1024,1920]){
+                const output=join(dir,size+".webp");
+                await this.exec("magick",[original,"-auto-orient","-strip","-resize",size+"x"+size+">","-quality","82",output]);
+                const optimized=await readFile(output);
+                const key="property/"+media.property_id+"/optimized/"+media.id+"-"+size+".webp";
+                await this.storage.putBuffer("public/"+key,"image/webp",optimized);
+                variants[size===480?"small":size===1024?"medium":"large"]=key;
+              }
+              await this.db.updateMediaVariants(media.id,variants,checksum);
+            }finally{
+              await rm(dir,{recursive:true,force:true}).catch(()=>undefined);
             }
           }
         }
