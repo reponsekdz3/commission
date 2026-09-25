@@ -16,7 +16,7 @@
     "test:domain": "npm run test -w @imizi/domain",
     "dev:api": "npm run start:dev -w @imizi/api",
     "dev:web": "npm run dev -w @imizi/web",
-    "dev:admin": "npm run dev -w @imizi/admin",
+    "dev:admin": "npm run dev -w @imizi/web -- --port 3002",
     "db:generate": "npm run migrate -w @imizi/database",
     "db:migrate": "npm run migrate -w @imizi/database",
     "db:seed": "npm run seed -w @imizi/database"
