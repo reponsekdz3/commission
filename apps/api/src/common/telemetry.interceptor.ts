@@ -22,7 +22,7 @@ export class TelemetryInterceptor implements NestInterceptor{
       const now=Date.now();
       const startNs=ns(now-durationMs);
       const endNs=ns(now);
-      void fetch(endpoint.replace(//$/,"")+"/v1/traces",{
+      void fetch(endpoint.replace(/\/$/,"")+"/v1/traces",{
         method:"POST",headers:{"content-type":"application/json"},
         body:JSON.stringify({resourceSpans:[{resource:{attributes:[
           {key:"service.name",value:{stringValue:process.env.OTEL_SERVICE_NAME??"imizi-api"}},
