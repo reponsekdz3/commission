@@ -21,7 +21,17 @@ export class JobsService implements OnModuleInit {
           const listing=listingId ? await this.db.getListing(listingId) : undefined;
           if(listing){
             const property=await this.db.getProperty(listing.propertyId);
-            if(property) await this.deps.indexListing({...listing,...property,location:{lat:property.latitude,lon:property.longitude},amenities:property.amenities});
+            if(property){
+              await this.deps.indexListing({
+                id:property.id,listingId:listing.id,listingType:listing.listingType,status:listing.status,
+                priceMinor:listing.priceMinor,currency:listing.currency,availableFrom:listing.availableFrom,
+                createdAt:listing.createdAt,updatedAt:listing.updatedAt,title:property.title,description:property.description,
+                propertyType:property.propertyType,verificationStatus:property.verificationStatus,bedrooms:property.bedrooms,
+                bathrooms:property.bathrooms,parking:property.parking,district:property.district,province:property.province,
+                sector:property.sector,amenities:property.amenities,ownerId:property.ownerId,organizationId:property.organizationId,
+                propertyStatus:property.status,updatedAt:property.updatedAt,location:{lat:property.latitude,lon:property.longitude}
+              });
+            }
           }
         }
         await this.db.query("UPDATE background_jobs SET status='DONE',updated_at=now(),finished_at=now() WHERE id=$1",[job.id]);
