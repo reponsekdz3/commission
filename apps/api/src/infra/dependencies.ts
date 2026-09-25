@@ -78,12 +78,25 @@ export class Dependencies implements OnModuleInit, OnModuleDestroy {
   }
 
   async indexListing(doc:Record<string,unknown>){
-    const config=loadConfig();if(!this.searchOk)return;
+    const config=loadConfig();
+    if(!this.searchOk){
+      try{
+        const health=await fetch(config.opensearchUrl+"/_cluster/health",{signal:AbortSignal.timeout(1500)});
+        if(!health.ok) return false;
+        await this.ensureSearchIndex();
+        this.searchOk=true;
+      }catch{return false;}
+    }
     try{
-      await fetch(config.opensearchUrl+"/"+encodeURIComponent(config.opensearchIndex)+"/_doc/"+encodeURIComponent(String(doc.id)),{
+      const response=await fetch(config.opensearchUrl+"/"+encodeURIComponent(config.opensearchIndex)+"/_doc/"+encodeURIComponent(String(doc.id)),{
         method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(doc)
       });
-    }catch{this.searchOk=false;}
+      if(!response.ok)return false;
+      return true;
+    }catch{
+      this.searchOk=false;
+      return false;
+    }
   }
 
   async searchListings(body:Record<string,unknown>){
