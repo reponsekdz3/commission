@@ -189,7 +189,11 @@ export class FeatureService {
   }
 
   async listOffers(userId:string) {
-    return this.db.query("SELECT * FROM offers WHERE buyer_id=$1 ORDER BY created_at DESC",[userId]).then((r)=>r.rows);
+    return this.db.query(
+      "SELECT o.* FROM offers o JOIN property_listings pl ON pl.id=o.listing_id JOIN properties p ON p.id=pl.property_id " +
+      "WHERE o.buyer_id=$1 OR p.owner_id=$1 ORDER BY o.created_at DESC",
+      [userId],
+    ).then((r)=>r.rows);
   }
 
   async viewingSlots(listingId:string) {
