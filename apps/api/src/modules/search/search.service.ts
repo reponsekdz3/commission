@@ -15,6 +15,7 @@ export class SearchService {
   }
 
   private async searchProduction(query:Record<string,any>){
+    const db=this.source as DatabaseService;
     const parsed=query.q ? parseNaturalSearch(String(query.q)) : undefined;
     const limit=clampLimit(query.limit ? Number(query.limit) : 20);
     const cacheKey="search:"+JSON.stringify({...query,limit});
@@ -61,7 +62,7 @@ export class SearchService {
       await this.deps?.cacheSet(cacheKey,payload,15);
       return payload;
     }
-    const result=await this.source.searchListings({
+    const result=await db.searchListings({
       q:query.q,listingType,propertyType,province:query.province,district,sector:query.sector,
       bedroomsMin:query.bedroomsMin ?? parsed?.bedrooms,bedroomsMax:query.bedroomsMax,bathroomsMin:query.bathroomsMin,
       minPriceMinor:query.minPriceMinor,maxPriceMinor:query.maxPriceMinor ?? parsed?.maxPrice,currency:query.currency,
