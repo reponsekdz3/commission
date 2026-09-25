@@ -28,7 +28,7 @@ export class BookingsController {
   @Get(":id")
   async get(@CurrentUser() user:UserRecord,@Param("id") id:string){
     const booking=await this.db.getBooking(id);if(!booking)return{error:"not_found"};
-    const visible=(await this.db.listBookingsForUser(user.id,user.roles.includes("SUPER_ADMIN"))).some((b)=>b.id===id);
+    const visible=(await this.db.listBookingsForUser(user.id,user.roles.includes("SUPER_ADMIN"))).some((b:any)=>b.id===id);
     return visible?booking:{error:"forbidden"};
   }
 

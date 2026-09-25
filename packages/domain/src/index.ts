@@ -17,6 +17,7 @@ export {
   canReadProperty,
   requiresReauth,
 } from "./rbac";
+export type { Permission, ResourceAccessInput } from "./rbac";
 export { scoreFraud, shouldQueueForModeration } from "./fraud";
 export { balanced, rentCollectionEntries, assertBalanced } from "./ledger";
 export { matchesSavedSearch } from "./saved-search";

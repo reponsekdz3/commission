@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { clampLimit, parseNaturalSearch, rankListing, freshnessFromUpdatedAt, listingQualityScore } from "@imizi/domain";
 import { haversineMeters } from "@imizi/maps";
 import { DatabaseService } from "../../infra/database.service";
@@ -7,7 +7,7 @@ import { PlatformStore } from "../../store/platform.store";
 
 @Injectable()
 export class SearchService {
-  constructor(private readonly source:DatabaseService|PlatformStore,private readonly deps?:Dependencies){}
+  constructor(@Inject(DatabaseService) private readonly source:DatabaseService|PlatformStore,private readonly deps?:Dependencies){}
 
   search(query:Record<string,any>){
     if(this.source instanceof DatabaseService) return this.searchProduction(query);

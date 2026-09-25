@@ -9,11 +9,12 @@ export class FeatureService {
   async notify(userId:string,eventType:string,title:string,body:string){
     return this.db.query("INSERT INTO notifications(id,user_id,channel,event_type,title,body) VALUES($1,$2,'in_app',$3,$4,$5) RETURNING *",[randomUUID(),userId,eventType,title,body]).then((r)=>r.rows[0]);
   }
-  async audit(actorId:string|undefined,action:string,subjectType:string,subjectId?:string,before?:unknown,after?:unknown){
-    await this.db.query("INSERT INTO audit_logs(actor_id,action,subject_type,subject_id,before,after) VALUES($1,$2,$3,$4,$5::jsonb,$6::jsonb)",[actorId ?? null,action,subjectType,subjectId ?? null,before==null?null:JSON.stringify(before),after==null?null:JSON.stringify(after)]);
+  async audit(actorId:string|undefined,action:string,subjectType:string,subjectId?:string,before?:unknown,after?:unknown,ip?:string){
+    await this.db.query("INSERT INTO audit_logs(actor_id,action,subject_type,subject_id,before,after,ip) VALUES($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7)",[actorId ?? null,action,subjectType,subjectId ?? null,before==null?null:JSON.stringify(before),after==null?null:JSON.stringify(after),ip ?? null]);
   }
   async track(name:string,userId?:string,propertyId?:string,payload:Record<string,unknown>={}){
     await this.db.query("INSERT INTO analytics_events(name,user_id,property_id,payload) VALUES($1,$2,$3,$4::jsonb)",[name,userId ?? null,propertyId ?? null,JSON.stringify(payload)]);
+    return {ok:true};
   }
 
   async saveSearch(userId:string,name:string,criteria:Record<string,unknown>) {
@@ -38,7 +39,7 @@ export class FeatureService {
 
   async favorites(userId:string) {
     const rows=await this.db.query("SELECT property_id FROM favorites WHERE user_id=$1 ORDER BY created_at DESC",[userId]);
-    return (await Promise.all(rows.rows.map((x)=>this.db.hydrateProperty(x.property_id)))).filter(Boolean);
+    return (await Promise.all(rows.rows.map((x:any)=>this.db.hydrateProperty(x.property_id)))).filter(Boolean);
   }
 
   async favoriteAdd(userId:string,propertyId:string) {
@@ -81,7 +82,7 @@ export class FeatureService {
       "GROUP BY c.id ORDER BY c.created_at DESC",
       [userId],
     );
-    return result.rows.map((x)=>({id:x.id,propertyId:x.property_id,bookingId:x.booking_id,offerId:x.offer_id,memberIds:x.member_ids,createdAt:x.created_at}));
+    return result.rows.map((x:any)=>({id:x.id,propertyId:x.property_id,bookingId:x.booking_id,offerId:x.offer_id,memberIds:x.member_ids,createdAt:x.created_at}));
   }
 
   async getConversation(userId:string,id:string) {
@@ -208,7 +209,7 @@ export class FeatureService {
 
   async viewingSlots(listingId:string) {
     const rows=await this.db.query("SELECT slot_start FROM viewing_appointments WHERE listing_id=$1 AND status<>'DECLINED'",[listingId]);
-    const taken=new Set(rows.rows.map((x)=>new Date(x.slot_start).toISOString()));
+    const taken=new Set(rows.rows.map((x:any)=>new Date(x.slot_start).toISOString()));
     const hours=[9,10,11,14,16];
     const day=new Date();
     day.setDate(day.getDate()+((6-day.getDay()+7)%7||7));
@@ -279,11 +280,6 @@ export class FeatureService {
     return this.db.query("UPDATE maintenance_requests SET status=$2 WHERE id=$1 RETURNING *",[id,status]).then((r)=>r.rows[0]);
   }
 
-  async track(name:string,userId?:string,propertyId?:string,payload:Record<string,unknown>={}) {
-    await this.track(name,userId,propertyId,payload);
-    return {ok:true};
-  }
-
   async platformAnalytics() {
     const [activeListings,properties,searches,bookings,gmv]=await Promise.all([
       this.db.count("property_listings","status='ACTIVE'"),
@@ -297,7 +293,7 @@ export class FeatureService {
 
   async landlordAnalytics(userId:string) {
     const propertyIds=await this.db.query("SELECT id FROM properties WHERE owner_id=$1",[userId]);
-    const ids=propertyIds.rows.map((x)=>x.id);
+    const ids=propertyIds.rows.map((x:any)=>x.id);
     const [properties,active,forSale,views,bookings,inq]=await Promise.all([
       ids.length, this.db.count("properties","owner_id=$1 AND status='PUBLISHED'",[userId]),
       this.db.count("property_listings","listing_type='SALE' AND property_id=ANY($1::uuid[])",[ids]),
@@ -316,7 +312,7 @@ export class FeatureService {
       this.db.query("SELECT * FROM consent_records WHERE user_id=$1",[userId]),
       this.db.query("SELECT * FROM messages WHERE sender_id=$1",[userId]),
     ]);
-    return {bookings:bookings.rows,favorites:favorites.rows.map((x)=>x.property_id),consents:consents.rows,messages:messages.rows};
+    return {bookings:bookings.rows,favorites:favorites.rows.map((x:any)=>x.property_id),consents:consents.rows,messages:messages.rows};
   }
 
   async deleteAccount(userId:string) {
@@ -364,7 +360,7 @@ export class FeatureService {
   }
 
   async adminUsers(){return this.db.query("SELECT u.id,u.email,u.full_name,u.status,COALESCE(ARRAY_AGG(ur.role) FILTER(WHERE ur.role IS NOT NULL),'{}') roles FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC").then((r)=>r.rows);}
-  async adminProperties(){const ids=await this.db.query("SELECT id FROM properties ORDER BY updated_at DESC LIMIT 500");return Promise.all(ids.rows.map((x)=>this.db.hydrateProperty(x.id)));}
+  async adminProperties(){const ids=await this.db.query("SELECT id FROM properties ORDER BY updated_at DESC LIMIT 500");return Promise.all(ids.rows.map((x:any)=>this.db.hydrateProperty(x.id)));}
   async adminModeration(){
     const [fraud,reports,verifications]=await Promise.all([
       this.db.query("SELECT * FROM fraud_cases ORDER BY created_at DESC LIMIT 500"),

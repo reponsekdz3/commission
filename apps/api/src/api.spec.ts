@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { parseNaturalSearch, calculatePrice, rwf, transitionBooking } from "@imizi/domain";
-import { SearchService } from "./src/modules/search/search.service";
-import { PlatformStore } from "./src/store/platform.store";
-import { BookingsService } from "./src/modules/bookings/bookings.service";
+import { SearchService } from "./modules/search/search.service";
+import { PlatformStore } from "./store/platform.store";
+import { BookingsService } from "./modules/bookings/bookings.service";
 
 describe("api domain wiring", () => {
   it("seeds marketplace inventory", () => {

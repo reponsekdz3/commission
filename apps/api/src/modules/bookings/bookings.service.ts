@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Inject, Injectable, NotFoundException } from "@nestjs/common";
 import { calculatePrice, datesOverlap, isHoldStatus, transitionBooking, rwf } from "@imizi/domain";
 import type { UserRecord, PlatformStore } from "../../store/platform.store";
 import { DatabaseService } from "../../infra/database.service";
@@ -7,7 +7,7 @@ type BookingInput={listingId:string;unitId?:string;startDate:string;endDate:stri
 
 @Injectable()
 export class BookingsService {
-  constructor(private readonly source:DatabaseService|PlatformStore){}
+  constructor(@Inject(DatabaseService) private readonly source:DatabaseService|PlatformStore){}
 
   private db():DatabaseService {
     if(!(this.source instanceof DatabaseService)) throw new Error("BookingsService requires PostgreSQL mode for this operation");

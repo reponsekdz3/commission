@@ -3,6 +3,7 @@ import { Pool, PoolClient } from "pg";
 import { randomUUID } from "crypto";
 import { loadConfig } from "@imizi/config";
 import type { Role, RiskLevel } from "@imizi/types";
+import { matchesSavedSearch } from "@imizi/domain";
 import type { UserRecord, PropertyRecord, ListingRecord, BookingRecord, PaymentIntentRecord } from "../store/platform.store";
 
 @Injectable()
@@ -179,8 +180,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       bathrooms:row.bathrooms == null ? undefined : Number(row.bathrooms),
       parking:row.parking == null ? undefined : Number(row.parking),
       areaValue:row.area_value == null ? undefined : Number(row.area_value),areaUnit:String(row.area_unit),
-      amenities:amenities.rows.map((x)=>String(x.amenity)),
-      media:media.rows.map((x)=>({id:String(x.id),kind:String(x.kind),url:String(x.storage_key).startsWith("http") ? String(x.storage_key) : "/cdn/"+String(x.storage_key),sortOrder:Number(x.sort_order)})),
+      amenities:amenities.rows.map((x:any)=>String(x.amenity)),
+      media:media.rows.map((x:any)=>({id:String(x.id),kind:String(x.kind),url:String(x.storage_key).startsWith("http") ? String(x.storage_key) : "/cdn/"+String(x.storage_key),sortOrder:Number(x.sort_order)})),
       createdAt:new Date(row.created_at).toISOString(),updatedAt:new Date(row.updated_at).toISOString(),
     };
   }
@@ -201,8 +202,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     ]);
     return {
       ...property,
-      units:units.rows.map((x)=>({id:String(x.id),propertyId:String(x.property_id),label:String(x.label),bedrooms:x.bedrooms == null ? undefined:Number(x.bedrooms),bathrooms:x.bathrooms == null ? undefined:Number(x.bathrooms),parking:x.parking == null ? undefined:Number(x.parking),status:String(x.status)})),
-      listings:listings.rows.map((x)=>this.mapListing(x)),
+      units:units.rows.map((x:any)=>({id:String(x.id),propertyId:String(x.property_id),label:String(x.label),bedrooms:x.bedrooms == null ? undefined:Number(x.bedrooms),bathrooms:x.bathrooms == null ? undefined:Number(x.bathrooms),parking:x.parking == null ? undefined:Number(x.parking),status:String(x.status)})),
+      listings:listings.rows.map((x:any)=>this.mapListing(x)),
       views:Number(views.rows[0].count),
       nearbyHint:{district:property.district,province:property.province},
     };
@@ -213,7 +214,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       "SELECT id FROM properties WHERE owner_id=$1 OR ($2::uuid IS NOT NULL AND organization_id=$2) ORDER BY updated_at DESC",
       [userId,organizationId ?? null],
     );
-    return (await Promise.all(ids.rows.map((x)=>this.hydrateProperty(x.id)))).filter(Boolean);
+    return (await Promise.all(ids.rows.map((x:any)=>this.hydrateProperty(x.id)))).filter(Boolean);
   }
 
   async updateProperty(id: string, patch: Record<string, any>) {
@@ -332,7 +333,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if(query.verifiedOnly) where.push("p.verification_status='VERIFIED'");
     if(query.availableFrom) add("pl.available_from<=?::timestamptz ",query.availableFrom);
     const amenities=Array.isArray(query.amenities) ? query.amenities : query.amenities ? String(query.amenities).split(",") : [];
-    if(amenities.length){values.push(amenities.map((x)=>String(x).trim().toLowerCase()).filter(Boolean));const arrIndex=values.length;values.push(amenities.length);where.push("(SELECT COUNT(*) FROM property_amenities pa WHERE pa.property_id=p.id AND lower(pa.amenity)=ANY($"+arrIndex+"::text[]))=$"+values.length);}
+    if(amenities.length){values.push(amenities.map((x:any)=>String(x).trim().toLowerCase()).filter(Boolean));const arrIndex=values.length;values.push(amenities.length);where.push("(SELECT COUNT(*) FROM property_amenities pa WHERE pa.property_id=p.id AND lower(pa.amenity)=ANY($"+arrIndex+"::text[]))=$"+values.length);}
     let distance="NULL::double precision distance_meters";
     if(query.lat != null && query.lng != null){
       values.push(Number(query.lng),Number(query.lat));const lng=values.length-1;const lat=values.length;
@@ -357,7 +358,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       "LEFT JOIN LATERAL (SELECT amount_minor,currency FROM property_prices WHERE listing_id=pl.id AND effective_to IS NULL ORDER BY effective_from DESC LIMIT 1) pp ON TRUE "+
       "WHERE "+where.join(" AND ")+" ORDER BY relevance DESC,pl.created_at DESC,pl.id DESC LIMIT $"+limit;
     const result=await this.query(sql,values);
-    return result.rows.map((x)=>({listing:this.mapListing(x),property:this.mapPropertyFromSearchRow(x),distanceMeters:x.distance_meters == null ? undefined : Math.round(Number(x.distance_meters)),score:Number(x.relevance)}));
+    return result.rows.map((x:any)=>({listing:this.mapListing(x),property:this.mapPropertyFromSearchRow(x),distanceMeters:x.distance_meters == null ? undefined : Math.round(Number(x.distance_meters)),score:Number(x.relevance)}));
   }
 
   async insertView(propertyId:string,userId?:string){await this.query("INSERT INTO property_views(property_id,user_id) VALUES($1,$2)",[propertyId,userId ?? null]);}
@@ -386,7 +387,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       : "SELECT DISTINCT b.* FROM bookings b JOIN property_listings pl ON pl.id=b.listing_id JOIN properties p ON p.id=pl.property_id WHERE b.tenant_id=$1 OR p.owner_id=$1 OR p.organization_id=(SELECT organization_id FROM users WHERE id=$1) ORDER BY b.created_at DESC",
       isAdmin ? [] : [userId],
     );
-    return r.rows.map((x)=>this.mapBooking(x));
+    return r.rows.map((x:any)=>this.mapBooking(x));
   }
 
   async createPaymentIntent(input:{id:string;bookingId:string;payerId:string;provider:string;amountMinor:number;currency:string;status:string;internalReference:string;idempotencyKey:string}){
@@ -499,6 +500,26 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     await client.query("INSERT INTO ledger_entries(account_id,direction,amount_minor,currency,reference) VALUES($1,$2,$3,$4,$5)",[account,direction,amount,currency,reference]);
   }
 
+  async findMatchingSavedSearches(propertyId:string) {
+    const property=await this.hydrateProperty(propertyId);
+    if(!property || property.status!=="PUBLISHED") return [];
+    const searches=await this.query("SELECT * FROM saved_searches WHERE notify=TRUE ORDER BY created_at DESC");
+    return searches.rows.filter((row:any)=>{
+      const criteria=(row.criteria ?? {}) as Record<string,unknown>;
+      return property.listings.some((listing:any)=>
+        listing.status==="ACTIVE" && matchesSavedSearch(criteria as any,{
+          listingType:String(listing.listingType),
+          propertyType:String(property.propertyType),
+          district:property.district,
+          bedrooms:property.bedrooms,
+          priceMinor:Number(listing.priceMinor),
+          amenities:property.amenities,
+          furnished:property.amenities.some((a:string)=>a.toLowerCase()==="furnished"),
+        })
+      );
+    });
+  }
+
   private mapUser(row:any):UserRecord{
     return {
       id:String(row.id),email:String(row.email),phone:String(row.phone),passwordHash:String(row.password_hash),
@@ -535,7 +556,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   private mapPropertyFromSearchRow(row:any):PropertyRecord{
     return {
       id:String(row.property_id),ownerId:String(row.owner_id),organizationId:row.organization_id ?? undefined,title:String(row.title),
-      description:String(row.description),propertyType:String(row.property_type),status:String(row.property_status),
+      description:String(row.description),propertyType:String(row.property_type),status:row.property_status as PropertyRecord["status"],
       countryCode:String(row.country_code),verificationStatus:String(row.verification_status),riskLevel:row.risk_level,
       riskScore:Number(row.risk_score),province:String(row.province),district:String(row.district),sector:row.sector ?? undefined,
       cell:row.cell ?? undefined,village:row.village ?? undefined,latitude:Number(row.latitude),longitude:Number(row.longitude),

@@ -17,7 +17,7 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException("Authentication required");
     }
     try {
-      const token = header.replace(/^Bearer\\s+/i, "");
+      const token = header.replace(/^Bearer\s+/i, "");
       const payload = this.jwt.verify<{sub:string}>(token);
       const user = await this.db.findUserById(payload.sub);
       if (!user || user.status !== "ACTIVE") throw new UnauthorizedException();
