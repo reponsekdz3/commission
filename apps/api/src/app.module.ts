@@ -3,7 +3,6 @@ import { JwtModule } from "@nestjs/jwt";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { loadConfig } from "@imizi/config";
-import { PlatformStore } from "./store/platform.store";
 import { DatabaseService } from "./infra/database.service";
 import { FeatureService } from "./infra/feature.service";
 import { RequestIdInterceptor } from "./common/request-id.interceptor";
@@ -61,7 +60,7 @@ const config = loadConfig();
     AnalyticsController, PrivacyController, ViewingsController, LeasesController, RecommendationsController, CatalogController,
   ],
   providers: [
-    DatabaseService, FeatureService, PlatformStore, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService,
+    DatabaseService, FeatureService, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService,
     MessagesGateway, JobsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
