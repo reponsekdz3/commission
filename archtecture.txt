@@ -1,0 +1,1884 @@
+build this app as powerfull software enginieer eal production-grade platform, ntabwo bihagije gukora screens, CRUD na database gusa. Ugomba kuyubaka nka Real Estate Marketplace + Booking + Payments + Maps + Messaging + Property Management platform ifite architecture ishobora gutangira ari nto ariko igakura ikagera ku users benshi.
+
+1. Architecture nyayo nakoresha
+
+Nahitamo iyi stack:
+
+Layer	Technology
+Mobile	React Native + Expo
+Web	Next.js + TypeScript
+Admin	Next.js + TypeScript
+Backend	NestJS + TypeScript
+Main DB	PostgreSQL
+Location	PostGIS
+Search	OpenSearch
+Cache	Redis
+Realtime	WebSocket / Socket.IO
+Files	S3-compatible object storage
+CDN	Cloudflare CDN / CloudFront
+Queue	BullMQ + Redis
+Maps	Google Maps or Mapbox
+Payments	MTN MoMo + payment gateway + cards where supported
+Monitoring	Sentry + OpenTelemetry + Prometheus/Grafana
+CI/CD	GitHub Actions + Docker
+
+React Native/Expo's current architecture is particularly suitable for a new modern mobile application; Expo's current documentation states that SDK 55+ runs entirely on React Native's New Architecture. Next.js provides the current App Router for modern React applications, while NestJS is explicitly designed for scalable Node.js server-side applications.
+
+2. Don't start with microservices
+
+For your first serious version, use a:
+
+Modular Monolith
+
+not 20 separate microservices.
+
+Architecture:
+
+                    ┌──────────────────────┐
+                    │      Mobile App      │
+                    │    React Native      │
+                    └──────────┬───────────┘
+                               │
+                    ┌──────────▼───────────┐
+                    │       Web App        │
+                    │       Next.js        │
+                    └──────────┬───────────┘
+                               │
+                         HTTPS / WS
+                               │
+                ┌──────────────▼──────────────┐
+                │       API / NestJS          │
+                │                             │
+                │ Auth                        │
+                │ Users                       │
+                │ Properties                  │
+                │ Listings                    │
+                │ Search                      │
+                │ Maps                        │
+                │ Bookings                    │
+                │ Payments                    │
+                │ Messaging                   │
+                │ Reviews                     │
+                │ Verification                │
+                │ Notifications               │
+                │ Admin                       │
+                └───────┬───────────┬────────┘
+                        │           │
+             ┌──────────▼───┐   ┌──▼──────────┐
+             │ PostgreSQL   │   │   Redis     │
+             │ + PostGIS    │   │ Cache/Queue │
+             └──────────────┘   └──────┬──────┘
+                                       │
+                              ┌────────▼────────┐
+                              │ Background Jobs │
+                              └────────┬────────┘
+                                       │
+              ┌────────────────────────┼───────────────────┐
+              │                        │                   │
+        ┌─────▼─────┐            ┌─────▼─────┐       ┌────▼────┐
+        │ OpenSearch│            │ Payments  │       │ Storage │
+        └───────────┘            └───────────┘       └─────────┘
+
+Iyo platform imaze kugira traffic nini, modules nka Search, Messaging, Media Processing cyangwa Payments zishobora gukurwa muri monolith zikaba services zitandukanye.
+
+3. The most important database design
+
+Ikosa rikomeye ni gukora table imwe yitwa houses.
+
+Kora domain model nyayo.
+
+users
+organizations
+organization_members
+
+properties
+property_units
+property_listings
+
+property_locations
+property_media
+property_amenities
+property_features
+property_documents
+
+property_prices
+property_availability
+
+favorites
+saved_searches
+property_views
+
+bookings
+booking_guests
+rental_agreements
+
+offers
+payments
+payment_transactions
+payment_refunds
+
+conversations
+conversation_members
+messages
+
+reviews
+ratings
+
+verification_requests
+reports
+fraud_cases
+
+notifications
+notification_preferences
+
+audit_logs
+admin_actions
+Ikintu cy'ingenzi: Property ≠ Listing
+
+Urugero:
+
+PROPERTY
+"Modern House in Kigali"
+
+        │
+        ├── Listing: RENT
+        │      900,000 RWF/month
+        │
+        └── Listing: SALE
+               110,000,000 RWF
+
+Kandi apartment building:
+
+PROPERTY
+Apartment Building A
+
+   ├── Unit 101
+   ├── Unit 102
+   ├── Unit 103
+   ├── Unit 104
+   └── Unit 105
+
+Ibi bizatuma platform ishobora kuzakira large apartment complexes, offices, shops, warehouses n'ubutaka.
+
+4. Location system ibe professional
+
+Iyi app idafite geospatial architecture nziza ntabwo izaba powerful.
+
+Koresha:
+
+PostgreSQL + PostGIS
+
+kuri:
+
+latitude
+longitude
+radius searches
+nearest properties
+polygon/area searches
+distance
+map bounding boxes
+geographic filters
+
+PostGIS ikoresha spatial indexes nka GiST kugira ngo spatial queries zirusheho gukora neza.
+
+Urugero:
+
+Find:
+apartments
+within 5 km
+of user's location
+under 800,000 RWF
+3 bedrooms
+available now
+
+Database ishobora kubikora nta gukora full scan ya properties zose.
+
+5. Map system
+
+User agomba kubona:
+
+LIST VIEW
+      ↕
+MAP VIEW
+
+Map ikore:
+
+Current Location
+      ↓
+Search radius
+      ↓
+Nearby properties
+      ↓
+Nearby places
+      ↓
+Directions
+
+Map provider uyishyire inyuma ya abstraction:
+
+interface MapProvider {
+  geocode()
+  reverseGeocode()
+  searchPlaces()
+  calculateRoute()
+  getNearbyPlaces()
+}
+
+Bityo ushobora gukoresha Google Maps cyangwa Mapbox utarangiza uhinduye business logic yose.
+
+Google Maps Platform ubu ifite Places, geocoding, routes, navigation n'izindi location APIs; Mapbox nayo ifite Search Box na Geocoding APIs.
+
+6. Search engine ibe imwe mu bintu bikomeye kurusha ibindi
+
+Ntukoreshe PostgreSQL gusa ku search nini.
+
+Koresha:
+
+PostgreSQL = source of truth
+
+OpenSearch = search/read index
+
+OpenSearch ishobora gukora full-text queries, fuzzy matching, multi-field search, filtering n'aggregations.
+
+User ashobora kwandika:
+
+"house near Kigali with 3 bedrooms under 1 million"
+
+System igahindura ibyo mu filters:
+
+{
+  "type": "HOUSE",
+  "listingType": "RENT",
+  "bedrooms": 3,
+  "maxPrice": 1000000,
+  "location": "Kigali"
+}
+
+Search ikore:
+
+Exact match
++
+Fuzzy match
++
+Location
++
+Price
++
+Availability
++
+Property type
++
+Amenities
++
+Verification
++
+Freshness
+7. Search ranking algorithm
+
+Ntukagarure properties randomly.
+
+Kora ranking:
+
+score =
+    text_relevance
+  + location_relevance
+  + price_match
+  + availability
+  + listing_quality
+  + verification
+  + freshness
+
+Urugero:
+
+Text match           30%
+Location             25%
+Filter match         20%
+Availability         10%
+Verified              5%
+Listing quality       5%
+Freshness             5%
+
+Izi percentages ntabwo ari rules zihamye; uzazihindura uko ubona real user behavior.
+
+8. Property page ibe nk'iya professional marketplace
+┌─────────────────────────────────┐
+│          PROPERTY PHOTOS         │
+│                                  │
+│       [ LARGE IMAGE ]            │
+│                                  │
+│   24 photos · Video · 360°       │
+└─────────────────────────────────┘
+
+3 Bedroom House
+Kicukiro, Kigali
+
+900,000 RWF / month
+
+⭐ Verified
+⭐ Owner verified
+
+3 Bedrooms
+2 Bathrooms
+2 Parking
+
+Water ✓
+Electricity ✓
+Internet ✓
+Security ✓
+
+───────────────
+DESCRIPTION
+───────────────
+
+───────────────
+LOCATION
+───────────────
+
+[VIEW ON MAP]
+
+───────────────
+NEARBY
+───────────────
+
+School 500m
+Market 700m
+Hospital 1.4km
+
+───────────────
+OWNER
+───────────────
+
+[Chat]
+[Call]
+[Book Viewing]
+[Rent]
+9. Media architecture
+
+Ntukabike amafoto muri PostgreSQL.
+
+Koresha:
+
+Mobile
+   ↓
+Upload signed URL
+   ↓
+Object Storage
+   ↓
+Queue
+   ↓
+Image Processing
+   ├── thumbnail
+   ├── small
+   ├── medium
+   ├── large
+   └── WebP/AVIF
+   ↓
+CDN
+
+Kandi:
+
+EXIF cleanup
+file type validation
+maximum dimensions
+malware scanning
+duplicate detection
+image compression
+lazy loading
+responsive images
+video transcoding
+
+Ibi bituma app idatinda nubwo property yaba ifite amafoto 50.
+
+10. Booking system
+
+Booking ntabwo ari INSERT booking.
+
+Ugomba kugira state machine:
+
+PENDING
+   ↓
+PAYMENT_PENDING
+   ↓
+CONFIRMED
+   ↓
+ACTIVE
+   ↓
+COMPLETED
+
+Cancellations:
+
+PENDING ─────→ CANCELLED
+PAYMENT_PENDING → EXPIRED
+CONFIRMED ─────→ CANCELLED
+
+Kandi dates ntizigomba kwemerera double booking.
+
+Ku rentals zifite period, PostgreSQL ishobora gukoreshwa mu kubuza overlapping reservations ku rwego rwa database, aho kwiringira frontend gusa.
+
+11. Online renting
+
+Flow nyayo:
+
+Search
+ ↓
+Property
+ ↓
+Availability
+ ↓
+Choose dates
+ ↓
+Price calculation
+ ↓
+Booking created
+ ↓
+Payment initiated
+ ↓
+Provider confirms payment
+ ↓
+Webhook received
+ ↓
+Payment verified server-side
+ ↓
+Booking CONFIRMED
+ ↓
+Receipt generated
+ ↓
+Notification
+
+Never trust the mobile app saying “payment successful”.
+
+Frontend iba yarayoborwa n'umuntu cyangwa attacker.
+
+Payment provider/server niyo authority.
+
+12. Payments
+
+Ku Rwanda ushobora gushyiraho payment abstraction:
+
+PaymentService
+    │
+    ├── MTNMoMoProvider
+    ├── Airtel/other provider
+    ├── Flutterwave
+    └── CardProvider
+
+MTN MoMo ifite official APIs z'ibikorwa nka Collections na Disbursements. Flutterwave ubu itangaza mobilemoneyrwanda kandi ifite documentation y'u Rwanda Mobile Money muri RWF.
+
+Database:
+
+payment_intents
+payment_transactions
+payment_events
+refunds
+payouts
+ledger_entries
+
+Buri transaction ibe ifite:
+
+internal_reference
+provider_reference
+idempotency_key
+amount
+currency
+status
+created_at
+completed_at
+13. Money ledger
+
+Kugira ngo payments zibe serious, ntukishingikirize kuri balance = balance + amount.
+
+Kora ledger:
+
+ledger_accounts
+
+Landlord
+Platform
+Agent
+Refund account
+
+Transactions:
+
+TENANT
+  ↓ 900,000
+PLATFORM HOLDING
+  ↓
+LANDLORD
+
+Ibi bizagufasha mu:
+
+commissions
+refunds
+payouts
+disputes
+reconciliation
+transaction history
+14. Messaging
+
+Use:
+
+WebSocket / Socket.IO
+
+Architecture:
+
+Conversation
+   ├── members
+   ├── messages
+   ├── attachments
+   ├── read receipts
+   └── typing status
+
+Messages zigire:
+
+SENT
+DELIVERED
+READ
+
+Kandi message ishobora kuba linked na:
+
+property_id
+booking_id
+offer_id
+
+Bityo user akandikira owner kuri property specific.
+
+15. Notifications
+
+Koresha centralized notification service.
+
+NotificationService
+      │
+      ├── Push
+      ├── SMS
+      ├── Email
+      └── In-app
+
+Notifications:
+
+New message
+Booking confirmed
+Payment received
+Rent due
+New matching property
+Booking reminder
+Viewing reminder
+Price changed
+Property sold
+Property rented
+Verification complete
+
+Redis/BullMQ jobs zizakoresha background workers kugira ngo API itegereze SMS/email/image processing.
+
+16. Saved searches
+
+Iyi ni feature ikomeye cyane.
+
+User akora:
+
+Kigali
+2-3 bedrooms
+< 900,000 RWF
+Furnished
+Parking
+
+[Save Search]
+
+System ikabika.
+
+Property nshya ihuye nayo:
+
+🔔 New property matching your search
+17. Recommendations
+
+Tangirana na rules-based recommendation, ntukeneye AI mu ntangiriro.
+
+User viewed:
+3-bedroom homes
+Kicukiro
+700k–1m
+
+→ show similar properties
+
+Use:
+
+recent views
+favorites
+searches
+budget
+location
+property type
+bedrooms
+amenities
+
+Nyuma ushobora gushyiramo ML recommendation engine.
+
+18. Owner / landlord dashboard
+Dashboard
+
+Properties             24
+Active                  18
+Rented                   9
+For sale                 4
+
+Views                12,450
+Inquiries               342
+Bookings                 82
+Revenue            18,400,000
+
+Features:
+
+Add property
+Edit listing
+Manage photos
+Manage price
+Manage availability
+Accept/reject requests
+View analytics
+Manage tenants
+Manage payments
+Manage maintenance
+19. Agency system
+
+Agency ntabwo ibe user usanzwe gusa.
+
+Agency
+ ├── Admin
+ ├── Agent 1
+ ├── Agent 2
+ ├── Agent 3
+ └── Properties
+
+Agency dashboard:
+
+Leads
+Properties
+Agents
+Bookings
+Deals
+Revenue
+Analytics
+20. Verification system
+
+Ibi bigomba kuba core, kubera ko real estate ishobora kugira scams.
+
+States:
+
+UNVERIFIED
+    ↓
+SUBMITTED
+    ↓
+UNDER_REVIEW
+    ├── VERIFIED
+    └── REJECTED
+
+Verification types:
+
+Phone
+Identity
+Owner
+Agency
+Property
+Documents
+Business
+
+Display:
+
+✓ Verified Owner
+✓ Verified Property
+
+Ariko verification badge ntigomba kuvuga ko platform yishingiye ku ownership/legal validity y'umutungo keretse iyo verification process yawe ibifitiye authority n'ibimenyetso bihagije.
+
+21. Anti-fraud system
+
+System ibe ikurikirana:
+
+Too many listings
+Same photos on many accounts
+Suspiciously low price
+Repeated reports
+Rapid account creation
+Payment anomalies
+Fake phone/email behavior
+Duplicate property
+Location mismatch
+
+Risk score:
+
+LOW
+MEDIUM
+HIGH
+BLOCKED
+
+High-risk listing ijye muri moderation queue.
+
+22. Reviews
+
+Reviews zigomba kuba attached kuri actual transaction/booking igihe bishoboka.
+
+Tenant rented property
+       ↓
+Rental completed
+       ↓
+Review allowed
+
+Ibi biruta umuntu wese kwandika review ku property atigeze abona.
+
+23. Security architecture
+
+Ibi ni ibintu bitagomba gusigara nyuma.
+
+OWASP ishyira Broken Object-Level Authorization, Broken Authentication, Broken Function-Level Authorization, unrestricted resource consumption n'izindi mu byago bikomeye bya APIs.
+
+Kora:
+
+TLS everywhere
+JWT/access tokens
+Refresh-token rotation
+MFA for privileged users
+RBAC
+Object-level authorization
+Rate limiting
+Brute-force protection
+Input validation
+SQL injection protection
+XSS protection
+CSRF protection where applicable
+Secure headers
+CORS policy
+Secret management
+Audit logs
+File-upload security
+SSRF protection
+Webhook verification
+
+Admin:
+
+Password
++
+2FA
++
+Device/session monitoring
+
+Sensitive actions:
+
+Change payout account
+Change phone
+Change email
+Refund
+Delete property
+Change ownership information
+
+zibe zikeneye re-authentication.
+
+24. API authorization
+
+Ntukore:
+
+GET /properties/123
+
+hanyuma ngo 123 ihite isobanura user yemerewe kubona icyo kintu.
+
+Server igomba gukora:
+
+authenticate user
+      ↓
+identify property
+      ↓
+check ownership/access
+      ↓
+check role
+      ↓
+check business rule
+      ↓
+return
+
+Kuri every resource ID.
+
+25. API versioning
+
+Tangira:
+
+/api/v1
+
+Nyuma:
+
+/api/v2
+
+Bityo mobile version ishaje idahita yangirika igihe backend yahindutse.
+
+26. API design
+
+Modules:
+
+/auth
+/users
+/properties
+/listings
+/units
+/search
+/maps
+/favorites
+/bookings
+/payments
+/offers
+/leases
+/messages
+/reviews
+/verification
+/notifications
+/agencies
+/admin
+
+Kandi APIs zigire:
+
+validation
+authorization
+pagination
+filtering
+sorting
+consistent errors
+request IDs
+idempotency
+rate limiting
+27. Pagination
+
+Ntukoreshe:
+
+?page=10000
+
+ku data nini.
+
+Koresha cursor/keyset pagination:
+
+GET /properties?cursor=abc123&limit=20
+
+Ibi bikora neza ku marketplace ifite listings nyinshi.
+
+28. Database indexing
+
+Indexes ku byo ushakisha cyane:
+
+owner_id
+status
+property_type
+listing_type
+price
+bedrooms
+created_at
+availability
+location
+
+Location:
+
+GIST(location)
+
+PostGIS docs zisobanura ko spatial indexes ari ingenzi cyane ku performance ya geographic SQL queries.
+
+29. Caching strategy
+
+Redis:
+
+Popular properties
+Search suggestions
+Categories
+Amenities
+Public configuration
+Nearby results
+Session/rate-limit data
+
+Ntukabike sensitive transactional truth muri cache nkaho ari source of truth.
+
+Source of truth ni PostgreSQL.
+
+30. Background jobs
+API
+ │
+ ├── Create property
+ │
+ └── Queue job
+        │
+        ├── Index OpenSearch
+        ├── Resize images
+        ├── Send notification
+        ├── Send email
+        ├── Generate thumbnails
+        └── Analytics event
+
+Ibi bituma user atategereza seconds 20 kubera processing.
+
+31. Analytics
+
+Track:
+
+property_viewed
+property_saved
+search_performed
+map_opened
+contact_owner
+viewing_requested
+booking_started
+payment_started
+payment_success
+booking_cancelled
+property_shared
+
+Kandi landlord abone analytics ze.
+
+Admin abone:
+
+DAU
+MAU
+searches
+active listings
+new listings
+bookings
+GMV
+revenue
+conversion
+cancellations
+fraud reports
+32. Mobile performance
+
+Kuko users bashobora kuba bafite phones zifite resources nke:
+
+Image compression
+Lazy loading
+Pagination
+Virtualized lists
+Offline cache
+Skeleton screens
+Minimal startup work
+Background sync
+CDN
+Compressed API responses
+
+Ntukohereze image ya 8MB kuri phone kubera ko photo iri muri database.
+
+33. Offline capability
+
+App ishobora gukomeza gukora kuri internet nke:
+
+Recently viewed properties
+Saved properties
+Search history
+Messages cache
+User profile
+
+Iyo internet igarutse:
+
+sync
+  ↓
+resolve conflicts
+  ↓
+update local cache
+34. UX ibe modern
+
+Home:
+
+Search
+────────────────────────
+Where do you want to live?
+
+[ Kigali ▼ ]
+
+Rent     Buy     Land
+
+[ Filters ]
+
+Nearby Properties
+
+[ Property cards ]
+
+See on Map →
+
+Property card:
+
+[PHOTO]
+
+3 Bedroom House
+Kicukiro
+
+900K/month
+
+★ Verified
+🚗 2 parking
+🛏 3
+🛁 2
+
+♡ Save
+
+Map mode:
+
+┌─────────────────────────┐
+│ Search this area        │
+│                         │
+│   ●  ●       ●          │
+│       ●                 │
+│ ●           ●           │
+│                         │
+├─────────────────────────┤
+│ Swipe property cards ↑  │
+└─────────────────────────┘
+35. Property comparison
+
+User ahitemo 2–4:
+
+                  A        B        C
+
+Price             800k     950k     750k
+Bedrooms           3        4        3
+Bathrooms          2        3        2
+Parking             2        1        3
+Distance           2km      4km      1km
+Verified            ✓        ✓        ✓
+36. Viewing scheduler
+Saturday
+
+09:00 ✓
+10:00 ✓
+11:00 ✕
+14:00 ✓
+16:00 ✓
+
+Owner cyangwa agent yemeze appointment.
+
+Calendar integration izaza nyuma.
+
+37. Rental agreement
+
+Booking confirmed:
+
+Rental Agreement
+       ↓
+Tenant information
+Landlord information
+Property
+Rent
+Deposit
+Duration
+Rules
+Cancellation
+Signatures
+       ↓
+PDF
+
+Important: legal contract templates and ownership/lease workflows should be reviewed against applicable Rwandan law before production use.
+
+38. Property management
+
+Iyo tenant yamaze gukodesha:
+
+MY RENTAL
+
+Rent:
+900,000 RWF
+
+Next payment:
+01 Oct
+
+Lease:
+Active
+
+Maintenance
+[Report problem]
+
+Tenant:
+
+"Water leak in bathroom"
+
+[PHOTO]
+[Submit]
+
+Landlord:
+
+Maintenance Request #143
+Status: OPEN
+
+[Assign technician]
+[In progress]
+[Resolved]
+
+Ibi bizatuma app ihinduka property operating platform, ntabwo iba classifieds gusa.
+
+39. Admin panel
+
+Admin dashboard igomba kuba powerful:
+
+Users
+Properties
+Listings
+Agencies
+Bookings
+Payments
+Refunds
+Reports
+Verification
+Fraud
+Reviews
+Messages moderation
+Notifications
+Categories
+Amenities
+Pricing
+Commissions
+System settings
+Audit logs
+
+Kandi buri admin action ibe muri:
+
+audit_logs
+
+Urugero:
+
+ADMIN
+reponse_admin
+
+Action:
+PROPERTY_VERIFIED
+
+Property:
+P-10293
+
+Before:
+PENDING
+
+After:
+VERIFIED
+
+IP:
+...
+Timestamp:
+...
+40. Roles
+SUPER_ADMIN
+ADMIN
+MODERATOR
+VERIFICATION_AGENT
+FINANCE_ADMIN
+
+USER
+TENANT
+BUYER
+LANDLORD
+SELLER
+
+AGENT
+AGENCY_ADMIN
+PROPERTY_MANAGER
+
+Ntukoreshe isAdmin=true gusa.
+
+41. Notifications architecture
+Event:
+BOOKING_CONFIRMED
+
+        ↓
+
+Event Bus
+
+        ├── Push
+        ├── Email
+        ├── SMS
+        └── In-app notification
+
+Event-driven design izagufasha kongera features nyuma utavanyeho business logic.
+
+42. Storage architecture
+property/
+  property-id/
+      original/
+      thumbnails/
+      optimized/
+      videos/
+      documents/
+
+Documents sensitive zigire private buckets, ntabwo ziba public CDN URLs.
+
+Koresha signed URLs.
+
+43. API documentation
+
+Use:
+
+OpenAPI / Swagger
+
+Buri endpoint ibe documenté:
+
+POST /api/v1/bookings
+
+Request:
+
+{
+  "propertyId": "...",
+  "startDate": "...",
+  "endDate": "..."
+}
+
+Response:
+
+{
+  "bookingId": "...",
+  "status": "PAYMENT_PENDING"
+}
+44. Testing
+
+Ntabwo app nk'iyi ikwiriye kujya production nta testing ihari.
+
+Unit tests
+PriceCalculator
+BookingRules
+PaymentStateMachine
+SearchFilters
+PermissionRules
+CommissionCalculator
+Integration tests
+API + PostgreSQL
+API + Redis
+API + payment sandbox
+API + OpenSearch
+E2E tests
+Register
+Login
+Search
+Open property
+Book
+Pay
+Receive confirmation
+Chat
+Review
+Mobile E2E
+
+Test:
+
+Android
+iOS
+slow network
+no network
+small screen
+large screen
+Load testing
+
+Use tools such as:
+
+k6
+
+Test:
+
+1,000 concurrent users
+5,000 concurrent users
+10,000 requests
+search spikes
+booking spikes
+45. CI/CD
+
+GitHub:
+
+push
+ ↓
+lint
+ ↓
+typecheck
+ ↓
+unit tests
+ ↓
+integration tests
+ ↓
+security scan
+ ↓
+build
+ ↓
+Docker image
+ ↓
+deploy staging
+ ↓
+E2E
+ ↓
+production
+
+Environment:
+
+development
+staging
+production
+
+Never use production database from development.
+
+46. Docker
+
+Project:
+
+apps/
+  mobile/
+  web/
+  admin/
+  api/
+
+packages/
+  ui/
+  types/
+  config/
+  database/
+  validation/
+  maps/
+  payments/
+  auth/
+
+infra/
+  docker/
+  terraform/
+
+docs/
+
+Backend:
+
+src/
+  modules/
+    auth/
+    users/
+    properties/
+    listings/
+    search/
+    maps/
+    bookings/
+    payments/
+    messages/
+    notifications/
+    reviews/
+    verification/
+    agencies/
+    admin/
+
+  common/
+  config/
+  database/
+  events/
+  guards/
+  interceptors/
+  middleware/
+47. Environment management
+
+Never write:
+
+const PAYMENT_KEY = "my-secret-key";
+
+Use:
+
+ENVIRONMENT VARIABLES
++
+Secrets Manager
+
+Example:
+
+DATABASE_URL
+REDIS_URL
+JWT_SECRET
+PAYMENT_SECRET
+MAPS_API_KEY
+STORAGE_SECRET
+SENTRY_DSN
+48. Backups
+
+Database:
+
+daily backups
++
+point-in-time recovery
++
+off-site backup
+
+Test restoration.
+
+A backup you have never restored is not a reliable disaster-recovery strategy.
+
+49. Disaster recovery
+
+Prepare for:
+
+Database failure
+Storage failure
+Payment provider outage
+Search outage
+Redis failure
+API failure
+Bad deployment
+Security incident
+
+For example:
+
+OpenSearch down
+     ↓
+Search temporarily falls back
+     ↓
+PostgreSQL basic search
+     ↓
+OpenSearch restored
+     ↓
+Re-index
+
+The whole app should not die because one secondary system is down.
+
+50. Observability
+
+You need three things:
+
+Logs
+Metrics
+Traces
+
+Use:
+
+Sentry
+OpenTelemetry
+Prometheus
+Grafana
+
+Track:
+
+API latency
+5xx errors
+DB latency
+payment failures
+booking failures
+search latency
+queue size
+memory
+CPU
+storage
+active connections
+51. Health checks
+GET /health
+GET /ready
+GET /live
+
+Example:
+
+API            ✓
+Database       ✓
+Redis          ✓
+Search         ✓
+Storage        ✓
+Payment        ✓
+52. Security monitoring
+
+Monitor:
+
+Failed logins
+Brute force
+Impossible login patterns
+Multiple accounts
+Payment anomalies
+Admin activity
+Suspicious IPs
+Abnormal API traffic
+
+Rate limiting:
+
+login
+OTP
+password reset
+search
+chat
+booking
+payment
+file upload
+
+should not all have the same limit.
+
+53. Data privacy — especially because you're starting in Rwanda
+
+This is important.
+
+Rwanda's Data Protection and Privacy Office states that persons acting as data controllers or processors must register with the supervisory authority, and its guidance covers processing of personal data of people in Rwanda.
+
+The law also requires privacy-conscious processing, specified purposes, data quality, retention controls and respect for data-subject rights.
+
+Therefore production architecture should include:
+
+Privacy Policy
+Terms of Service
+Consent records
+Data retention policy
+Account deletion
+Data export
+Access control
+Encryption
+Breach procedures
+Processor agreements
+Audit logs
+
+And before deploying the actual commercial service, get the compliance requirements checked for your specific business model. The DPO's current material also indicates that certain storage/transfers of personal data outside Rwanda can require authorization.
+
+54. Localization for Rwanda
+
+From the beginning:
+
+Currency:
+RWF
+
+Language:
+Kinyarwanda
+English
+French
+
+Locations:
+
+Country
+Province
+District
+Sector
+Cell
+Village
+
+Don't hard-code Kigali.
+
+Your database should support:
+
+Rwanda
+Uganda
+Kenya
+Tanzania
+...
+
+later.
+
+55. International architecture
+
+Instead of:
+
+price = 900000
+
+use:
+
+amount = 900000
+currency = RWF
+
+Then later:
+
+USD
+KES
+UGX
+TZS
+
+Same with measurement:
+
+area
+unit
+currency
+timezone
+locale
+56. Pricing engine
+
+Prices should not simply be strings.
+
+PricingRule
+ ├── basePrice
+ ├── deposit
+ ├── serviceFee
+ ├── tax
+ ├── discount
+ ├── agentCommission
+ └── currency
+
+Calculation:
+
+Base rent
++
+Deposit
++
+Service fee
+-
+Discount
++
+Applicable charges
+=
+Total
+
+All money calculations should use integer minor units where appropriate, not floating-point arithmetic.
+
+57. Offers for property buying
+
+For properties for sale:
+
+Seller:
+120M RWF
+
+Buyer:
+"Offer 105M"
+
+        ↓
+
+OFFER_PENDING
+        ↓
+SELLER_REVIEWING
+        ↓
+ACCEPTED / REJECTED / COUNTERED
+
+Counteroffer:
+
+Seller → 112M
+Buyer → Accept
+58. Property documents
+
+You can have:
+
+Ownership documents
+Property certificates
+Plans
+Rental agreements
+Invoices
+Verification records
+
+But documents should have:
+
+private access
+encryption
+signed URL
+audit trail
+versioning
+expiry date
+verification status
+59. Search + map together
+
+The best UX would be:
+
+Search
+
+┌─────────────────────────────────────┐
+│ "3 bedroom near Kicukiro"            │
+└─────────────────────────────────────┘
+
+[Rent] [Buy] [Land]
+
+Price
+Bedrooms
+Bathrooms
+Amenities
+Distance
+Verified
+Availability
+
+              ↓
+
+LIST
+  +
+MAP
+
+       ●
+   ●        ●
+       ●
+ ●           ●
+
+When the user moves the map:
+
+"Search this area"
+
+then backend searches only the new bounding box.
+
+60. Nearby intelligence
+
+Property:
+
+📍 Kicukiro
+
+System:
+
+Schools nearby
+Hospitals nearby
+Supermarkets
+Banks
+Restaurants
+Bus stops
+Roads
+Places of worship
+
+Map providers such as Google provide Places, geocoding and route APIs that support these location-oriented experiences.
+
+61. Advanced future features
+
+Once the core system is stable:
+
+360° virtual tours
+Property
+ ↓
+360 images
+ ↓
+Virtual walkthrough
+Video tours
+Upload
+ ↓
+transcode
+ ↓
+adaptive streaming
+Floor-plan viewer
+2D plan
++
+rooms
++
+dimensions
+Mortgage / affordability
+Property price
+Down payment
+Interest
+Term
+
+↓
+Estimated payment
+Market analytics
+Average rent
+Price per m²
+Neighborhood trends
+Demand
+Supply
+Owner analytics
+Why people don't book
+Views → inquiries
+Inquiries → bookings
+62. What makes it actually "powerful"
+
+The important thing is not having 100 screens.
+
+The powerful architecture is this:
+
+                  REAL ESTATE PLATFORM
+
+                       USERS
+                         │
+        ┌────────────────┼─────────────────┐
+        │                │                 │
+     SEARCH             MAP             CHAT
+        │                │                 │
+        └────────────────┼─────────────────┘
+                         │
+                     PROPERTY
+                         │
+         ┌───────────────┼───────────────┐
+         │               │               │
+       RENT             BUY            VIEW
+         │               │               │
+         └───────────────┼───────────────┘
+                         │
+                     BOOKING
+                         │
+                     PAYMENT
+                         │
+                     AGREEMENT
+                         │
+                  PROPERTY MANAGEMENT
+
+Iyo ibi byose bihujwe neza, uba wakoze platform, ntabwo uba wakoze listing app gusa.
+
+63. Recommended production architecture
+
+Nayishyiraho gutya:
+
+                    ┌─────────────────┐
+                    │  React Native   │
+                    │  Mobile App     │
+                    └────────┬────────┘
+                             │
+                    ┌────────▼────────┐
+                    │    Next.js      │
+                    │  Web + Admin    │
+                    └────────┬────────┘
+                             │
+                        API Gateway
+                             │
+                    ┌────────▼────────┐
+                    │    NestJS       │
+                    │ Modular Backend  │
+                    └────────┬────────┘
+                             │
+       ┌─────────────┬───────┼─────────┬──────────────┐
+       │             │       │         │              │
+       ▼             ▼       ▼         ▼              ▼
+ PostgreSQL       Redis  OpenSearch  Object        WebSocket
+ + PostGIS                       Storage
+       │             │       │         │              │
+       └─────────────┴───────┼─────────┴──────────────┘
+                             │
+                         Event Queue
+                             │
+              ┌──────────────┼──────────────┐
+              ▼              ▼              ▼
+          Payments       Notifications   Media
+64. The actual build phases
+Phase 1 — Foundation
+Monorepo
+TypeScript
+NestJS
+Next.js
+React Native
+PostgreSQL
+PostGIS
+Redis
+Auth
+Users
+RBAC
+Phase 2 — Real estate core
+Properties
+Units
+Listings
+Amenities
+Media
+Locations
+Search
+Filters
+Favorites
+Maps
+Phase 3 — Marketplace
+Owners
+Agents
+Agencies
+Verification
+Messaging
+Reviews
+Reports
+Phase 4 — Transactions
+Availability
+Viewing
+Booking
+Payment
+Offers
+Refunds
+Rental agreements
+Phase 5 — Management
+Tenant dashboard
+Landlord dashboard
+Rent collection
+Maintenance
+Analytics
+Notifications
+Phase 6 — Advanced
+360°
+Video tours
+Floor plans
+Recommendations
+Market analytics
+Advanced fraud detection
+Multi-country
+Multi-currency
+65. Final target
+
+The final product should feel like:
+
+PROPERTY DISCOVERY
+       +
+REAL ESTATE MARKETPLACE
+       +
+MAP PLATFORM
+       +
+BOOKING PLATFORM
+       +
+PAYMENT PLATFORM
+       +
+MESSAGING PLATFORM
+       +
+RENTAL MANAGEMENT
+       +
+PROPERTY MANAGEMENT
+       +
+AGENCY MANAGEMENT
+
+rather than simply:
+
+"website with houses"
+
+The best technical foundation for your project is: React Native/Expo + Next.js + NestJS + PostgreSQL/PostGIS + Redis + OpenSearch + object storage/CDN + WebSockets + payment adapters + background workers + strong RBAC/security + automated testing + CI/CD + observability. you must start from 1 up to 65 and all must be completed and real and tested as powerfull and functional and well arranged 

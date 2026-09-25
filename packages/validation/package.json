@@ -1,0 +1,10 @@
+{
+  "name": "@imizi/validation",
+  "version": "1.0.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "scripts": { "typecheck": "tsc -p tsconfig.json --noEmit" },
+  "dependencies": { "zod": "^3.24.2" },
+  "devDependencies": { "typescript": "^5.9.2" }
+}
