@@ -1,32 +1,52 @@
-import { api, formatRwf } from "../../lib/api";
+"use client";
 
-export default async function DashboardPage() {
-  const landlord = await api<any>("/analytics/landlord", {
-    headers: { authorization: "Bearer demo" },
-  }).catch(() => null);
-  const recs = await api<any[]>("/recommendations");
+import { useEffect,useState } from "react";
+import Link from "next/link";
+import { formatRwf } from "../../lib/api";
+
+const API=process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
+
+export default function DashboardPage(){
+  const [data,setData]=useState<any>(null);
+  const [error,setError]=useState("");
+  const [loading,setLoading]=useState(true);
+  const [user,setUser]=useState<any>(null);
+
+  useEffect(()=>{
+    try{
+      const raw=localStorage.getItem("imizi_user");if(raw)setUser(JSON.parse(raw));
+    }catch{}
+    const token=localStorage.getItem("imizi_token");
+    if(!token){setError("Please sign in first.");setLoading(false);return;}
+    fetch(API+"/analytics/landlord",{headers:{authorization:`Bearer ${token}`}})
+      .then(async r=>{const j=await r.json();if(!r.ok)throw new Error(j.message??"Unauthorized");return j;})
+      .then(setData)
+      .catch(e=>setError(String(e)))
+      .finally(()=>setLoading(false));
+  },[]);
+
+  if(loading)return <main className="wrap" style={{paddingTop:28}}><p>Loading dashboard…</p></main>;
+
   return (
-    <main className="wrap" style={{ paddingTop: 28 }}>
-      <h1>Owner / operations</h1>
-      <p className="muted">Sign in as landlord@imizi.rw for live counts. Public recommendations still hydrate this page.</p>
-      <div className="stats">
-        <div className="stat"><div className="muted">Properties</div><strong>{landlord?.properties ?? "—"}</strong></div>
-        <div className="stat"><div className="muted">Active</div><strong>{landlord?.active ?? "—"}</strong></div>
-        <div className="stat"><div className="muted">Views</div><strong>{landlord?.views ?? "—"}</strong></div>
-        <div className="stat"><div className="muted">Revenue</div><strong>{landlord ? formatRwf(landlord.revenue) : "—"}</strong></div>
+    <main className="wrap" style={{paddingTop:28}}>
+      <div className="split">
+        <div>
+          <h1>Owner / operations</h1>
+          <p className="muted">{user?.fullName ?? "Account"} · {user?.roles?.join(", ") ?? ""}</p>
+        </div>
+        <div style={{textAlign:"right"}}>
+          <Link className="btn" href="/admin">Admin</Link>
+        </div>
       </div>
-      <h2 style={{ marginTop: 36 }}>Recommended for you</h2>
-      <div className="grid">
-        {recs.map((item: any) => (
-          <div className="card" key={item.id}>
-            <div className="meta">
-              <strong>{item.property?.title ?? item.id}</strong>
-              <div className="muted">{item.district} · {item.propertyType}</div>
-              <div>{formatRwf(item.priceMinor)}</div>
-            </div>
-          </div>
-        ))}
-      </div>
+      {error && <div className="panel">{error} <Link href="/login">Sign in</Link></div>}
+      {data && <div className="stats">
+        <div className="stat"><div className="muted">Properties</div><strong>{data.properties}</strong></div>
+        <div className="stat"><div className="muted">Active</div><strong>{data.active}</strong></div>
+        <div className="stat"><div className="muted">Views</div><strong>{data.views}</strong></div>
+        <div className="stat"><div className="muted">Bookings</div><strong>{data.bookings}</strong></div>
+        <div className="stat"><div className="muted">Revenue</div><strong>{formatRwf(data.revenue ?? 0)}</strong></div>
+      </div>}
+      <p className="muted" style={{marginTop:24}}>Property operations are backed by PostgreSQL in production.</p>
     </main>
   );
 }
