@@ -1,118 +1,70 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { scoreFraud, shouldQueueForModeration } from "@imizi/domain";
-import { PlatformStore, PropertyRecord, UserRecord } from "../../store/platform.store";
+import { UserRecord, PropertyRecord } from "../../store/platform.store";
 import { assertPermission, assertPropertyAccess } from "../../common/access";
+import { DatabaseService } from "../../infra/database.service";
+import { FeatureService } from "../../infra/feature.service";
 
 @Injectable()
 export class PropertiesService {
-  constructor(private readonly store: PlatformStore) {}
+  constructor(private readonly db: DatabaseService, private readonly features: FeatureService) {}
 
-  create(user: UserRecord, input: Record<string, any>) {
+  async create(user: UserRecord, input: Record<string, any>) {
     assertPermission(user, "property:create");
-    const id = this.store.id();
-    const property: PropertyRecord = {
-      id,
-      ownerId: user.id,
-      organizationId: input.organizationId ?? user.organizationId,
-      title: input.title,
-      description: input.description,
-      propertyType: input.propertyType,
-      status: "DRAFT",
-      countryCode: input.countryCode ?? "RW",
-      verificationStatus: "UNVERIFIED",
-      riskLevel: "LOW",
-      riskScore: 0,
-      province: input.province,
-      district: input.district,
-      sector: input.sector,
-      cell: input.cell,
-      village: input.village,
-      latitude: input.latitude,
-      longitude: input.longitude,
-      bedrooms: input.bedrooms,
-      bathrooms: input.bathrooms,
-      parking: input.parking,
-      areaValue: input.areaValue,
-      areaUnit: input.areaUnit ?? "SQM",
-      amenities: input.amenities ?? [],
-      media: [],
-      createdAt: this.store.now(),
-      updatedAt: this.store.now(),
-    };
+    const recent = await this.db.count("properties", "owner_id=$1 AND created_at >= now()-interval '24 hours'", [user.id]);
     const fraud = scoreFraud({
-      listingsLast24h: [...this.store.properties.values()].filter((p) => p.ownerId === user.id).length,
-      duplicatePhotoHits: 0,
-      priceVsMedianRatio: 1,
-      reportCount: 0,
-      accountsFromSameDeviceLastHour: 0,
-      paymentAnomalyScore: 0,
-      fakeContactScore: 0,
-      duplicatePropertyScore: 0,
-      locationMismatchScore: 0,
+      listingsLast24h: recent, duplicatePhotoHits: 0, priceVsMedianRatio: 1, reportCount: 0,
+      accountsFromSameDeviceLastHour: 0, paymentAnomalyScore: 0, fakeContactScore: 0,
+      duplicatePropertyScore: 0, locationMismatchScore: 0,
     });
-    property.riskLevel = fraud.level;
-    property.riskScore = fraud.score;
-    this.store.properties.set(id, property);
+    const property = await this.db.createProperty(input, user.id, input.organizationId ?? user.organizationId, fraud);
+    if (!property) throw new NotFoundException();
     if (shouldQueueForModeration(fraud.level)) {
-      this.store.fraudCases.push({ subjectId: id, score: fraud.score, level: fraud.level, signals: fraud });
+      await this.db.query("INSERT INTO fraud_cases(subject_type,subject_id,risk_level,score,signals) VALUES('property',$1,$2,$3,$4::jsonb)", [property.id,fraud.level,fraud.score,JSON.stringify(fraud)]);
     }
-    this.store.enqueue("search.index", { propertyId: id });
-    this.store.auditLog({ actorId: user.id, action: "PROPERTY_CREATED", subjectType: "property", subjectId: id });
-    return this.hydrate(property);
+    await this.features.audit(user.id,"PROPERTY_CREATED","property",property.id);
+    return this.db.hydrateProperty(property.id);
   }
 
-  get(id: string, user?: UserRecord) {
-    const property = this.store.properties.get(id);
+  async get(id: string, user?: UserRecord) {
+    const property = await this.db.getProperty(id);
     if (!property) throw new NotFoundException("Property not found");
     assertPropertyAccess(user, property, false);
-    this.store.views.push({ propertyId: id, userId: user?.id, at: this.store.now() });
-    this.store.analytics.push({ name: "property_viewed", userId: user?.id, propertyId: id, payload: {}, at: this.store.now() });
-    return this.hydrate(property);
+    await this.db.insertView(id, user?.id);
+    await this.features.track("property_viewed", user?.id, id);
+    return this.db.hydrateProperty(id);
   }
 
-  update(id: string, user: UserRecord, patch: Record<string, any>) {
-    const property = this.store.properties.get(id);
-    if (!property) throw new NotFoundException();
-    assertPropertyAccess(user, property, true);
-    Object.assign(property, patch, { updatedAt: this.store.now() });
-    this.store.enqueue("search.index", { propertyId: id });
-    return this.hydrate(property);
+  async update(id:string,user:UserRecord,patch:Record<string,any>) {
+    const property=await this.db.getProperty(id);
+    if(!property) throw new NotFoundException();
+    assertPropertyAccess(user,property,true);
+    const result=await this.db.updateProperty(id,patch);
+    for (const listing of (result?.listings ?? [])) await this.db.enqueueJob("search.index",{listingId:listing.id});
+    await this.features.audit(user.id,"PROPERTY_UPDATED","property",id,undefined,patch);
+    return result;
   }
 
-  publish(id: string, user: UserRecord) {
-    const property = this.store.properties.get(id);
-    if (!property) throw new NotFoundException();
-    assertPropertyAccess(user, property, true);
-    if (property.riskLevel === "BLOCKED") throw new ForbiddenException("Listing is blocked pending review");
-    property.status = "PUBLISHED";
-    property.updatedAt = this.store.now();
-    this.matchSavedSearches(property);
-    this.store.enqueue("search.index", { propertyId: id });
-    return this.hydrate(property);
-  }
-
-  hydrate(property: PropertyRecord) {
-    return {
-      ...property,
-      units: this.store.unitsForProperty(property.id),
-      listings: this.store.listingsForProperty(property.id),
-      views: this.store.views.filter((v) => v.propertyId === property.id).length,
-      nearbyHint: { district: property.district, province: property.province },
-    };
-  }
-
-  private matchSavedSearches(property: PropertyRecord) {
-    const listings = this.store.listingsForProperty(property.id);
-    for (const saved of this.store.savedSearches) {
-      const criteria = saved.criteria;
-      const listing = listings[0];
-      if (!listing) continue;
-      const districtOk = !criteria.district || criteria.district === property.district;
-      const typeOk = !criteria.propertyType || criteria.propertyType === property.propertyType;
-      const priceOk = !criteria.maxPriceMinor || listing.priceMinor <= Number(criteria.maxPriceMinor);
-      if (districtOk && typeOk && priceOk) {
-        this.store.notify(saved.userId, "NEW_MATCHING_PROPERTY", "New property matching your search", property.title);
-      }
+  async publish(id:string,user:UserRecord) {
+    const property=await this.db.getProperty(id);
+    if(!property) throw new NotFoundException();
+    assertPropertyAccess(user,property,true);
+    if(property.riskLevel==="BLOCKED") throw new ForbiddenException("Listing is blocked pending review");
+    const result=await this.db.publishProperty(id);
+    for (const listing of (result?.listings ?? [])) await this.db.enqueueJob("search.index",{listingId:listing.id});
+    for(const saved of await this.db.findMatchingSavedSearches(id)) {
+      await this.features.notify(saved.user_id,"NEW_MATCHING_PROPERTY","New property matching your search",property.title);
     }
+    await this.features.audit(user.id,"PROPERTY_PUBLISHED","property",id);
+    return result;
+  }
+
+  async owned(user:UserRecord){ return this.db.listOwnedProperties(user.id,user.organizationId); }
+
+  async addUnit(id:string,user:UserRecord,input:{label:string;bedrooms?:number}){
+    const property=await this.db.getProperty(id);
+    if(!property) throw new NotFoundException();
+    assertPropertyAccess(user,property,true);
+    return this.db.addUnit(id,{label:input.label,bedrooms:input.bedrooms,bathrooms:1,parking:0});
   }
 }

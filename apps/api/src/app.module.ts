@@ -3,7 +3,9 @@ import { JwtModule } from "@nestjs/jwt";
 import { ThrottlerGuard, ThrottlerModule } from "@nestjs/throttler";
 import { APP_GUARD, APP_INTERCEPTOR } from "@nestjs/core";
 import { loadConfig } from "@imizi/config";
-import { PlatformStore } from "./store/platform.store";
+import { DatabaseService } from "./infra/database.service";
+import { FeatureService } from "./infra/feature.service";
+import { StorageService } from "./infra/storage.service";
 import { RequestIdInterceptor } from "./common/request-id.interceptor";
 import { AuthGuard } from "./common/auth.guard";
 import { HealthController } from "./modules/health/health.controller";
@@ -22,8 +24,7 @@ import { BookingsService } from "./modules/bookings/bookings.service";
 import { PaymentsController } from "./modules/payments/payments.controller";
 import { PaymentsService } from "./modules/payments/payments.service";
 import { OffersController } from "./modules/offers/offers.controller";
-import { MessagesController } from "./modules/messages/messages.controller";
-import { MessagesGateway } from "./modules/messages/messages.gateway";
+import { MessagesController, MessagesGateway } from "./modules/messages/messages.controller";
 import { ReviewsController } from "./modules/reviews/reviews.controller";
 import { VerificationController } from "./modules/verification/verification.controller";
 import { NotificationsController } from "./modules/notifications/notifications.controller";
@@ -54,42 +55,14 @@ const config = loadConfig();
     ]),
   ],
   controllers: [
-    HealthController,
-    AuthController,
-    UsersController,
-    PropertiesController,
-    ListingsController,
-    SearchController,
-    MapsController,
-    FavoritesController,
-    BookingsController,
-    PaymentsController,
-    OffersController,
-    MessagesController,
-    ReviewsController,
-    VerificationController,
-    NotificationsController,
-    AgenciesController,
-    AdminController,
-    MediaController,
-    MaintenanceController,
-    AnalyticsController,
-    PrivacyController,
-    ViewingsController,
-    LeasesController,
-    RecommendationsController,
-    CatalogController,
+    HealthController, AuthController, UsersController, PropertiesController, ListingsController, SearchController, MapsController,
+    FavoritesController, BookingsController, PaymentsController, OffersController, MessagesController, ReviewsController,
+    VerificationController, NotificationsController, AgenciesController, AdminController, MediaController, MaintenanceController,
+    AnalyticsController, PrivacyController, ViewingsController, LeasesController, RecommendationsController, CatalogController,
   ],
   providers: [
-    PlatformStore,
-    Dependencies,
-    AuthService,
-    PropertiesService,
-    SearchService,
-    BookingsService,
-    PaymentsService,
-    MessagesGateway,
-    JobsService,
+    DatabaseService, FeatureService, StorageService, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService,
+    MessagesGateway, JobsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_INTERCEPTOR, useClass: RequestIdInterceptor },

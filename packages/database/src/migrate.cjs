@@ -9,7 +9,7 @@ async function main() {
   const sqlDir = path.join(__dirname, "../sql");
   const files = fs
     .readdirSync(sqlDir)
-    .filter((name) => /^\\d+_.*\\.sql$/.test(name))
+    .filter((name) => /^\d+_.*\.sql$/.test(name))
     .sort();
 
   const client = new Client({ connectionString: url });

@@ -1,5 +1,5 @@
 import { api, formatRwf } from "../../../lib/api";
-import { BookingPanel } from "./booking-panel";
+import { BookingPanel } from "./booking-panel-v2";
 
 export default async function PropertyPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

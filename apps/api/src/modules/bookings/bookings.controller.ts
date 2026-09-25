@@ -4,63 +4,44 @@ import { createBookingSchema } from "@imizi/validation";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { Public } from "../../common/public.decorator";
 import { BookingsService } from "./bookings.service";
-import { PlatformStore, UserRecord } from "../../store/platform.store";
-import { transitionBooking } from "@imizi/domain";
+import { DatabaseService } from "../../infra/database.service";
+import { UserRecord } from "../../store/platform.store";
 
 @ApiTags("bookings")
 @Controller("bookings")
 export class BookingsController {
-  constructor(
-    private readonly bookings: BookingsService,
-    private readonly store: PlatformStore,
-  ) {}
+  constructor(private readonly bookings:BookingsService,private readonly db:DatabaseService){}
 
   @ApiBearerAuth()
   @Get()
-  mine(@CurrentUser() user: UserRecord) {
-    const ownedListingIds = new Set(
-      [...this.store.listings.values()]
-        .filter((l) => this.store.properties.get(l.propertyId)?.ownerId === user.id)
-        .map((l) => l.id),
-    );
-    return [...this.store.bookings.values()].filter(
-      (b) => b.tenantId === user.id || ownedListingIds.has(b.listingId) || user.roles.includes("SUPER_ADMIN"),
-    );
-  }
+  mine(@CurrentUser() user:UserRecord){return this.db.listBookingsForUser(user.id,user.roles.includes("SUPER_ADMIN"));}
 
   @Public()
   @Post("quote")
-  quote(@Body() body: { listingId: string; startDate: string; endDate: string }) {
-    return this.bookings.quote(body.listingId, body.startDate, body.endDate);
-  }
+  quote(@Body() body:{listingId:string;startDate:string;endDate:string}){return this.bookings.quote(body.listingId,body.startDate,body.endDate);}
 
   @ApiBearerAuth()
   @Post()
-  create(@CurrentUser() user: UserRecord, @Body() body: unknown) {
-    return this.bookings.create(user, createBookingSchema.parse(body));
-  }
+  create(@CurrentUser() user:UserRecord,@Body() body:unknown){return this.bookings.create(user,createBookingSchema.parse(body));}
 
   @ApiBearerAuth()
   @Get(":id")
-  get(@CurrentUser() user: UserRecord, @Param("id") id: string) {
-    const booking = this.store.bookings.get(id);
-    if (!booking) return { error: "not_found" };
-    if (booking.tenantId !== user.id && !user.roles.includes("SUPER_ADMIN")) {
-      const listing = this.store.listings.get(booking.listingId);
-      const property = listing ? this.store.properties.get(listing.propertyId) : undefined;
-      if (property?.ownerId !== user.id) return { error: "forbidden" };
-    }
-    return booking;
+  async get(@CurrentUser() user:UserRecord,@Param("id") id:string){
+    const booking=await this.db.getBooking(id);if(!booking)return{error:"not_found"};
+    const visible=(await this.db.listBookingsForUser(user.id,user.roles.includes("SUPER_ADMIN"))).some((b)=>b.id===id);
+    return visible?booking:{error:"forbidden"};
   }
 
   @ApiBearerAuth()
   @Post(":id/cancel")
-  cancel(@CurrentUser() user: UserRecord, @Param("id") id: string) {
-    const booking = this.store.bookings.get(id);
-    if (!booking) return { error: "not_found" };
-    if (booking.tenantId !== user.id) return { error: "forbidden" };
-    booking.status = transitionBooking(booking.status as any, "CANCELLED");
-    this.store.analytics.push({ name: "booking_cancelled", userId: user.id, payload: { id }, at: this.store.now() });
-    return booking;
+  async cancel(@CurrentUser() user:UserRecord,@Param("id") id:string){
+    const booking=await this.db.getBooking(id);if(!booking)return{error:"not_found"};
+    if(booking.tenantId!==user.id)return{error:"forbidden"};
+    return this.db.updateBookingStatus(id,transitionCancellation(booking.status));
   }
+}
+
+function transitionCancellation(status:string){
+  if(status!=="PENDING" && status!=="PAYMENT_PENDING" && status!=="CONFIRMED") throw new Error("Booking cannot be cancelled in current state");
+  return "CANCELLED";
 }

@@ -23,7 +23,7 @@ export default async function SearchPage({
         <input name="maxPriceMinor" placeholder="Max RWF" defaultValue={params.maxPriceMinor} />
         <button>Apply</button>
       </form>
-      <p className="muted">{data.items.length} ranked results · cursor pagination · OpenSearch index with PostgreSQL fallback</p>
+      <p className="muted">{data.items.length} ranked results · OpenSearch index with PostgreSQL/PostGIS fallback</p>
       <div className="grid">
         {data.items.map((item: any) => (
           <Link key={item.listing.id} href={`/properties/${item.property.id}`} className="card">

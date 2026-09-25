@@ -33,87 +33,133 @@ export interface MapProvider {
 
 export class MapProviderRouter implements MapProvider {
   constructor(private readonly provider: MapProvider) {}
-  geocode(query: string, countryBias?: string) {
-    return this.provider.geocode(query, countryBias);
-  }
-  reverseGeocode(point: GeoPoint) {
-    return this.provider.reverseGeocode(point);
-  }
-  searchPlaces(query: string, near: GeoPoint) {
-    return this.provider.searchPlaces(query, near);
-  }
-  calculateRoute(from: GeoPoint, to: GeoPoint) {
-    return this.provider.calculateRoute(from, to);
-  }
-  getNearbyPlaces(point: GeoPoint, categories: string[]) {
-    return this.provider.getNearbyPlaces(point, categories);
-  }
+  geocode(query: string, countryBias?: string) { return this.provider.geocode(query, countryBias); }
+  reverseGeocode(point: GeoPoint) { return this.provider.reverseGeocode(point); }
+  searchPlaces(query: string, near: GeoPoint) { return this.provider.searchPlaces(query, near); }
+  calculateRoute(from: GeoPoint, to: GeoPoint) { return this.provider.calculateRoute(from, to); }
+  getNearbyPlaces(point: GeoPoint, categories: string[]) { return this.provider.getNearbyPlaces(point, categories); }
 }
 
 function haversineMeters(a: GeoPoint, b: GeoPoint): number {
-  const R = 6371000;
-  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180;
-  const dLon = ((b.longitude - a.longitude) * Math.PI) / 180;
-  const lat1 = (a.latitude * Math.PI) / 180;
-  const lat2 = (b.latitude * Math.PI) / 180;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(h));
+  const R=6371000;
+  const dLat=((b.latitude-a.latitude)*Math.PI)/180;
+  const dLon=((b.longitude-a.longitude)*Math.PI)/180;
+  const lat1=(a.latitude*Math.PI)/180,lat2=(b.latitude*Math.PI)/180;
+  const h=Math.sin(dLat/2)**2+Math.cos(lat1)*Math.cos(lat2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
 }
 
-/** Offline-capable Rwanda catalog used when live map keys are absent. */
+function featureToGeocode(feature:any):GeocodeResult {
+  const context=feature.properties?.context ?? {};
+  const coords=feature.geometry?.coordinates ?? [0,0];
+  return {
+    label:feature.properties?.full_address ?? feature.properties?.name ?? feature.place_name ?? "Unknown",
+    point:{longitude:Number(coords[0]),latitude:Number(coords[1])},
+    countryCode:context.country?.country_code?.toUpperCase(),
+    province:context.region?.name,
+    district:context.district?.name,
+    sector:context.locality?.name ?? context.neighborhood?.name,
+  };
+}
+
+export class MapboxProvider implements MapProvider {
+  constructor(private readonly token:string) {}
+
+  private async getJson<T=any>(url:string):Promise<T>{
+    const res=await fetch(url,{signal:AbortSignal.timeout(5000)});
+    if(!res.ok) throw new Error("Mapbox request failed: "+res.status);
+    return await res.json() as T;
+  }
+
+  async geocode(query:string,countryBias="RW"){
+    const url=new URL("https://api.mapbox.com/search/geocode/v6/forward");
+    url.searchParams.set("q",query);
+    url.searchParams.set("limit","8");
+    url.searchParams.set("country",countryBias.toLowerCase());
+    url.searchParams.set("access_token",this.token);
+    const data=await this.getJson<{features?:any[]}>(url.toString());
+    return (data.features ?? []).map(featureToGeocode);
+  }
+
+  async reverseGeocode(point:GeoPoint){
+    const url=new URL("https://api.mapbox.com/search/geocode/v6/reverse");
+    url.searchParams.set("longitude",String(point.longitude));
+    url.searchParams.set("latitude",String(point.latitude));
+    url.searchParams.set("limit","1");
+    url.searchParams.set("access_token",this.token);
+    const data=await this.getJson<{features?:any[]}>(url.toString());
+    return data.features?.[0] ? featureToGeocode(data.features[0]) : null;
+  }
+
+  async searchPlaces(query:string,near:GeoPoint){
+    const url=new URL("https://api.mapbox.com/search/searchbox/v1/forward");
+    url.searchParams.set("q",query);
+    url.searchParams.set("limit","10");
+    url.searchParams.set("types","poi,address,place");
+    url.searchParams.set("proximity",String(near.longitude)+","+String(near.latitude));
+    url.searchParams.set("access_token",this.token);
+    const data=await this.getJson<{features?:any[]}>(url.toString());
+    return (data.features ?? []).map((feature:any)=>({
+      id:String(feature.properties?.mapbox_id ?? feature.id),
+      name:String(feature.properties?.name ?? feature.properties?.full_address ?? "Place"),
+      category:String(feature.properties?.poi_category?.[0] ?? feature.properties?.feature_type ?? "place"),
+      point:{longitude:Number(feature.geometry.coordinates[0]),latitude:Number(feature.geometry.coordinates[1])},
+      distanceMeters:feature.properties?.distance == null ? undefined : Math.round(Number(feature.properties.distance)),
+    }));
+  }
+
+  async calculateRoute(from:GeoPoint,to:GeoPoint){
+    const endpoint="https://api.mapbox.com/directions/v5/mapbox/driving/" +
+      from.longitude+","+from.latitude+";"+to.longitude+","+to.latitude;
+    const url=new URL(endpoint);
+    url.searchParams.set("overview","full");
+    url.searchParams.set("geometries","polyline");
+    url.searchParams.set("access_token",this.token);
+    const data=await this.getJson<{routes?:Array<{distance:number;duration:number;geometry?:string}>}>(url.toString());
+    const route=data.routes?.[0];
+    if(!route) throw new Error("No route found");
+    return {distanceMeters:Math.round(Number(route.distance)),durationSeconds:Math.round(Number(route.duration)),polyline:String(route.geometry)};
+  }
+
+  async getNearbyPlaces(point:GeoPoint,categories:string[]){
+    const results:PlaceResult[]=[];
+    for(const category of categories.slice(0,5)){
+      const places=await this.searchPlaces(category==="all" ? "school" : category,point).catch(()=>[]);
+      results.push(...places);
+    }
+    return results.slice(0,25);
+  }
+}
+
 export class RwandaCatalogMapProvider implements MapProvider {
-  private readonly catalog: GeocodeResult[] = [
-    { label: "Kigali", point: { latitude: -1.9441, longitude: 30.0619 }, countryCode: "RW", province: "Kigali", district: "Nyarugenge" },
-    { label: "Kicukiro, Kigali", point: { latitude: -1.978, longitude: 30.112 }, countryCode: "RW", province: "Kigali", district: "Kicukiro" },
-    { label: "Gasabo, Kigali", point: { latitude: -1.92, longitude: 30.12 }, countryCode: "RW", province: "Kigali", district: "Gasabo" },
-    { label: "Nyarugenge, Kigali", point: { latitude: -1.943, longitude: 30.059 }, countryCode: "RW", province: "Kigali", district: "Nyarugenge" },
-    { label: "Musanze", point: { latitude: -1.4998, longitude: 29.635 }, countryCode: "RW", province: "Northern", district: "Musanze" },
-    { label: "Huye", point: { latitude: -2.5967, longitude: 29.739 }, countryCode: "RW", province: "Southern", district: "Huye" },
-    { label: "Rubavu", point: { latitude: -1.702, longitude: 29.256 }, countryCode: "RW", province: "Western", district: "Rubavu" },
+  private readonly catalog:GeocodeResult[]=[
+    {label:"Kigali",point:{latitude:-1.9441,longitude:30.0619},countryCode:"RW",province:"Kigali",district:"Nyarugenge"},
+    {label:"Kicukiro, Kigali",point:{latitude:-1.978,longitude:30.112},countryCode:"RW",province:"Kigali",district:"Kicukiro"},
+    {label:"Gasabo, Kigali",point:{latitude:-1.92,longitude:30.12},countryCode:"RW",province:"Kigali",district:"Gasabo"},
+    {label:"Nyarugenge, Kigali",point:{latitude:-1.943,longitude:30.059},countryCode:"RW",province:"Kigali",district:"Nyarugenge"},
+    {label:"Musanze",point:{latitude:-1.4998,longitude:29.635},countryCode:"RW",province:"Northern",district:"Musanze"},
+    {label:"Huye",point:{latitude:-2.5967,longitude:29.739},countryCode:"RW",province:"Southern",district:"Huye"},
+    {label:"Rubavu",point:{latitude:-1.702,longitude:29.256},countryCode:"RW",province:"Western",district:"Rubavu"},
   ];
-
-  async geocode(query: string): Promise<GeocodeResult[]> {
-    const q = query.toLowerCase();
-    return this.catalog.filter((c) => c.label.toLowerCase().includes(q));
-  }
-
-  async reverseGeocode(point: GeoPoint): Promise<GeocodeResult | null> {
-    return this.catalog
-      .map((c) => ({ c, d: haversineMeters(point, c.point) }))
-      .sort((a, b) => a.d - b.d)[0]?.c ?? null;
-  }
-
-  async searchPlaces(query: string, near: GeoPoint): Promise<PlaceResult[]> {
-    return this.getNearbyPlaces(near, [query]);
-  }
-
-  async calculateRoute(from: GeoPoint, to: GeoPoint): Promise<RouteResult> {
-    const distanceMeters = Math.round(haversineMeters(from, to));
-    return {
-      distanceMeters,
-      durationSeconds: Math.round(distanceMeters / 8.3),
-      polyline: `${from.latitude},${from.longitude};${to.latitude},${to.longitude}`,
-    };
-  }
-
-  async getNearbyPlaces(point: GeoPoint, categories: string[]): Promise<PlaceResult[]> {
-    const seeds: PlaceResult[] = [
-      { id: "sch-1", name: "GS Kicukiro", category: "school", point: { latitude: point.latitude + 0.004, longitude: point.longitude + 0.002 } },
-      { id: "mkt-1", name: "Kicukiro Market", category: "market", point: { latitude: point.latitude - 0.003, longitude: point.longitude + 0.001 } },
-      { id: "hosp-1", name: "Kigali Hospital", category: "hospital", point: { latitude: point.latitude + 0.01, longitude: point.longitude - 0.004 } },
-      { id: "bank-1", name: "BK Branch", category: "bank", point: { latitude: point.latitude + 0.002, longitude: point.longitude - 0.001 } },
-      { id: "bus-1", name: "Bus stop", category: "transit", point: { latitude: point.latitude - 0.001, longitude: point.longitude + 0.003 } },
+  async geocode(query:string){const q=query.toLowerCase();return this.catalog.filter((c)=>c.label.toLowerCase().includes(q));}
+  async reverseGeocode(point:GeoPoint){return this.catalog.map((c)=>({c,d:haversineMeters(point,c.point)})).sort((a,b)=>a.d-b.d)[0]?.c ?? null;}
+  async searchPlaces(query:string,near:GeoPoint){return this.getNearbyPlaces(near,[query]);}
+  async calculateRoute(from:GeoPoint,to:GeoPoint){const distanceMeters=Math.round(haversineMeters(from,to));return{distanceMeters,durationSeconds:Math.round(distanceMeters/8.3),polyline:from.latitude+","+from.longitude+";"+to.latitude+","+to.longitude};}
+  async getNearbyPlaces(point:GeoPoint,categories:string[]){
+    const seeds:PlaceResult[]=[
+      {id:"sch-1",name:"GS Kicukiro",category:"school",point:{latitude:point.latitude+0.004,longitude:point.longitude+0.002}},
+      {id:"mkt-1",name:"Kicukiro Market",category:"market",point:{latitude:point.latitude-0.003,longitude:point.longitude+0.001}},
+      {id:"hosp-1",name:"Kigali Hospital",category:"hospital",point:{latitude:point.latitude+0.01,longitude:point.longitude-0.004}},
+      {id:"bank-1",name:"BK Branch",category:"bank",point:{latitude:point.latitude+0.002,longitude:point.longitude-0.001}},
+      {id:"bus-1",name:"Bus stop",category:"transit",point:{latitude:point.latitude-0.001,longitude:point.longitude+0.003}},
     ];
-    return seeds
-      .filter((p) => categories.length === 0 || categories.some((c) => p.category.includes(c.toLowerCase()) || c === "all"))
-      .map((p) => ({ ...p, distanceMeters: Math.round(haversineMeters(point, p.point)) }));
+    return seeds.filter((p)=>categories.length===0||categories.some((c)=>p.category.includes(c.toLowerCase())||c==="all")).map((p)=>({...p,distanceMeters:Math.round(haversineMeters(point,p.point))}));
   }
 }
 
-export function createMapProvider(kind: string): MapProvider {
-  void kind;
+export function createMapProvider(kind:string):MapProvider {
+  const token=process.env.MAPBOX_TOKEN;
+  if(kind.toLowerCase()==="mapbox"&&token) return new MapProviderRouter(new MapboxProvider(token));
   return new MapProviderRouter(new RwandaCatalogMapProvider());
 }
 

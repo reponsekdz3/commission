@@ -1,10 +1,14 @@
 {
-  "name": "@imizi/database",
-  "version": "1.0.0",
-  "private": true,
-  "main": "./src/index.ts",
-  "scripts": {
-    "migrate": "node ./src/migrate.cjs",
-    "seed": "node ./src/seed.cjs"
+  "name":"@imizi/database",
+  "version":"1.0.0",
+  "private":true,
+  "main":"./src/index.ts",
+  "scripts":{
+    "migrate":"node ./src/migrate.cjs",
+    "seed":"node ./src/seed.cjs",
+    "smoke":"node ./src/smoke.cjs"
+  },
+  "dependencies":{
+    "pg":"^8.16.3"
   }
 }
