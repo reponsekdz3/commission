@@ -2,81 +2,57 @@ import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/co
 import { JwtService } from "@nestjs/jwt";
 import { compareSync, hashSync } from "bcryptjs";
 import { createHash, randomBytes } from "crypto";
-import { PlatformStore, UserRecord } from "../../store/platform.store";
 import type { Role } from "@imizi/types";
+import type { UserRecord } from "../../store/platform.store";
+import { DatabaseService } from "../../infra/database.service";
 
 @Injectable()
 export class AuthService {
-  constructor(
-    private readonly jwt: JwtService,
-    private readonly store: PlatformStore,
-  ) {}
+  constructor(private readonly jwt: JwtService, private readonly db: DatabaseService) {}
 
-  register(input: { email: string; phone: string; password: string; fullName: string; locale?: string }) {
-    if (this.store.userByEmailOrPhone(input.email) || this.store.userByEmailOrPhone(input.phone)) {
-      throw new ConflictException("Account already exists");
-    }
+  async register(input: { email: string; phone: string; password: string; fullName: string; locale?: string }) {
+    const existing = await this.db.findUserByIdentifier(input.email) ?? await this.db.findUserByIdentifier(input.phone);
+    if (existing) throw new ConflictException("Account already exists");
     const user: UserRecord = {
-      id: this.store.id(),
-      email: input.email.toLowerCase(),
-      phone: input.phone,
-      passwordHash: hashSync(input.password, 12),
-      fullName: input.fullName,
-      locale: input.locale ?? "rw",
-      roles: ["USER"],
-      status: "ACTIVE",
-      mfaEnabled: false,
-      createdAt: this.store.now(),
+      id: crypto.randomUUID(),
+      email: input.email.toLowerCase(), phone: input.phone,
+      passwordHash: hashSync(input.password, 12), fullName: input.fullName,
+      locale: input.locale ?? "rw", roles: ["USER" as Role], status: "ACTIVE", mfaEnabled: false,
+      createdAt: new Date().toISOString(),
     };
-    this.store.users.set(user.id, user);
-    this.store.consents.push({ userId: user.id, purpose: "account-creation", granted: true, at: this.store.now() });
-    this.store.auditLog({ actorId: user.id, action: "USER_REGISTERED", subjectType: "user", subjectId: user.id });
-    return this.issue(user);
+    const created = await this.db.createUser(user);
+    await this.db.auditLog(created.id, "USER_REGISTERED", "user", created.id);
+    return this.issue(created);
   }
 
-  login(identifier: string, password: string, ip?: string) {
-    const user = this.store.userByEmailOrPhone(identifier);
+  async login(identifier: string, password: string, ip?: string) {
+    const user = await this.db.findUserByIdentifier(identifier);
     if (!user || !compareSync(password, user.passwordHash)) {
-      this.store.auditLog({ action: "LOGIN_FAILED", subjectType: "auth", subjectId: identifier, ip });
+      await this.db.auditLog(undefined, "LOGIN_FAILED", "auth", identifier, undefined, undefined, ip);
       throw new UnauthorizedException("Invalid credentials");
     }
-    this.store.auditLog({ actorId: user.id, action: "LOGIN_SUCCESS", subjectType: "user", subjectId: user.id, ip });
-    return this.issue(user);
+    await this.db.auditLog(user.id, "LOGIN_SUCCESS", "user", user.id, undefined, undefined, ip);
+    return this.issue(user, undefined, ip);
   }
 
-  refresh(refreshToken: string) {
+  async refresh(refreshToken: string) {
     const hash = createHash("sha256").update(refreshToken).digest("hex");
-    const session = this.store.refreshByHash.get(hash);
-    if (!session || session.expiresAt < Date.now()) {
-      throw new UnauthorizedException("Refresh token expired");
-    }
-    this.store.refreshByHash.delete(hash);
-    const user = this.store.users.get(session.userId);
-    if (!user) throw new UnauthorizedException();
+    const userId = await this.db.consumeRefreshToken(hash);
+    if (!userId) throw new UnauthorizedException("Refresh token expired");
+    const user = await this.db.findUserById(userId);
+    if (!user || user.status !== "ACTIVE") throw new UnauthorizedException();
     return this.issue(user);
   }
 
-  private issue(user: UserRecord) {
+  private async issue(user: UserRecord, userAgent?: string, ip?: string) {
     const accessToken = this.jwt.sign({ sub: user.id, roles: user.roles });
     const refreshToken = randomBytes(48).toString("hex");
     const hash = createHash("sha256").update(refreshToken).digest("hex");
-    this.store.refreshByHash.set(hash, { userId: user.id, expiresAt: Date.now() + 30 * 86400_000 });
-    return {
-      accessToken,
-      refreshToken,
-      user: this.publicUser(user),
-    };
+    await this.db.createSession(user.id, hash, Date.now() + 30 * 86400_000, userAgent, ip);
+    return { accessToken, refreshToken, user: this.publicUser(user) };
   }
 
   publicUser(user: UserRecord) {
-    return {
-      id: user.id,
-      email: user.email,
-      phone: user.phone,
-      fullName: user.fullName,
-      locale: user.locale,
-      roles: user.roles as Role[],
-      organizationId: user.organizationId,
-    };
+    return { id:user.id,email:user.email,phone:user.phone,fullName:user.fullName,locale:user.locale,roles:user.roles,organizationId:user.organizationId };
   }
 }
