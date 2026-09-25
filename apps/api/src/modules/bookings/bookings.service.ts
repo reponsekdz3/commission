@@ -75,7 +75,7 @@ export class BookingsService {
       if((sameUnit||sameListing)&&datesOverlap(start,end,new Date(booking.startDate),new Date(booking.endDate)))throw new BadRequestException("Dates overlap an existing reservation");
     }
     const quote=this.quote(input.listingId,input.startDate,input.endDate) as any;
-    const booking:any={id:store.id(),listingId:listing.id,unitId:input.unitId,tenantId:user.id,status:"PAYMENT_PENDING",startDate:input.startDate,endDate:input.endDate,amountMinor:quote.total.amountMinor,depositMinor:quote.deposit.amountMinor,currency:listing.currency,idempotencyKey:input.idempotencyKey,createdAt:store.now()};
+    const booking:any={id:store.id(),listingId:listing.id,unitId:input.unitId,tenantId:user.id,status:"PENDING",startDate:input.startDate,endDate:input.endDate,amountMinor:quote.total.amountMinor,depositMinor:quote.deposit.amountMinor,currency:listing.currency,idempotencyKey:input.idempotencyKey,createdAt:store.now()};
     store.bookings.set(booking.id,booking);
     return {booking,quote};
   }
@@ -85,6 +85,7 @@ export class BookingsService {
     const store=this.store();
     const booking=store.bookings.get(bookingId);
     if(!booking)throw new NotFoundException();
+    if(booking.status==="PENDING")booking.status=transitionBooking("PENDING","PAYMENT_PENDING");
     booking.status=transitionBooking(booking.status as any,"CONFIRMED");
     return booking;
   }
