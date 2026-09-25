@@ -1,6 +1,6 @@
 export function required(name: string, fallback?: string): string {
   const value = process.env[name] ?? fallback;
-  if (!value) throw new Error(`Missing environment variable ${name}`);
+  if (!value) throw new Error(\`Missing environment variable \${name}\`);
   return value;
 }
 
@@ -26,6 +26,13 @@ export function loadConfig() {
     defaultCountry: process.env.DEFAULT_COUNTRY ?? "RW",
     commissionBps: Number(process.env.PLATFORM_COMMISSION_BPS ?? 500),
     sentryDsn: process.env.SENTRY_DSN,
+    s3Endpoint: process.env.S3_ENDPOINT,
+    s3Region: process.env.S3_REGION ?? "us-east-1",
+    s3BucketPublic: process.env.S3_BUCKET_PUBLIC ?? "imizi-public",
+    s3BucketPrivate: process.env.S3_BUCKET_PRIVATE ?? "imizi-private",
+    s3AccessKey: process.env.S3_ACCESS_KEY,
+    s3SecretKey: process.env.S3_SECRET_KEY,
+    cdnBaseUrl: process.env.CDN_BASE_URL,
   };
 }
 
