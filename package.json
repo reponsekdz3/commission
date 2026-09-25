@@ -17,8 +17,8 @@
     "dev:api": "npm run start:dev -w @imizi/api",
     "dev:web": "npm run dev -w @imizi/web",
     "dev:admin": "npm run dev -w @imizi/admin",
-    "db:generate": "npm run prisma:generate -w @imizi/database",
-    "db:migrate": "npm run prisma:migrate -w @imizi/database",
+    "db:generate": "npm run migrate -w @imizi/database",
+    "db:migrate": "npm run migrate -w @imizi/database",
     "db:seed": "npm run seed -w @imizi/database"
   },
   "engines": {
