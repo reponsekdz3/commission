@@ -25,11 +25,10 @@ export class PaymentsController {
   }
 
   @ApiBearerAuth()
-  @Post("refunds")
-  @ApiBearerAuth()
   @Post(":intentId/status")
   status(@CurrentUser() user:UserRecord,@Param("intentId") intentId:string){return this.payments.status(user,intentId);}
 
+  @ApiBearerAuth()
   @Post("refunds")
   refund(@CurrentUser() user:UserRecord,@Body() body:{intentId:string;amountMinor:number;reason?:string;reauthToken?:string}){
     if(!user.roles.includes("FINANCE_ADMIN")&&!user.roles.includes("SUPER_ADMIN"))return{error:"forbidden"};
