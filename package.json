@@ -19,7 +19,8 @@
     "dev:admin": "npm run dev -w @imizi/web -- --port 3002",
     "db:generate": "npm run migrate -w @imizi/database",
     "db:migrate": "npm run migrate -w @imizi/database",
-    "db:seed": "npm run seed -w @imizi/database"
+    "db:seed": "npm run seed -w @imizi/database",
+    "db:smoke": "npm run smoke -w @imizi/database"
   },
   "engines": {
     "node": ">=20.18.0"
