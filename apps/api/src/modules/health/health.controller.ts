@@ -7,7 +7,7 @@ import { Dependencies } from "../../infra/dependencies";
 export class HealthController {
   constructor(private readonly db:DatabaseService,private readonly deps:Dependencies){}
   @Public() @Get("/health") health(){return this.snapshot();}
-  @Public() @Get("/ready"){return this.readiness();}
+  @Public() @Get("/ready") ready(){return this.readiness();}
   @Public() @Get("/live") live(){return{status:"ok"};}
   @Public() @Header("content-type","text/plain") @Get("/metrics") async metrics(){
     const snap=await this.snapshot();
