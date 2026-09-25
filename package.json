@@ -5,7 +5,8 @@
   "description": "Imizi — Rwanda-first real estate marketplace, booking, payments, maps, messaging, and property operations platform.",
   "packageManager": "npm@11.13.0",
   "workspaces": [
-    "apps/*",
+    "apps/api",
+    "apps/web",
     "packages/*"
   ],
   "scripts": {

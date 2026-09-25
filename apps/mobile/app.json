@@ -1,0 +1,24 @@
+{
+  "expo": {
+    "name": "Imizi",
+    "slug": "imizi",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "imizi",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "plugins": ["expo-router", "expo-secure-store", "expo-location", "expo-notifications"],
+    "android": {
+      "package": "rw.imizi.mobile",
+      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+    },
+    "ios": {
+      "bundleIdentifier": "rw.imizi.mobile",
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Imizi uses your location to find nearby properties.",
+        "NSUserNotificationsUsageDescription": "Imizi sends booking, message, and matching-property notifications."
+      }
+    }
+  }
+}
