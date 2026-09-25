@@ -34,3 +34,8 @@ CREATE INDEX IF NOT EXISTS sessions_refresh_token_hash_uidx
 CREATE INDEX IF NOT EXISTS property_prices_active_idx
   ON property_prices (listing_id, effective_from DESC)
   WHERE effective_to IS NULL;
+
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL;
+
+CREATE INDEX IF NOT EXISTS users_organization_idx ON users (organization_id);
