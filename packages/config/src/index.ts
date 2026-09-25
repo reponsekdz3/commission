@@ -34,6 +34,8 @@ export function loadConfig() {
     s3AccessKey: process.env.S3_ACCESS_KEY,
     s3SecretKey: process.env.S3_SECRET_KEY,
     cdnBaseUrl: process.env.CDN_BASE_URL,
+    maxMediaBytes: Number(process.env.MAX_MEDIA_BYTES ?? 250 * 1024 * 1024),
+    clamavUrl: process.env.CLAMAV_URL,
   };
 }
 

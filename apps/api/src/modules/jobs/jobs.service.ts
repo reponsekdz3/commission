@@ -104,21 +104,45 @@ export class JobsService implements OnModuleInit {
         if(job.name==="media.process"){
           const media=await this.db.getMedia(String(job.payload?.mediaId ?? ""));
           if(media){
-            if(media.kind!=="PHOTO") return;
             const input=await this.storage.readBuffer(String(media.storage_key));
             const checksum=createHash("sha256").update(input).digest("hex");
             const dir=await mkdtemp(join(tmpdir(),"imizi-media-"));
             try{
-              const original=join(dir,"original.bin");
+              const original=join(dir,"original");
               await writeFile(original,input);
               const variants:Record<string,string>={};
-              for(const size of [480,1024,1920]){
-                const output=join(dir,size+".webp");
-                await this.exec("magick",[original,"-auto-orient","-strip","-resize",size+"x"+size+">","-quality","82",output]);
-                const optimized=await readFile(output);
-                const key="property/"+media.property_id+"/optimized/"+media.id+"-"+size+".webp";
-                await this.storage.putBuffer("public/"+key,"image/webp",optimized);
-                variants[size===480?"small":size===1024?"medium":"large"]=key;
+              if(media.kind==="PHOTO"){
+                for(const size of [480,1024,1920]){
+                  const output=join(dir,size+".webp");
+                  await this.exec("magick",[original,"-auto-orient","-strip","-resize",size+"x"+size+">","-quality","82",output]);
+                  const optimized=await readFile(output);
+                  const key="property/"+media.property_id+"/optimized/"+media.id+"-"+size+".webp";
+                  await this.storage.putBuffer("public/"+key,"image/webp",optimized);
+                  variants[size===480?"small":size===1024?"medium":"large"]=key;
+                }
+                const poster=join(dir,"poster.jpg");
+                await this.exec("magick",[original+"[0]","-auto-orient","-strip","-resize","1280x1280>","-quality","78",poster]);
+                const posterBuffer=await readFile(poster);
+                const posterKey="property/"+media.property_id+"/optimized/"+media.id+"-poster.jpg";
+                await this.storage.putBuffer("public/"+posterKey,"image/jpeg",posterBuffer);
+                variants.poster=posterKey;
+              } else if(media.kind==="VIDEO"){
+                const optimized=join(dir,"optimized.mp4");
+                await this.exec("ffmpeg",["-y","-i",original,"-vf","scale=-2:720","-c:v","libx264","-preset","veryfast","-crf","28","-c:a","aac","-b:a","128k","-movflags","+faststart",optimized]);
+                const videoBuffer=await readFile(optimized);
+                const videoKey="property/"+media.property_id+"/optimized/"+media.id+"-720p.mp4";
+                await this.storage.putBuffer("public/"+videoKey,"video/mp4",videoBuffer);
+                variants.video=videoKey;
+                const poster=join(dir,"poster.jpg");
+                await this.exec("ffmpeg",["-y","-ss","00:00:01","-i",original,"-frames:v","1","-vf","scale=1280:-2","-q:v","3",poster]).catch(()=>undefined);
+                try{
+                  const posterBuffer=await readFile(poster);
+                  const posterKey="property/"+media.property_id+"/optimized/"+media.id+"-poster.jpg";
+                  await this.storage.putBuffer("public/"+posterKey,"image/jpeg",posterBuffer);
+                  variants.poster=posterKey;
+                }catch{}
+              } else {
+                variants.original=String(media.storage_key);
               }
               await this.db.updateMediaVariants(media.id,variants,checksum);
             }finally{

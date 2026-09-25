@@ -11,7 +11,7 @@ export class StorageService{
   private readonly config=loadConfig();
   private assertConfigured(){if(!this.config.s3Endpoint||!this.config.s3AccessKey||!this.config.s3SecretKey)throw new BadRequestException("S3-compatible storage is not configured");}
 
-  private presign(method:"GET"|"PUT",key:string,contentType?:string,expiresSeconds=900){
+  private presign(method:"GET"|"PUT"|"HEAD",key:string,contentType?:string,expiresSeconds=900){
     this.assertConfigured();
     if(key.includes(".."))throw new BadRequestException("Invalid storage key");
     const endpoint=new URL(this.config.s3Endpoint!);
@@ -39,6 +39,14 @@ export class StorageService{
   presignedGet(key:string,expiresSeconds=900){
     const r=this.presign("GET",key,undefined,expiresSeconds);
     return {downloadUrl:r.url,bucket:r.bucket,key:r.key,expiresIn:expiresSeconds};
+  }
+
+
+  async headObject(key:string){
+    const signed=this.presign("HEAD",key,undefined,300);
+    const response=await fetch(signed.url,{method:"HEAD"});
+    if(!response.ok)throw new Error("Object HEAD failed: "+response.status);
+    return {contentLength:Number(response.headers.get("content-length")??0),contentType:response.headers.get("content-type")??undefined};
   }
 
   async putBuffer(key:string,contentType:string,data:Buffer){

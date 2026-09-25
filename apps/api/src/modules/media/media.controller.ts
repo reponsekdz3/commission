@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { Body, Controller, Post, BadRequestException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { CurrentUser } from "../../common/current-user.decorator";
@@ -6,6 +6,7 @@ import type { UserRecord } from "../../store/platform.store";
 import { assertPropertyAccess } from "../../common/access";
 import { DatabaseService } from "../../infra/database.service";
 import { StorageService } from "../../infra/storage.service";
+import { loadConfig } from "@imizi/config";
 
 @ApiTags("media")
 @ApiBearerAuth()
@@ -32,6 +33,8 @@ export class MediaController {
     if(!property)return{error:"not_found"};
     assertPropertyAccess(user,property,true);
     if(body.key.includes("..")||body.key.includes("/")===false)return{error:"invalid_key"};
+    const meta=await this.storage.headObject(body.key);
+    if(meta.contentLength>loadConfig().maxMediaBytes)throw new BadRequestException("Uploaded media exceeds the configured size limit");
     const media=await this.db.addMedia(body.propertyId,body.kind,body.key);
     await this.db.enqueueJob("media.process",{mediaId:media.id});
     return (await this.db.hydrateProperty(body.propertyId))?.media ?? [];
