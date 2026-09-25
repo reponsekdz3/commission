@@ -12,11 +12,11 @@ describe("api domain wiring", () => {
     expect(store.users.size).toBeGreaterThan(3);
   });
 
-  it("ranks and filters Kigali 3-bed rentals", () => {
+  it("ranks and filters Kigali 3-bed rentals", async () => {
     const store = new PlatformStore();
     const search = new SearchService(store);
     const parsed = parseNaturalSearch("house near Kigali with 3 bedrooms under 1 million");
-    const result = search.search({
+    const result = await search.search({
       q: parsed.raw,
       listingType: "RENT",
       bedroomsMin: 3,
@@ -26,27 +26,26 @@ describe("api domain wiring", () => {
     expect(result.items[0].listing.listingType).toBe("RENT");
   });
 
-  it("blocks overlapping bookings then confirms payment server-side", () => {
+  it("blocks overlapping bookings then confirms payment server-side", async () => {
     const store = new PlatformStore();
     const bookings = new BookingsService(store);
     const listing = [...store.listings.values()].find((l) => l.listingType === "RENT")!;
     const tenant = [...store.users.values()].find((u) => u.roles.includes("TENANT"))!;
-    const first = bookings.create(tenant, {
+    const first = await bookings.create(tenant, {
       listingId: listing.id,
       startDate: "2026-10-01",
       endDate: "2026-11-01",
       idempotencyKey: "idem-1-xxxxx",
     });
     expect((first as any).booking.status).toBe("PAYMENT_PENDING");
-    expect(() =>
-      bookings.create(tenant, {
+    await expect(() => bookings.create(tenant, {
         listingId: listing.id,
         startDate: "2026-10-15",
         endDate: "2026-10-20",
         idempotencyKey: "idem-2-xxxxx",
       }),
-    ).toThrow();
-    const confirmed = bookings.confirmFromPayment((first as any).booking.id);
+    ).rejects.toThrow();
+    const confirmed = await bookings.confirmFromPayment((first as any).booking.id);
     expect(confirmed.status).toBe("CONFIRMED");
     expect(transitionBooking("CONFIRMED", "ACTIVE")).toBe("ACTIVE");
     expect(calculatePrice({ base: rwf(900000), deposit: rwf(900000), serviceFeeBps: 250 }).serviceFee.amountMinor).toBe(22500);
