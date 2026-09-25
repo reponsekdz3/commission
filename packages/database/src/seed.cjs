@@ -106,27 +106,44 @@ async function main() {
       await client.query("DELETE FROM property_amenities WHERE property_id=$1",[p.id]);
       for (const amenity of p.amenities) await client.query("INSERT INTO property_amenities(property_id,amenity) VALUES($1,$2)",[p.id,amenity]);
 
+      await client.query("DELETE FROM property_media WHERE property_id=$1",[p.id]);
       for (let i=0;i<images.length;i++) {
         await client.query(
-          "INSERT INTO property_media(id,property_id,kind,storage_key,sort_order) VALUES(gen_random_uuid(),$1,'PHOTO',$2,$3) " +
-          "ON CONFLICT DO NOTHING",
+          "INSERT INTO property_media(id,property_id,kind,storage_key,sort_order) VALUES(gen_random_uuid(),$1,'PHOTO',$2,$3)",
           [p.id,images[i],i],
         );
       }
 
-      const listing = await client.query(
-        "INSERT INTO property_listings(id,property_id,listing_type,status,available_from) VALUES(gen_random_uuid(),$1,$2,'ACTIVE',now()) RETURNING id",
+      const existingListing = await client.query(
+        "SELECT id FROM property_listings WHERE property_id=$1 AND listing_type=$2 ORDER BY created_at LIMIT 1",
         [p.id,p.listing],
       );
+      let listingId;
+      if (existingListing.rows[0]) {
+        listingId=existingListing.rows[0].id;
+        await client.query("UPDATE property_listings SET status='ACTIVE',available_from=now(),updated_at=now() WHERE id=$1",[listingId]);
+        await client.query("UPDATE property_prices SET amount_minor=$2,effective_to=NULL WHERE listing_id=$1 AND effective_to IS NULL",[listingId,p.price]);
+      } else {
+        const listing = await client.query(
+          "INSERT INTO property_listings(id,property_id,listing_type,status,available_from) VALUES(gen_random_uuid(),$1,$2,'ACTIVE',now()) RETURNING id",
+          [p.id,p.listing],
+        );
+        listingId=listing.rows[0].id;
+        await client.query(
+          "INSERT INTO property_prices(listing_id,amount_minor,currency,period) VALUES($1,$2,'RWF',$3)",
+          [listingId,p.price,p.listing==="RENT"?"MONTH":p.listing==="SHORT_STAY"?"NIGHT":null],
+        );
+      }
       await client.query(
-        "INSERT INTO property_prices(listing_id,amount_minor,currency,period) VALUES($1,$2,'RWF',$3)",
-        [listing.rows[0].id,p.price,p.listing==="RENT"?"MONTH":p.listing==="SHORT_STAY"?"NIGHT":null],
+        "INSERT INTO background_jobs(name,payload) SELECT 'search.index', $2::jsonb WHERE NOT EXISTS (SELECT 1 FROM background_jobs WHERE name='search.index' AND payload->>'listingId'=$1 AND status IN ('PENDING','RUNNING'))",
+        [String(listingId),JSON.stringify({listingId:String(listingId)})],
       );
     }
 
+    await client.query("DELETE FROM saved_searches WHERE user_id='22222222-2222-2222-222222222222' AND name='Kicukiro 2-3 bed under 900k'");
     await client.query(
-      "INSERT INTO saved_searches(id,user_id,name,criteria,notify) VALUES(gen_random_uuid(),'22222222-2222-2222-2222-222222222222','Kicukiro 2-3 bed under 900k','{"district":"Kicukiro","bedroomsMin":2,"maxPriceMinor":900000,"listingType":"RENT"}',true) " +
-      "ON CONFLICT DO NOTHING",
+      "INSERT INTO saved_searches(id,user_id,name,criteria,notify) VALUES(gen_random_uuid(),'22222222-2222-2222-2222-222222222222','Kicukiro 2-3 bed under 900k',$1::jsonb,true)",
+      [JSON.stringify({district:"Kicukiro",bedroomsMin:2,maxPriceMinor:900000,listingType:"RENT"})],
     );
 
     await client.query("COMMIT");
