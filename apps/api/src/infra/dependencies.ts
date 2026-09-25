@@ -88,7 +88,7 @@ export class Dependencies implements OnModuleInit, OnModuleDestroy {
       }catch{return false;}
     }
     try{
-      const response=await fetch(config.opensearchUrl+"/"+encodeURIComponent(config.opensearchIndex)+"/_doc/"+encodeURIComponent(String(doc.id)),{
+      const response=await fetch(config.opensearchUrl+"/"+encodeURIComponent(config.opensearchIndex)+"/_doc/"+encodeURIComponent(String(doc.listingId ?? doc.id)),{
         method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify(doc)
       });
       if(!response.ok)return false;
