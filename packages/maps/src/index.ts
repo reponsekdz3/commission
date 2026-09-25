@@ -65,10 +65,10 @@ function featureToGeocode(feature:any):GeocodeResult {
 export class MapboxProvider implements MapProvider {
   constructor(private readonly token:string) {}
 
-  private async getJson(url:string){
+  private async getJson<T=any>(url:string):Promise<T>{
     const res=await fetch(url,{signal:AbortSignal.timeout(5000)});
     if(!res.ok) throw new Error("Mapbox request failed: "+res.status);
-    return res.json();
+    return await res.json() as T;
   }
 
   async geocode(query:string,countryBias="RW"){
