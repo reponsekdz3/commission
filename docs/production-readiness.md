@@ -39,7 +39,7 @@ This repository now contains the production-oriented real-estate core requested 
 27. Pagination — search uses bounded limits and cursor-shaped responses; high-scale keyset pagination remains an optimization for very large result sets.
 28. Database indexes — relational and geospatial indexes exist in the schema.
 29. Caching — Redis cache integration with graceful fallback exists.
-30. Background jobs — durable PostgreSQL queue with SKIP LOCKED workers exists; BullMQ can be introduced later as a queue extraction without changing domain contracts.
+30. Background jobs — durable PostgreSQL queue with SKIP LOCKED workers exists; Background jobs are implemented today as a durable PostgreSQL queue using `FOR UPDATE SKIP LOCKED`; Redis remains the cache/rate-limit layer. BullMQ is therefore not a current dependency, although the job contract is extraction-ready.
 
 ## 31-40: operations, UX and management
 
@@ -88,6 +88,13 @@ This repository now contains the production-oriented real-estate core requested 
 64. Build phases — foundation, real-estate core, marketplace, transactions and management are materially implemented; advanced phase remains roadmap.
 65. Final target — the codebase is positioned as a real platform rather than a listing-only UI, with external production integrations separated from business logic.
 
-## Current deploy blockers
+## Current deploy blockers and external integrations
 
 The codebase is not honestly “turn-key production” until the deployment environment supplies real values for database, Redis, OpenSearch, object storage, map provider keys, payment provider credentials, domain/email/SMS/push services and observability. Legal/compliance review is also required before handling real tenant/landlord identity documents or operating rental agreements in production.
+
+
+### Code-level integration status
+The repository now contains working code for TOTP MFA, re-authentication, session controls, provider-backed payment checkout/refunds, payment webhooks with raw-body verification, booking expiry/activation/completion jobs, authenticated Socket.IO messaging, saved-search matching, push/email/SMS dispatch adapters, signed S3-compatible media/documents, image and video processing, cursor pagination, PostGIS radius/bounding-box search, OpenSearch search-after pagination, lease signing/PDF generation, agency member management, and mobile offline caching.
+
+### External values still required
+The application intentionally does not contain secrets. Production requires actual values for PostgreSQL, Redis, OpenSearch, S3/CDN, Mapbox or another map provider, MTN MoMo, Flutterwave/card, JWT secrets, Sentry/OTLP, Expo push, email, SMS and any ClamAV deployment. These are deployment configuration, not mocked application logic.
