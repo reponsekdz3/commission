@@ -33,15 +33,15 @@ describe("api domain wiring", () => {
     const tenant = [...store.users.values()].find((u) => u.roles.includes("TENANT"))!;
     const first = await bookings.create(tenant, {
       listingId: listing.id,
-      startDate: "2026-10-01",
-      endDate: "2026-11-01",
+      startDate: "2030-10-01",
+      endDate: "2030-11-01",
       idempotencyKey: "idem-1-xxxxx",
     });
     expect((first as any).booking.status).toBe("PAYMENT_PENDING");
     await expect(() => bookings.create(tenant, {
         listingId: listing.id,
-        startDate: "2026-10-15",
-        endDate: "2026-10-20",
+        startDate: "2030-10-15",
+        endDate: "2030-10-20",
         idempotencyKey: "idem-2-xxxxx",
       }),
     ).rejects.toThrow();
