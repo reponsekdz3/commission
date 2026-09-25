@@ -282,6 +282,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         [id,input.priceMinor,input.currency,input.listingType==="RENT" ? "MONTH" : input.listingType==="SHORT_STAY" ? "NIGHT" : null],
       );
     });
+    await this.enqueueJob("search.index",{listingId:id});
     return this.getListing(id);
   }
 
@@ -457,6 +458,14 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       const fresh=await client.query("SELECT * FROM payment_intents WHERE id=$1",[intentId]);
       return this.mapPayment(fresh.rows[0]);
     });
+  }
+
+  async enqueueJob(name:string,payload:Record<string,unknown>,delaySeconds=0){
+    const r=await this.query(
+      "INSERT INTO background_jobs(name,payload,run_at) VALUES($1,$2::jsonb,now()+($3 || ' seconds')::interval) RETURNING id,name,status,run_at",
+      [name,JSON.stringify(payload),delaySeconds],
+    );
+    return r.rows[0];
   }
 
   async addMedia(propertyId:string,kind:string,key:string){
