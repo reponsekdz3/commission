@@ -7,6 +7,7 @@ import {
   Logger,
 } from "@nestjs/common";
 import { ZodError } from "zod";
+import { reportSentry } from "./sentry";
 
 @Catch()
 export class HttpExceptionFilter implements ExceptionFilter {
@@ -38,6 +39,7 @@ export class HttpExceptionFilter implements ExceptionFilter {
     }
 
     this.log.error(exception);
+    void reportSentry(exception,{requestId,method:req.method,url:req.originalUrl,ip:req.ip});
     return res.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       code: "INTERNAL",
       message: "Unexpected error",

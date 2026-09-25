@@ -8,13 +8,14 @@ const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 export default function LoginPage() {
   const [identifier,setIdentifier]=useState("tenant@imizi.rw");
   const [password,setPassword]=useState("ChangeMe!2026");
+  const [mfaCode,setMfaCode]=useState("");
   const [out,setOut]=useState("");
   const [loading,setLoading]=useState(false);
 
   async function submit(e:React.FormEvent){
     e.preventDefault(); setLoading(true); setOut("");
     try{
-      const res=await fetch(API+"/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({identifier,password})});
+      const res=await fetch(API+"/auth/login",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({identifier,password,mfaCode:mfaCode||undefined})});
       const json=await res.json();
       if(!res.ok||!json.accessToken){setOut(json.message ?? json.error ?? "Login failed");return;}
       localStorage.setItem("imizi_token",json.accessToken);
@@ -33,6 +34,7 @@ export default function LoginPage() {
       <form onSubmit={submit} className="panel">
         <input value={identifier} onChange={e=>setIdentifier(e.target.value)} placeholder="Email or phone" style={{width:"100%",padding:12,marginBottom:8}} />
         <input type="password" value={password} onChange={e=>setPassword(e.target.value)} placeholder="Password" style={{width:"100%",padding:12,marginBottom:8}} />
+        <input value={mfaCode} onChange={e=>setMfaCode(e.target.value)} placeholder="MFA code (if enabled)" inputMode="numeric" maxLength={6} style={{width:"100%",padding:12,marginBottom:8}} />
         <button className="btn" type="submit" disabled={loading}>{loading?"Signing in…":"Continue"}</button>
         <p className="muted">{out}</p>
       </form>

@@ -227,7 +227,7 @@ export class PlatformStore {
       locale: "en",
       roles: ["SUPER_ADMIN"],
       status: "ACTIVE",
-      mfaEnabled: true,
+      mfaEnabled: false,
       createdAt: this.now(),
     };
     const agent: UserRecord = {

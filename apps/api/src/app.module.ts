@@ -7,6 +7,7 @@ import { DatabaseService } from "./infra/database.service";
 import { FeatureService } from "./infra/feature.service";
 import { StorageService } from "./infra/storage.service";
 import { RequestIdInterceptor } from "./common/request-id.interceptor";
+import { TelemetryInterceptor } from "./common/telemetry.interceptor";
 import { AuthGuard } from "./common/auth.guard";
 import { HealthController } from "./modules/health/health.controller";
 import { AuthController } from "./modules/auth/auth.controller";
@@ -67,6 +68,7 @@ const config = loadConfig();
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
     { provide: APP_INTERCEPTOR, useClass: RequestIdInterceptor },
+    { provide: APP_INTERCEPTOR, useClass: TelemetryInterceptor },
   ],
 })
 export class AppModule {}

@@ -1,5 +1,7 @@
 
 import * as Location from "expo-location";
+import { getAccessToken } from "../src/lib/auth";
+import { registerPushToken } from "../src/lib/notifications";
 import { useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -11,6 +13,7 @@ export default function Home() {
   const [checking,setChecking]=useState(true);
 
   useEffect(()=>{
+    getAccessToken().then(token=>{if(token)void registerPushToken();});
     Location.requestForegroundPermissionsAsync().then(permission=>{
       if(permission.status==="granted") {
         return Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced})

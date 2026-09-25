@@ -166,6 +166,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     );
     if (!base.rows[0]) return undefined;
     const row = base.rows[0];
+    const config=loadConfig();
     const [amenities,media] = await Promise.all([
       this.query("SELECT amenity FROM property_amenities WHERE property_id=$1 ORDER BY amenity",[id]),
       this.query("SELECT id,kind,storage_key,sort_order FROM property_media WHERE property_id=$1 ORDER BY sort_order,id",[id]),
@@ -181,7 +182,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       parking:row.parking == null ? undefined : Number(row.parking),
       areaValue:row.area_value == null ? undefined : Number(row.area_value),areaUnit:String(row.area_unit),
       amenities:amenities.rows.map((x:any)=>String(x.amenity)),
-      media:media.rows.map((x:any)=>({id:String(x.id),kind:String(x.kind),url:String(x.storage_key).startsWith("http") ? String(x.storage_key) : "/cdn/"+String(x.storage_key),sortOrder:Number(x.sort_order)})),
+      media:media.rows.map((x:any)=>({id:String(x.id),kind:String(x.kind),url:String(x.storage_key).startsWith("http") ? String(x.storage_key) : (config.cdnBaseUrl ? config.cdnBaseUrl.replace(/\/$/,"")+"/"+String(x.storage_key).split("/").map(encodeURIComponent).join("/") : new URL("/"+String(x.storage_key),config.s3Endpoint ?? "http://localhost:9000").toString()),sortOrder:Number(x.sort_order)})),
       createdAt:new Date(row.created_at).toISOString(),updatedAt:new Date(row.updated_at).toISOString(),
     };
   }
@@ -339,6 +340,16 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       values.push(Number(query.lng),Number(query.lat));const lng=values.length-1;const lat=values.length;
       distance="ST_Distance(ploc.geom,ST_SetSRID(ST_MakePoint($"+lng+",$"+lat+"),4326)::geography) distance_meters";
       if(query.radiusKm != null){values.push(Number(query.radiusKm));where.push("ST_DWithin(ploc.geom,ST_SetSRID(ST_MakePoint($"+lng+",$"+lat+"),4326)::geography,$"+values.length+"*1000)");}
+    }
+    if(query.cursor){
+      try{
+        const decoded=JSON.parse(Buffer.from(query.cursor,"base64url").toString("utf8")) as {createdAt?:string;id?:string};
+        if(decoded.createdAt&&decoded.id){
+          values.push(decoded.createdAt,decoded.id);
+          const ca=values.length-1,ci=values.length;
+          where.push("(pl.created_at,pl.id) < ($"+ca+"::timestamptz,$"+ci+"::uuid)");
+        }
+      }catch{}
     }
     if([query.north,query.south,query.east,query.west].every((x)=>x != null)){
       values.push(query.west,query.south,query.east,query.north);

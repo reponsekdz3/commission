@@ -76,10 +76,10 @@ export interface SearchItem {
   listing: Listing;
   property: Property;
 }
-export async function login(identifier: string, password: string) {
+export async function login(identifier: string, password: string, mfaCode?: string) {
   return api<{ accessToken: string; refreshToken: string; user: User }>("/auth/login", {
     method: "POST",
     auth: false,
-    body: JSON.stringify({ identifier, password }),
+    body: JSON.stringify({ identifier, password, mfaCode }),
   });
 }

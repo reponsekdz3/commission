@@ -40,8 +40,9 @@ export class SearchService {
     for(const amenity of amenities)filter.push({term:{amenities:String(amenity).toLowerCase()}});
     if(query.lat!=null&&query.lng!=null&&query.radiusKm!=null)filter.push({geo_distance:{distance:Number(query.radiusKm)+"km",location:{lat:Number(query.lat),lon:Number(query.lng)}}});
     if(query.q)must.push({multi_match:{query:String(query.q),fields:["title^4","description^2","district^3","province","propertyType","amenities"],fuzziness:"AUTO"}});
-    const body={
+    const body:any={
       size:limit,track_total_hits:false,query:{bool:{must,filter}},
+      ...(query.cursor ? (()=>{try{return {search_after:JSON.parse(Buffer.from(String(query.cursor),"base64url").toString("utf8"))};}catch{return {};}})() : {}),
       sort:[
         ...(query.lat!=null&&query.lng!=null ? [{_geo_distance:{location:{lat:Number(query.lat),lon:Number(query.lng)},order:"asc",unit:"m",mode:"min",distance_type:"arc",ignore_unmapped:true}}] : []),
         {_score:"desc"},{updatedAt:"desc"},{listingId:"desc"}
@@ -58,7 +59,8 @@ export class SearchService {
           property:{id:s.id,title:s.title,description:s.description,district:s.district,province:s.province,sector:s.sector,propertyType:s.propertyType,bedrooms:s.bedrooms,bathrooms:s.bathrooms,parking:s.parking,verificationStatus:s.verificationStatus,amenities:s.amenities ?? [],media:[],latitude:s.location?.lat,longitude:s.location?.lon}
         };
       });
-      const payload={items,nextCursor:null,engine:"opensearch"};
+      const last=items.length===limit ? (os.hits?.hits ?? [])[items.length-1]?.sort : undefined;
+      const payload={items,nextCursor:last?Buffer.from(JSON.stringify(last)).toString("base64url"):null,engine:"opensearch"};
       await this.deps?.cacheSet(cacheKey,payload,15);
       return payload;
     }
@@ -66,12 +68,14 @@ export class SearchService {
       q:query.q,listingType,propertyType,province:query.province,district,sector:query.sector,
       bedroomsMin:query.bedroomsMin ?? parsed?.bedrooms,bedroomsMax:query.bedroomsMax,bathroomsMin:query.bathroomsMin,
       minPriceMinor:query.minPriceMinor,maxPriceMinor:query.maxPriceMinor ?? parsed?.maxPrice,currency:query.currency,
-      amenities:query.amenities,verifiedOnly:Boolean(query.verifiedOnly),availableFrom:query.availableFrom,radiusKm:query.radiusKm,
+      amenities:query.amenities,verifiedOnly:Boolean(query.verifiedOnly),availableFrom:query.availableFrom,radiusKm:query.radiusKm,cursor:query.cursor,
       lat:query.lat==null?undefined:Number(query.lat),lng:query.lng==null?undefined:Number(query.lng),
       north:query.north==null?undefined:Number(query.north),south:query.south==null?undefined:Number(query.south),
       east:query.east==null?undefined:Number(query.east),west:query.west==null?undefined:Number(query.west),limit
     });
-    const payload={items:result,nextCursor:null,engine:"postgres-postgis"};
+    const last=result.length===limit ? result[result.length-1]?.listing : undefined;
+    const nextCursor=last?.id&&last?.createdAt ? Buffer.from(JSON.stringify({createdAt:last.createdAt,id:last.id})).toString("base64url") : null;
+    const payload={items:result,nextCursor,engine:"postgres-postgis"};
     await this.deps?.cacheSet(cacheKey,payload,10);
     return payload;
   }

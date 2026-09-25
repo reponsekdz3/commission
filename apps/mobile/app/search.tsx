@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, FlatList, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api, SearchItem } from "../src/lib/api";
 import { PropertyCard } from "../src/components/PropertyCard";
+import { cacheJson, readCached } from "../src/lib/cache";
 
 export default function SearchScreen(){
   const params=useLocalSearchParams<{q?:string}>();
@@ -18,7 +19,12 @@ export default function SearchScreen(){
       const query=text.trim()?"/search?q="+encodeURIComponent(text.trim()):"/search";
       const data=await api<{items:SearchItem[]}>(query,{auth:false});
       setItems(data.items);
-    }catch(e){setError(e instanceof Error?e.message:"Search failed");}
+      await cacheJson("search:"+text.trim(),data.items);
+    }catch(e){
+      const cached=await readCached<SearchItem[]>("search:"+text.trim());
+      if(cached){setItems(cached);setError("Offline mode: showing cached results.");}
+      else setError(e instanceof Error?e.message:"Search failed");
+    }
     finally{setLoading(false);}
   }
   useEffect(()=>{run(params.q??"");},[params.q]);

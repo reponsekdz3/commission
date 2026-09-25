@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { api, Property } from "../../src/lib/api";
+import { cacheJson, readCached } from "../../src/lib/cache";
 
 export default function PropertyDetails(){
   const {id}=useLocalSearchParams<{id:string}>();
@@ -10,7 +11,12 @@ export default function PropertyDetails(){
   const [property,setProperty]=useState<Property|null>(null);
   const [error,setError]=useState("");
   useEffect(()=>{
-    if(id) api<Property>("/properties/"+id,{auth:false}).then(setProperty).catch(e=>setError(e instanceof Error?e.message:"Property failed"));
+    if(!id)return;
+    api<Property>("/properties/"+id,{auth:false}).then(data=>{setProperty(data);void cacheJson("property:"+id,data);}).catch(async e=>{
+      const cached=await readCached<Property>("property:"+id);
+      if(cached){setProperty(cached);setError("Offline mode: showing cached property.");}
+      else setError(e instanceof Error?e.message:"Property failed");
+    });
   },[id]);
   if(error)return <SafeAreaView style={styles.safe}><Text style={styles.error}>{error}</Text></SafeAreaView>;
   if(!property)return <SafeAreaView style={styles.safe}><ActivityIndicator style={{marginTop:40}}/></SafeAreaView>;

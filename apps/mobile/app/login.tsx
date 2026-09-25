@@ -4,17 +4,20 @@ import { useState } from "react";
 import { Alert, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View } from "react-native";
 import { login } from "../src/lib/api";
 import { saveTokens } from "../src/lib/auth";
+import { registerPushToken } from "../src/lib/notifications";
 
 export default function Login() {
   const router=useRouter();
   const [identifier,setIdentifier]=useState("");
   const [password,setPassword]=useState("");
+  const [mfaCode,setMfaCode]=useState("");
   const [busy,setBusy]=useState(false);
   async function submit(){
     setBusy(true);
     try{
-      const data=await login(identifier,password);
+      const data=await login(identifier,password,mfaCode||undefined);
       await saveTokens(data.accessToken,data.refreshToken);
+      await registerPushToken();
       router.replace("/");
     }catch(error){Alert.alert("Sign in failed",error instanceof Error?error.message:"Unable to sign in");}
     finally{setBusy(false);}
@@ -24,6 +27,7 @@ export default function Login() {
     <Text style={styles.muted}>Use email or phone and your Imizi password.</Text>
     <TextInput autoCapitalize="none" value={identifier} onChangeText={setIdentifier} placeholder="Email or phone" style={styles.input}/>
     <TextInput secureTextEntry value={password} onChangeText={setPassword} placeholder="Password" style={styles.input}/>
+    <TextInput keyboardType="number-pad" value={mfaCode} onChangeText={setMfaCode} placeholder="MFA code (if enabled)" style={styles.input}/>
     <Pressable disabled={busy} onPress={submit} style={styles.button}><Text style={styles.buttonText}>{busy?"Signing in...":"Sign in"}</Text></Pressable>
   </View></SafeAreaView>;
 }

@@ -7,10 +7,11 @@ const API=process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
 export function BookingPanel({listingId,propertyId,listingType,landlordId}:{listingId:string;propertyId:string;listingType:string;landlordId?:string;}){
   const [quote,setQuote]=useState<any>(null);
   const [result,setResult]=useState("");
-  const [startDate,setStartDate]=useState("2026-10-01");
-  const [endDate,setEndDate]=useState("2026-11-01");
+  const [startDate,setStartDate]=useState(()=>new Date(Date.now()+86400000).toISOString().slice(0,10));
+  const [endDate,setEndDate]=useState(()=>new Date(Date.now()+30*86400000).toISOString().slice(0,10));
   const [msisdn,setMsisdn]=useState("+250780000002");
   const [offer,setOffer]=useState("105000000");
+  const [provider,setProvider]=useState("FLUTTERWAVE");
 
   async function request(path:string,init:RequestInit={}){
     const token=localStorage.getItem("imizi_token");
@@ -32,8 +33,9 @@ export function BookingPanel({listingId,propertyId,listingType,landlordId}:{list
       if(listingType==="SALE"){setResult("For-sale properties use an offer flow, not a rental booking.");return;}
       const q=await loadQuote();if(!q)return;
       const booking=await request("/bookings",{method:"POST",body:JSON.stringify({listingId,startDate,endDate,guests:1,idempotencyKey:`web-booking-${listingId}-${startDate}-${endDate}`})});
-      const pay=await request("/payments/intents",{method:"POST",body:JSON.stringify({bookingId:booking.booking.id,provider:"MTN_MOMO",msisdn,idempotencyKey:`web-payment-${booking.booking.id}`})});
-      setResult(`Booking ${booking.booking.status} → payment ${pay.status}. Complete the MoMo prompt, then query server payment status.`);
+      const pay=await request("/payments/intents",{method:"POST",body:JSON.stringify({bookingId:booking.booking.id,provider,msisdn:provider==="MTN_MOMO"?msisdn:undefined,idempotencyKey:"web-payment-"+booking.booking.id})});
+      if(pay.checkoutUrl)window.location.href=pay.checkoutUrl;
+      else setResult("Booking "+booking.booking.status+" → payment "+pay.status+". Complete the provider prompt, then query payment status.");
     }catch(e){setResult(String(e));}
   }
 
@@ -47,7 +49,8 @@ export function BookingPanel({listingId,propertyId,listingType,landlordId}:{list
       <input type="date" value={startDate} onChange={e=>setStartDate(e.target.value)} style={{width:"100%",padding:8,marginBottom:8}}/>
       <label className="muted">End</label>
       <input type="date" value={endDate} onChange={e=>setEndDate(e.target.value)} style={{width:"100%",padding:8,marginBottom:8}}/>
-      <input value={msisdn} onChange={e=>setMsisdn(e.target.value)} placeholder="MTN MoMo phone" style={{width:"100%",padding:8,marginBottom:8}}/>
+      <select value={provider} onChange={e=>setProvider(e.target.value)} style={{width:"100%",padding:8,marginBottom:8}}><option value="FLUTTERWAVE">Card / Mobile Money checkout</option><option value="MTN_MOMO">MTN MoMo direct</option><option value="CARD">Card checkout</option></select>
+      {provider==="MTN_MOMO"&&<input value={msisdn} onChange={e=>setMsisdn(e.target.value)} placeholder="MTN MoMo phone" style={{width:"100%",padding:8,marginBottom:8}}/>}
       <button className="btn" onClick={bookAndPay} style={{width:"100%",marginBottom:8}}>Rent / Pay with MoMo</button>
     </>}
     <button className="btn" style={{width:"100%",background:"#1b1612",marginBottom:8}} onClick={viewing}>Book viewing</button>

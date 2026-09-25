@@ -417,8 +417,11 @@ export class FeatureService {
       this.db.query("SELECT COALESCE(SUM(amount_minor),0)::bigint total FROM payment_intents WHERE status='SUCCEEDED'"),
       this.db.count("property_views","TRUE"),
     ]);
-    const dau=await this.db.query("SELECT COUNT(DISTINCT user_id)::int count FROM analytics_events WHERE user_id IS NOT NULL AND created_at>=now()-interval '1 day'");
-    return {users,properties,listings,agencies,bookings,payments,refunds,reports,verificationQueue,fraud,reviews,messages,gmv:Number(gmv.rows[0].total),paidVolume:Number(paid.rows[0].total),dau:Number(dau.rows[0].count),mau:users,conversion:bookings/Math.max(1,views)};
+    const [dau,mau]=await Promise.all([
+      this.db.query("SELECT COUNT(DISTINCT user_id)::int count FROM analytics_events WHERE user_id IS NOT NULL AND created_at>=now()-interval '1 day'"),
+      this.db.query("SELECT COUNT(DISTINCT user_id)::int count FROM analytics_events WHERE user_id IS NOT NULL AND created_at>=now()-interval '30 days'"),
+    ]);
+    return {users,properties,listings,agencies,bookings,payments,refunds,reports,verificationQueue,fraud,reviews,messages,gmv:Number(gmv.rows[0].total),paidVolume:Number(paid.rows[0].total),dau:Number(dau.rows[0].count),mau:Number(mau.rows[0].count),conversion:bookings/Math.max(1,views)};
   }
 
   async adminUsers(){return this.db.query("SELECT u.id,u.email,u.full_name,u.status,COALESCE(ARRAY_AGG(ur.role) FILTER(WHERE ur.role IS NOT NULL),'{}') roles FROM users u LEFT JOIN user_roles ur ON ur.user_id=u.id GROUP BY u.id ORDER BY u.created_at DESC").then((r)=>r.rows);}

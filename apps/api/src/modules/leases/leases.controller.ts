@@ -1,4 +1,4 @@
-import { Controller, ForbiddenException, Get, Param } from "@nestjs/common";
+import { Controller, ForbiddenException, Get, Param, Post, StreamableFile } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { UserRecord } from "../../store/platform.store";
@@ -15,5 +15,11 @@ export class LeasesController {
     if(!lease)return{error:"not_found"};
     if(!(await this.features.canAccessLease(user.id,id,user.roles)))throw new ForbiddenException("Lease access denied");
     return lease;
+  }  @Post(":id/sign") async sign(@CurrentUser() user:UserRecord,@Param("id") id:string){return this.features.signLease(user.id,id);}
+  @Get(":id/pdf") async pdf(@CurrentUser() user:UserRecord,@Param("id") id:string){
+    const buffer=await this.features.leasePdf(user.id,id);
+    if(!buffer)throw new ForbiddenException("Lease access denied");
+    return new StreamableFile(buffer,{type:"application/pdf",disposition:"attachment; filename=\"lease-"+id+".pdf\""});
   }
+
 }
