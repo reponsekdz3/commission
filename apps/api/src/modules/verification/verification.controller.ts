@@ -17,7 +17,7 @@ export class VerificationController {
   }
   @Get()
   list(@CurrentUser() user:UserRecord){
-    if(!user.roles.includes("VERIFICATION_AGENT")&&!user.roles.includes("SUPER_ADMIN")&&!user.roles.includes("ADMIN"))return{error:"forbidden"};
+    if(!user.roles.includes("VERIFICATION_AGENT")&&!user.roles.includes("SUPER_ADMIN")&&!user.roles.includes("ADMIN"))throw new ForbiddenException("Verification access required");
     return this.features.listVerifications();
   }
 }

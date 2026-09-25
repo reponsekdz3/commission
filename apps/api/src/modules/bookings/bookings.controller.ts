@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { createBookingSchema } from "@imizi/validation";
 import { transitionBooking } from "@imizi/domain";
@@ -30,14 +30,15 @@ export class BookingsController {
   async get(@CurrentUser() user:UserRecord,@Param("id") id:string){
     const booking=await this.db.getBooking(id);if(!booking)return{error:"not_found"};
     const visible=(await this.db.listBookingsForUser(user.id,user.roles.includes("SUPER_ADMIN"))).some((b:any)=>b.id===id);
-    return visible?booking:{error:"forbidden"};
+    if(!visible)throw new ForbiddenException("Booking access denied");
+    return booking;
   }
 
   @ApiBearerAuth()
   @Post(":id/cancel")
   async cancel(@CurrentUser() user:UserRecord,@Param("id") id:string){
     const booking=await this.db.getBooking(id);if(!booking)return{error:"not_found"};
-    if(booking.tenantId!==user.id)return{error:"forbidden"};
+    if(booking.tenantId!==user.id)throw new ForbiddenException("Booking access denied");
     return this.db.updateBookingStatus(id,transitionBooking(booking.status as any,"CANCELLED"));
   }
 }

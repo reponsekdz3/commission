@@ -16,7 +16,7 @@ export class AdminController {
   @Get("users") users(@CurrentUser() user:UserRecord){this.gate(user);return this.features.adminUsers();}
   @Get("properties") properties(@CurrentUser() user:UserRecord){this.gate(user);return this.features.adminProperties();}
   @Get("audit") audit(@CurrentUser() user:UserRecord){this.gate(user);return this.db.query("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 500").then((r)=>r.rows);}
-  @Post("reports") report(@CurrentUser() user:UserRecord,@Body() body:{subjectType:string;subjectId:string;reason:string}){return this.features.report(user.id,body);}
+  @Post("reports") report(@CurrentUser() user:UserRecord,@Body() body:{subjectType:string;subjectId:string;reason:string}){this.gate(user);return this.features.report(user.id,body);}
   @Get("moderation") moderation(@CurrentUser() user:UserRecord){this.gate(user);return this.features.adminModeration();}
   @Post("properties/:id/risk") risk(@CurrentUser() user:UserRecord,@Param("id") id:string,@Body() body:{level:string}){this.gate(user);return this.features.setRisk(user.id,id,body.level);}
 }
