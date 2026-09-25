@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { compareSync, hashSync } from "bcryptjs";
-import { createHash, randomBytes } from "crypto";
+import { createHash, randomBytes, randomUUID } from "crypto";
 import type { Role } from "@imizi/types";
 import type { UserRecord } from "../../store/platform.store";
 import { DatabaseService } from "../../infra/database.service";
@@ -14,11 +14,9 @@ export class AuthService {
     const existing = await this.db.findUserByIdentifier(input.email) ?? await this.db.findUserByIdentifier(input.phone);
     if (existing) throw new ConflictException("Account already exists");
     const user: UserRecord = {
-      id: crypto.randomUUID(),
-      email: input.email.toLowerCase(), phone: input.phone,
-      passwordHash: hashSync(input.password, 12), fullName: input.fullName,
-      locale: input.locale ?? "rw", roles: ["USER" as Role], status: "ACTIVE", mfaEnabled: false,
-      createdAt: new Date().toISOString(),
+      id: randomUUID(), email: input.email.toLowerCase(), phone: input.phone,
+      passwordHash: hashSync(input.password, 12), fullName: input.fullName, locale: input.locale ?? "rw",
+      roles: ["USER" as Role], status: "ACTIVE", mfaEnabled: false, createdAt: new Date().toISOString(),
     };
     const created = await this.db.createUser(user);
     await this.db.auditLog(created.id, "USER_REGISTERED", "user", created.id);
