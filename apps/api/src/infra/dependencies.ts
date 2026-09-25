@@ -11,8 +11,8 @@ export class Dependencies implements OnModuleInit, OnModuleDestroy {
   redis?: Redis;
   redisOk = false;
   searchOk = false;
-  storageOk = true;
-  paymentOk = true;
+  storageOk = false;
+  paymentOk = false;
 
   async onModuleInit() {
     const config = loadConfig();
