@@ -15,13 +15,19 @@ export class PaymentsService {
     if(!booking)throw new NotFoundException("Booking required");
     if(booking.tenantId!==user.id)throw new UnauthorizedException("You do not own this booking");
     const provider=this.gateway.resolve(input.provider);
-    const intent=await this.db.createPaymentIntent({
+    const existing=await this.db.getPaymentByIdempotencyKey(input.idempotencyKey);
+    if(existing){
+      if(existing.payerId!==user.id || existing.bookingId!==booking.id || existing.provider!==provider.name) {
+        throw new BadRequestException("Idempotency key is already bound to another payment");
+      }
+      return existing.status==="SUCCEEDED" ? this.db.settlePayment(existing.id) : existing;
+    }
+    const created=await this.db.createPaymentIntent({
       id:crypto.randomUUID(),bookingId:booking.id,payerId:user.id,provider:provider.name,amountMinor:booking.amountMinor,
       currency:booking.currency,status:transitionPayment("CREATED","INITIATED"),internalReference:"IMZ_"+booking.id.slice(0,8),idempotencyKey:input.idempotencyKey,
     });
-    if(intent.status==="SUCCEEDED"){
-      return this.db.settlePayment(intent.id);
-    }
+    if(!created.created) return created.intent.status==="SUCCEEDED" ? this.db.settlePayment(created.intent.id) : created.intent;
+    const intent=created.intent;
     try{
       const charged=await provider.charge({
         amount:{amountMinor:booking.amountMinor,currency:booking.currency as "RWF"},

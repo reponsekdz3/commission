@@ -1,5 +1,6 @@
 import "reflect-metadata";
 import { NestFactory } from "@nestjs/core";
+import type { NestExpressApplication } from "@nestjs/platform-express";
 import { RequestMethod, ValidationPipe } from "@nestjs/common";
 import helmet from "helmet";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
@@ -9,7 +10,7 @@ import { HttpExceptionFilter } from "./common/http-exception.filter";
 
 async function bootstrap() {
   const config = loadConfig();
-  const app = await NestFactory.create(AppModule, { cors: false });
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { cors: false, rawBody: true });
   app.use(helmet());
   app.enableCors({
     origin: [

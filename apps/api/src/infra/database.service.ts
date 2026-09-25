@@ -390,13 +390,21 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return r.rows.map((x:any)=>this.mapBooking(x));
   }
 
+  async getPaymentByIdempotencyKey(key:string){
+    const r=await this.query("SELECT * FROM payment_intents WHERE idempotency_key=$1",[key]);
+    return r.rows[0] ? this.mapPayment(r.rows[0]) : undefined;
+  }
+
   async createPaymentIntent(input:{id:string;bookingId:string;payerId:string;provider:string;amountMinor:number;currency:string;status:string;internalReference:string;idempotencyKey:string}){
     const r=await this.query(
       "INSERT INTO payment_intents(id,booking_id,payer_id,provider,amount_minor,currency,status,internal_reference,idempotency_key) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9) "+
-      "ON CONFLICT(idempotency_key) DO UPDATE SET idempotency_key=EXCLUDED.idempotency_key RETURNING *",
+      "ON CONFLICT(idempotency_key) DO NOTHING RETURNING *",
       [input.id,input.bookingId,input.payerId,input.provider,input.amountMinor,input.currency,input.status,input.internalReference,input.idempotencyKey],
     );
-    return this.mapPayment(r.rows[0]);
+    if(r.rows[0]) return {created:true,intent:this.mapPayment(r.rows[0])};
+    const existing=await this.getPaymentByIdempotencyKey(input.idempotencyKey);
+    if(!existing) throw new Error("Payment idempotency race did not resolve");
+    return {created:false,intent:existing};
   }
 
   async updatePaymentIntent(id:string,patch:{status?:string;providerReference?:string;completedAt?:string}){
