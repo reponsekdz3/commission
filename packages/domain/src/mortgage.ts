@@ -1,4 +1,4 @@
-import type { Money } from "./money";
+import type { Money } from "@imizi/types";
 
 export function estimateMonthlyPayment(input: {
   priceMinor: number;
