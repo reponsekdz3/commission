@@ -5,8 +5,8 @@ import { initiatePaymentSchema } from "@imizi/validation";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { Public } from "../../common/public.decorator";
 import { PaymentsService } from "./payments.service";
-import { UserRecord } from "../../store/platform.store";
-import { requiresReauth, hasPermission } from "@imizi/domain";
+import type { UserRecord } from "../../store/platform.store";
+import { requiresReauth } from "@imizi/domain";
 
 @ApiTags("payments")
 @Controller("payments")
@@ -26,9 +26,9 @@ export class PaymentsController {
 
   @ApiBearerAuth()
   @Post("refunds")
-  refund(@CurrentUser() user:UserRecord,@Body() body:{intentId:string;amountMinor?:number;reason?:string;reauthToken?:string}){
-    if(!hasPermission(user.roles,"payment:refund" as any) && !user.roles.includes("FINANCE_ADMIN") && !user.roles.includes("SUPER_ADMIN"))return{error:"forbidden"};
-    if(requiresReauth("payment:refund") && !body.reauthToken)return{requiresReauth:true};
-    return this.payments.refund(body.intentId,body.amountMinor ?? 0,body.reason ?? "admin_refund");
+  refund(@CurrentUser() user:UserRecord,@Body() body:{intentId:string;amountMinor:number;reason?:string;reauthToken?:string}){
+    if(!user.roles.includes("FINANCE_ADMIN")&&!user.roles.includes("SUPER_ADMIN"))return{error:"forbidden"};
+    if(requiresReauth("payment:refund")&&!body.reauthToken)return{requiresReauth:true};
+    return this.payments.refund(body.intentId,body.amountMinor,body.reason ?? "admin_refund");
   }
 }
