@@ -25,10 +25,16 @@ export class BookingsService {
     const listing=await this.db.getListing(input.listingId);
     if(!listing) throw new NotFoundException("Listing not found");
     const quote=await this.quote(input.listingId,input.startDate,input.endDate);
-    const booking=await this.db.createBooking({
-      listingId:listing.id,unitId:input.unitId,tenantId:user.id,startDate:input.startDate,endDate:input.endDate,
-      amountMinor:quote.total.amountMinor,depositMinor:quote.deposit.amountMinor,currency:listing.currency,idempotencyKey:input.idempotencyKey,
-    });
+    let booking;
+    try {
+      booking = await this.db.createBooking({
+        listingId:listing.id,unitId:input.unitId,tenantId:user.id,startDate:input.startDate,endDate:input.endDate,
+        amountMinor:quote.total.amountMinor,depositMinor:quote.deposit.amountMinor,currency:listing.currency,idempotencyKey:input.idempotencyKey,
+      });
+    } catch (error) {
+      if ((error as { code?: string }).code === "23P01") throw new BadRequestException("Dates overlap an existing reservation");
+      throw error;
+    }
     await this.db.trackEvent("booking_started",user.id,undefined,{bookingId:booking.id});
     return {booking,quote};
   }
