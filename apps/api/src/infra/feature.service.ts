@@ -176,15 +176,25 @@ export class FeatureService {
     return result.rows[0];
   }
 
-  async respondOffer(userId:string,id:string,action:"ACCEPT"|"REJECT"|"COUNTER",amountMinor?:number) {
+  async respondOffer(userId:string,id:string,action:"ACCEPT"|"REJECT"|"COUNTER"|"WITHDRAW",amountMinor?:number) {
     const offer=await this.db.query(
       "SELECT o.*,p.owner_id FROM offers o JOIN property_listings pl ON pl.id=o.listing_id JOIN properties p ON p.id=pl.property_id WHERE o.id=$1",[id],
     );
     if(!offer.rows[0]) return {error:"not_found"};
     const row=offer.rows[0];
-    if(row.buyer_id!==userId && row.owner_id!==userId) return {error:"forbidden"};
-    const status=action==="COUNTER"?"COUNTERED":action==="ACCEPT"?"ACCEPTED":"REJECTED";
-    const updated=await this.db.query("UPDATE offers SET status=$2,amount_minor=COALESCE($3,amount_minor),updated_at=now() WHERE id=$1 RETURNING *",[id,status,amountMinor ?? null]);
+    const isBuyer=String(row.buyer_id)===userId;
+    const isSeller=String(row.owner_id)===userId;
+    const openStatus=["SELLER_REVIEWING","COUNTERED"].includes(String(row.status));
+    if(!isBuyer&&!isSeller)return{error:"forbidden"};
+    if(!openStatus)return{error:"offer_not_open"};
+    if(isBuyer && action!=="WITHDRAW")return{error:"buyer_can_only_withdraw"};
+    if(isSeller && action==="WITHDRAW")return{error:"seller_cannot_withdraw"};
+    if(action==="COUNTER" && (!Number.isInteger(amountMinor)||Number(amountMinor)<=0))return{error:"counter_amount_required"};
+    const status=action==="COUNTER"?"COUNTERED":action==="ACCEPT"?"ACCEPTED":action==="REJECT"?"REJECTED":"WITHDRAWN";
+    const updated=await this.db.query(
+      "UPDATE offers SET status=$2,amount_minor=COALESCE($3,amount_minor),updated_at=now() WHERE id=$1 RETURNING *",
+      [id,status,amountMinor ?? null],
+    );
     return updated.rows[0];
   }
 
@@ -240,6 +250,13 @@ export class FeatureService {
   async createMaintenance(userId:string,input:{propertyId:string;title:string;description:string}) {
     const property=await this.db.getProperty(input.propertyId);
     if(!property) return {error:"not_found"};
+    const active=await this.db.query(
+      "SELECT 1 FROM bookings b JOIN property_listings pl ON pl.id=b.listing_id " +
+      "WHERE b.tenant_id=$1 AND pl.property_id=$2 AND b.status IN('CONFIRMED','ACTIVE') AND b.start_date<=CURRENT_DATE " +
+      "AND b.end_date>=CURRENT_DATE LIMIT 1",
+      [userId,input.propertyId],
+    );
+    if(!active.rows[0])return{error:"active_rental_required"};
     const result=await this.db.query(
       "INSERT INTO maintenance_requests(id,property_id,tenant_id,title,description,status) VALUES($1,$2,$3,$4,$5,'OPEN') RETURNING *",
       [randomUUID(),input.propertyId,userId,input.title,input.description],
