@@ -46,7 +46,7 @@ describe("api domain wiring", () => {
       }),
     ).toThrow();
     const confirmed = await bookings.confirmFromPayment((first as any).booking.id);
-    expect(confirmed.status).toBe("CONFIRMED");
+    expect(confirmed?.status).toBe("CONFIRMED");
     expect(transitionBooking("CONFIRMED", "ACTIVE")).toBe("ACTIVE");
     expect(calculatePrice({ base: rwf(900000), deposit: rwf(900000), serviceFeeBps: 250 }).serviceFee.amountMinor).toBe(22500);
   });
