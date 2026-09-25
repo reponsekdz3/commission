@@ -159,7 +159,7 @@ export class PaymentGateway {
 }
 
 export function createPaymentGateway(env:Record<string,string|undefined>):PaymentGateway {
-  return new PaymentGateway(new Map([
+  return new PaymentGateway(new Map<string, PaymentProvider>([
     ["MTN_MOMO",new MtnMoMoProvider({
       baseUrl:env.MTN_MOMO_BASE_URL ?? "https://sandbox.momodeveloper.mtn.com",
       targetEnvironment:env.MTN_MOMO_TARGET_ENVIRONMENT ?? "sandbox",
