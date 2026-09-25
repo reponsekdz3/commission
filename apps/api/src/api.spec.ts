@@ -37,7 +37,7 @@ describe("api domain wiring", () => {
       endDate: "2030-11-01",
       idempotencyKey: "idem-1-xxxxx",
     });
-    expect((first as any).booking.status).toBe("PAYMENT_PENDING");
+    expect((first as any).booking.status).toBe("PENDING");
     expect(() => bookings.create(tenant, {
         listingId: listing.id,
         startDate: "2030-10-15",

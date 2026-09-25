@@ -22,6 +22,76 @@ export class JobsService implements OnModuleInit {
 
     for(const job of jobs){
       try{
+
+        if(job.name==="notification.dispatch"){
+          const notification=await this.db.getNotification(String(job.payload?.notificationId ?? ""));
+          const user=await this.db.findUserById(String(job.payload?.userId ?? ""));
+          if(notification && user){
+            const prefs=await this.db.getNotificationPreferences(user.id);
+            if(prefs.push_enabled){
+              const tokens=await this.db.getPushTokens(user.id);
+              for(const row of tokens){
+                const response=await fetch("https://exp.host/--/api/v2/push/send",{
+                  method:"POST",
+                  headers:{"content-type":"application/json",...(process.env.EXPO_ACCESS_TOKEN?{Authorization:"Bearer "+process.env.EXPO_ACCESS_TOKEN}:{})},
+                  body:JSON.stringify({to:row.token,sound:"default",title:notification.title,body:notification.body,data:{eventType:notification.event_type}}),
+                  signal:AbortSignal.timeout(7000),
+                });
+                if(!response.ok) this.log.warn("Expo push rejected "+response.status);
+              }
+            }
+            if(prefs.email_enabled && process.env.RESEND_API_KEY && process.env.EMAIL_FROM){
+              const response=await fetch("https://api.resend.com/emails",{
+                method:"POST",
+                headers:{Authorization:"Bearer "+process.env.RESEND_API_KEY,"content-type":"application/json"},
+                body:JSON.stringify({from:process.env.EMAIL_FROM,to:[user.email],subject:notification.title,text:notification.body}),
+                signal:AbortSignal.timeout(7000),
+              });
+              if(!response.ok) this.log.warn("Resend email rejected "+response.status);
+            }
+            if(prefs.sms_enabled && process.env.SMS_PROVIDER_URL && process.env.SMS_PROVIDER_TOKEN){
+              const response=await fetch(process.env.SMS_PROVIDER_URL,{
+                method:"POST",
+                headers:{Authorization:"Bearer "+process.env.SMS_PROVIDER_TOKEN,"content-type":"application/json"},
+                body:JSON.stringify({to:user.phone,message:notification.title+": "+notification.body}),
+                signal:AbortSignal.timeout(7000),
+              });
+              if(!response.ok) this.log.warn("SMS provider rejected "+response.status);
+            }
+          }
+        }
+        if(job.name==="booking.expire"){
+          const booking=await this.db.getBooking(String(job.payload?.bookingId ?? ""));
+          if(booking && (booking.status==="PENDING" || booking.status==="PAYMENT_PENDING")){
+            const ageMs=Date.now()-new Date(booking.createdAt).getTime();
+            if(ageMs>=30*60_000){
+              await this.db.updateBookingStatus(booking.id,"EXPIRED");
+              await this.db.query("INSERT INTO notifications(user_id,channel,event_type,title,body) VALUES($1,'in_app','BOOKING_EXPIRED','Booking expired',$2)",[booking.tenantId,"Your booking hold expired because payment was not completed."]);
+            }else{
+              const remaining=Math.max(5,Math.ceil((30*60_000-ageMs)/1000));
+              await this.db.enqueueJob("booking.expire",{bookingId:booking.id},remaining);
+            }
+          }
+        }
+        if(job.name==="booking.activate"){
+          const booking=await this.db.getBooking(String(job.payload?.bookingId ?? ""));
+          if(booking && booking.status==="CONFIRMED"){
+            if(new Date(booking.startDate).getTime()<=Date.now()) await this.db.updateBookingStatus(booking.id,"ACTIVE");
+            else await this.db.enqueueJob("booking.activate",{bookingId:booking.id},Math.ceil((new Date(booking.startDate).getTime()-Date.now())/1000));
+          }
+        }
+        if(job.name==="booking.complete"){
+          const booking=await this.db.getBooking(String(job.payload?.bookingId ?? ""));
+          if(booking && (booking.status==="CONFIRMED"||booking.status==="ACTIVE")){
+            if(new Date(booking.endDate).getTime()<=Date.now()){
+              await this.db.updateBookingStatus(booking.id,"COMPLETED");
+              await this.db.query("INSERT INTO notifications(user_id,channel,event_type,title,body) VALUES($1,'in_app','RENTAL_COMPLETED','Rental completed',$2)",[booking.tenantId,"Your rental period has completed."]);
+            }else{
+              await this.db.enqueueJob("booking.complete",{bookingId:booking.id},Math.ceil((new Date(booking.endDate).getTime()-Date.now())/1000));
+            }
+          }
+        }
+
         if(job.name==="search.index"){
           const listingId=job.payload?.listingId as string|undefined;
           if(!listingId)throw new Error("search.index missing listingId");

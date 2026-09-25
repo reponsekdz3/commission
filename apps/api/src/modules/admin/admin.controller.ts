@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
 import type { UserRecord } from "../../store/platform.store";
@@ -11,8 +11,8 @@ import { DatabaseService } from "../../infra/database.service";
 @Controller("admin")
 export class AdminController {
   constructor(private readonly features:FeatureService,private readonly db:DatabaseService){}
-  private gate(user:UserRecord){return hasPermission(user.roles,"admin:access");}
-  @Get("overview") overview(@CurrentUser() user:UserRecord){if(!this.gate(user))return{error:"forbidden"};return this.features.adminOverview();}
+  private gate(user:UserRecord){if(!hasPermission(user.roles,"admin:access"))throw new ForbiddenException("Admin access required");}
+  @Get("overview") overview(@CurrentUser() user:UserRecord){return this.features.adminOverview();}
   @Get("users") users(@CurrentUser() user:UserRecord){if(!this.gate(user))return{error:"forbidden"};return this.features.adminUsers();}
   @Get("properties") properties(@CurrentUser() user:UserRecord){if(!this.gate(user))return{error:"forbidden"};return this.features.adminProperties();}
   @Get("audit") audit(@CurrentUser() user:UserRecord){if(!this.gate(user))return{error:"forbidden"};return this.db.query("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 500").then((r)=>r.rows);}

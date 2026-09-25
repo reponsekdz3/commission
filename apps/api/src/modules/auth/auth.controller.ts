@@ -37,7 +37,7 @@ export class AuthController {
   @Post("mfa/setup") setupMfa(@CurrentUser() user:UserRecord){return this.auth.setupMfa(user);}
   @Post("mfa/enable") enableMfa(@CurrentUser() user:UserRecord,@Body() body:unknown){return this.auth.enableMfa(user,mfaCodeSchema.parse(body).code);}
   @Post("mfa/disable") disableMfa(@CurrentUser() user:UserRecord,@Body() body:unknown){return this.auth.disableMfa(user,mfaCodeSchema.parse(body).code);}
-  @Post("reauth") reauth(@CurrentUser() user:UserRecord,@Body() body:unknown){const data=reauthSchema.extend({mfaCode:z.string().regex(/^\\d{6}$/).optional()}).parse(body);return this.auth.reauthenticate(user,data.password,data.action,data.mfaCode);}
+  @Post("reauth") reauth(@CurrentUser() user:UserRecord,@Body() body:unknown){const data=reauthSchema.extend({mfaCode:z.string().regex(/^\d{6}$/).optional()}).parse(body);return this.auth.reauthenticate(user,data.password,data.action,data.mfaCode);}
   @Get("sessions") sessions(@CurrentUser() user:UserRecord){return this.auth.sessions(user);}
   @Delete("sessions/:id") revokeSession(@CurrentUser() user:UserRecord,@Param("id") id:string){return this.auth.revokeSession(user,id);}
 

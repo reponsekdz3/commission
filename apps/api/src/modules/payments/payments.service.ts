@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { createPaymentGateway } from "@imizi/payments";
 import { paymentIsAuthoritative, transitionPayment } from "@imizi/domain";
 import type { UserRecord } from "../../store/platform.store";
@@ -23,24 +24,28 @@ export class PaymentsService {
       return existing.status==="SUCCEEDED" ? this.db.settlePayment(existing.id) : existing;
     }
     const created=await this.db.createPaymentIntent({
-      id:crypto.randomUUID(),bookingId:booking.id,payerId:user.id,provider:provider.name,amountMinor:booking.amountMinor,
+      id:randomUUID(),bookingId:booking.id,payerId:user.id,provider:provider.name,amountMinor:booking.amountMinor,
       currency:booking.currency,status:transitionPayment("CREATED","INITIATED"),internalReference:"IMZ_"+booking.id.slice(0,8),idempotencyKey:input.idempotencyKey,
     });
     if(!created.created) return created.intent.status==="SUCCEEDED" ? this.db.settlePayment(created.intent.id) : created.intent;
     const intent=created.intent;
+    await this.db.updateBookingStatus(booking.id,"PAYMENT_PENDING");
+    await this.db.enqueueJob("booking.expire",{bookingId:booking.id},30*60);
     try{
       const charged=await provider.charge({
         amount:{amountMinor:booking.amountMinor,currency:booking.currency as "RWF"},
-        msisdn:input.msisdn,idempotencyKey:input.idempotencyKey,internalReference:intent.internalReference,
-        description:"Imizi booking "+booking.id,metadata:{bookingId:booking.id},
+        msisdn:input.msisdn,customerEmail:user.email,customerName:user.fullName,idempotencyKey:input.idempotencyKey,
+        internalReference:intent.internalReference,description:"Imizi booking "+booking.id,metadata:{bookingId:booking.id},
+        redirectUrl:process.env.FLUTTERWAVE_REDIRECT_URL,
       });
       if(paymentIsAuthoritative(true,charged.status as any)){
-        await this.db.updatePaymentIntent(intent.id,{providerReference:charged.providerReference});
+        await this.db.updatePaymentIntent(intent.id,{providerReference:charged.providerReference,checkoutUrl:charged.checkoutUrl});
         return this.db.settlePayment(intent.id);
       }
-      return this.db.updatePaymentIntent(intent.id,{providerReference:charged.providerReference,status:charged.status});
+      return this.db.updatePaymentIntent(intent.id,{providerReference:charged.providerReference,status:charged.status,checkoutUrl:charged.checkoutUrl});
     }catch(error){
       await this.db.updatePaymentIntent(intent.id,{status:"FAILED"});
+      await this.db.updateBookingStatus(booking.id,"PENDING").catch(()=>undefined);
       throw error;
     }
   }
@@ -78,7 +83,11 @@ export class PaymentsService {
     if(!Number.isInteger(amountMinor) || amountMinor<=0)throw new BadRequestException("Refund amount must be positive");
     const intent=await this.db.getPaymentIntent(intentId);
     if(!intent)throw new NotFoundException("Payment not found");
+    if(intent.status!=="SUCCEEDED" && intent.status!=="PARTIALLY_REFUNDED")throw new BadRequestException("Only captured payments can be refunded");
     if(amountMinor>intent.amountMinor)throw new BadRequestException("Refund exceeds payment amount");
-    return this.db.refundPayment(intentId,amountMinor,reason);
+    const provider=this.gateway.resolve(intent.provider);
+    if(!provider.refund || !intent.providerReference)throw new BadRequestException("This provider does not support automated refunds");
+    const external=await provider.refund(intent.providerReference,amountMinor,intent.currency,reason);
+    return this.db.refundPayment(intentId,amountMinor,reason,external.providerReference);
   }
 }

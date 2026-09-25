@@ -369,7 +369,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       if(existing.rows[0]) return this.mapBooking(existing.rows[0]);
       const r=await client.query(
         "INSERT INTO bookings(id,listing_id,unit_id,tenant_id,status,start_date,end_date,amount_minor,deposit_minor,currency,idempotency_key) "+
-        "VALUES($1,$2,$3,$4,'PAYMENT_PENDING',$5::date,$6::date,$7,$8,$9,$10) RETURNING *",
+        "VALUES($1,$2,$3,$4,'PENDING',$5::date,$6::date,$7,$8,$9,$10) RETURNING *",
         [randomUUID(),input.listingId,input.unitId ?? null,input.tenantId,input.startDate,input.endDate,input.amountMinor,input.depositMinor,input.currency,input.idempotencyKey],
       );
       return this.mapBooking(r.rows[0]);
@@ -449,6 +449,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           );
           await client.query("INSERT INTO notifications(user_id,channel,event_type,title,body) VALUES($1,'in_app','BOOKING_CONFIRMED','Booking confirmed',$2)",[booking.tenantId,"Your booking is confirmed."]);
           if(ownerId) await client.query("INSERT INTO notifications(user_id,channel,event_type,title,body) VALUES($1,'in_app','PAYMENT_RECEIVED','Payment received',$2)",[ownerId,"A booking payment was received."]);
+          const startDelay=Math.max(0,Math.ceil((new Date(booking.startDate).getTime()-Date.now())/1000));
+          const endDelay=Math.max(startDelay+1,Math.ceil((new Date(booking.endDate).getTime()-Date.now())/1000));
+          await this.enqueueJob("booking.activate",{bookingId:booking.id},startDelay);
+          await this.enqueueJob("booking.complete",{bookingId:booking.id},endDelay);
         }
       }
       const fresh=await client.query("SELECT * FROM payment_intents WHERE id=$1",[intentId]);

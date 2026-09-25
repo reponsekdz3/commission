@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { createPropertySchema } from "@imizi/validation";
+import { createPropertySchema, updatePropertySchema } from "@imizi/validation";
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { PropertiesService } from "./properties.service";
@@ -25,7 +25,7 @@ export class PropertiesController {
 
   @ApiBearerAuth()
   @Patch(":id")
-  update(@Param("id") id:string,@CurrentUser() user:UserRecord,@Body() body:Record<string,unknown>){ return this.properties.update(id,user,body); }
+  update(@Param("id") id:string,@CurrentUser() user:UserRecord,@Body() body:Record<string,unknown>){ return this.properties.update(id,user,updatePropertySchema.parse(body)); }
 
   @ApiBearerAuth()
   @Post(":id/publish")

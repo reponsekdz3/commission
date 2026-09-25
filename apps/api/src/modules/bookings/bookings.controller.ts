@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { createBookingSchema } from "@imizi/validation";
+import { transitionBooking } from "@imizi/domain";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { Public } from "../../common/public.decorator";
 import { BookingsService } from "./bookings.service";
@@ -37,11 +38,7 @@ export class BookingsController {
   async cancel(@CurrentUser() user:UserRecord,@Param("id") id:string){
     const booking=await this.db.getBooking(id);if(!booking)return{error:"not_found"};
     if(booking.tenantId!==user.id)return{error:"forbidden"};
-    return this.db.updateBookingStatus(id,transitionCancellation(booking.status));
+    return this.db.updateBookingStatus(id,transitionBooking(booking.status as any,"CANCELLED"));
   }
 }
 
-function transitionCancellation(status:string){
-  if(status!=="PENDING" && status!=="PAYMENT_PENDING" && status!=="CONFIRMED") throw new Error("Booking cannot be cancelled in current state");
-  return "CANCELLED";
-}

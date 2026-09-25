@@ -110,7 +110,7 @@ export class MtnMoMoProvider implements PaymentProvider {
   verifyWebhook(headers:Record<string,string|string[]|undefined>,rawBody:string){
     void rawBody;
     const configured=process.env.MTN_MOMO_CALLBACK_SECRET;
-    if(!configured)return true;
+    if(!configured)return false;
     const value=headers["x-callback-secret"];
     return value===configured;
   }

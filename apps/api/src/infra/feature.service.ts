@@ -7,8 +7,20 @@ export class FeatureService {
   constructor(private readonly db: DatabaseService) {}
 
   async notify(userId:string,eventType:string,title:string,body:string){
-    return this.db.query("INSERT INTO notifications(id,user_id,channel,event_type,title,body) VALUES($1,$2,'in_app',$3,$4,$5) RETURNING *",[randomUUID(),userId,eventType,title,body]).then((r)=>r.rows[0]);
+    const result=await this.db.query(
+      "INSERT INTO notifications(id,user_id,channel,event_type,title,body) VALUES($1,$2,'in_app',$3,$4,$5) RETURNING *",
+      [randomUUID(),userId,eventType,title,body],
+    );
+    const notification=result.rows[0];
+    await this.db.enqueueJob("notification.dispatch",{notificationId:notification.id,userId,eventType});
+    return notification;
   }
+
+  async registerPushToken(userId:string,token:string,platform:string){return this.db.registerPushToken(userId,token,platform);}
+  async removePushToken(userId:string,token:string){return this.db.removePushToken(userId,token);}
+  async notificationPreferences(userId:string){return this.db.getNotificationPreferences(userId);}
+  async updateNotificationPreferences(userId:string,input:{pushEnabled?:boolean;smsEnabled?:boolean;emailEnabled?:boolean;inAppEnabled?:boolean}){return this.db.updateNotificationPreferences(userId,input);}
+
   async audit(actorId:string|undefined,action:string,subjectType:string,subjectId?:string,before?:unknown,after?:unknown,ip?:string){
     await this.db.query("INSERT INTO audit_logs(actor_id,action,subject_type,subject_id,before,after,ip) VALUES($1,$2,$3,$4,$5::jsonb,$6::jsonb,$7)",[actorId ?? null,action,subjectType,subjectId ?? null,before==null?null:JSON.stringify(before),after==null?null:JSON.stringify(after),ip ?? null]);
   }
@@ -127,7 +139,7 @@ export class FeatureService {
     const result=await this.db.query(
       "INSERT INTO reviews(booking_id,reviewer_id,property_id,rating,body) " +
       "SELECT b.id,$2,pl.property_id,$3,$4 FROM bookings b JOIN property_listings pl ON pl.id=b.listing_id " +
-      "WHERE b.id=$1 AND b.tenant_id=$2 AND b.status IN('CONFIRMED','ACTIVE','COMPLETED') " +
+      "WHERE b.id=$1 AND b.tenant_id=$2 AND b.status='COMPLETED' AND b.end_date<=CURRENT_DATE " +
       "ON CONFLICT(booking_id) DO NOTHING RETURNING *",
       [bookingId,userId,rating,body],
     );
@@ -248,6 +260,21 @@ export class FeatureService {
     return this.db.query("SELECT * FROM rental_agreements WHERE id=$1",[id]).then((r)=>r.rows[0]);
   }
 
+  async canAccessLease(userId:string,leaseId:string,roles:string[]){
+    const r=await this.db.query(
+      "SELECT b.tenant_id,p.owner_id,p.organization_id FROM rental_agreements ra JOIN bookings b ON b.id=ra.booking_id JOIN property_listings pl ON pl.id=b.listing_id JOIN properties p ON p.id=pl.property_id WHERE ra.id=$1",
+      [leaseId],
+    );
+    if(!r.rows[0])return false;
+    if(roles.includes("SUPER_ADMIN")||roles.includes("ADMIN")||roles.includes("FINANCE_ADMIN"))return true;
+    if(r.rows[0].tenant_id===userId||r.rows[0].owner_id===userId)return true;
+    if(r.rows[0].organization_id){
+      const member=await this.db.query("SELECT 1 FROM organization_members WHERE organization_id=$1 AND user_id=$2",[r.rows[0].organization_id,userId]);
+      if(member.rows[0])return true;
+    }
+    return false;
+  }
+
   async createMaintenance(userId:string,input:{propertyId:string;title:string;description:string}) {
     const property=await this.db.getProperty(input.propertyId);
     if(!property) return {error:"not_found"};
@@ -344,6 +371,41 @@ export class FeatureService {
       await client.query("INSERT INTO user_roles(user_id,role) VALUES($1,'AGENCY_ADMIN') ON CONFLICT DO NOTHING",[userId]);
       return {...org.rows[0],members:[userId]};
     });
+  }
+
+  async agencyMembers(userId:string){
+    const org=await this.db.query("SELECT organization_id FROM users WHERE id=$1",[userId]);
+    const orgId=org.rows[0]?.organization_id;
+    if(!orgId)return {error:"not_an_agent"};
+    return this.db.query("SELECT om.organization_id,om.user_id,om.role,u.full_name,u.email,u.phone FROM organization_members om JOIN users u ON u.id=om.user_id WHERE om.organization_id=$1 ORDER BY u.full_name",[orgId]).then(r=>r.rows);
+  }
+
+  async addAgencyMember(actorId:string,targetUserId:string,role:"AGENT"|"PROPERTY_MANAGER"="AGENT"){
+    const org=await this.db.query(
+      "SELECT organization_id FROM users u JOIN organization_members om ON om.organization_id=u.organization_id AND om.user_id=u.id WHERE u.id=$1 AND om.role='AGENCY_ADMIN'",
+      [actorId],
+    );
+    const orgId=org.rows[0]?.organization_id;
+    if(!orgId)return {error:"agency_admin_required"};
+    const target=await this.db.query("SELECT id FROM users WHERE id=$1",[targetUserId]);
+    if(!target.rows[0])return {error:"user_not_found"};
+    await this.db.transaction(async(client)=>{
+      await client.query("INSERT INTO organization_members(organization_id,user_id,role) VALUES($1,$2,$3) ON CONFLICT(organization_id,user_id) DO UPDATE SET role=EXCLUDED.role",[orgId,targetUserId,role]);
+      await client.query("UPDATE users SET organization_id=$2 WHERE id=$1",[targetUserId,orgId]);
+      await client.query("INSERT INTO user_roles(user_id,role) VALUES($1,$2) ON CONFLICT DO NOTHING",[targetUserId,role]);
+    });
+    return {ok:true,organizationId:orgId,userId:targetUserId,role};
+  }
+
+  async removeAgencyMember(actorId:string,targetUserId:string){
+    const org=await this.db.query("SELECT organization_id FROM users WHERE id=$1",[actorId]);
+    const orgId=org.rows[0]?.organization_id;
+    if(!orgId)return {error:"not_an_agent"};
+    const admin=await this.db.query("SELECT 1 FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role='AGENCY_ADMIN'",[orgId,actorId]);
+    if(!admin.rows[0])return {error:"agency_admin_required"};
+    await this.db.query("DELETE FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role<>'AGENCY_ADMIN'",[orgId,targetUserId]);
+    await this.db.query("UPDATE users SET organization_id=NULL WHERE id=$1 AND id<>$2 AND organization_id=$3",[targetUserId,actorId,orgId]);
+    return {ok:true};
   }
 
   async adminOverview() {
