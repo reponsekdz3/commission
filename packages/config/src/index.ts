@@ -21,6 +21,7 @@ export function loadConfig() {
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
     opensearchUrl: process.env.OPENSEARCH_URL ?? "http://localhost:9200",
+    opensearchIndex: process.env.OPENSEARCH_INDEX ?? "imizi-listings",
     defaultCurrency: process.env.DEFAULT_CURRENCY ?? "RWF",
     defaultCountry: process.env.DEFAULT_COUNTRY ?? "RW",
     commissionBps: Number(process.env.PLATFORM_COMMISSION_BPS ?? 500),
