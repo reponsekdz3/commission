@@ -5,12 +5,19 @@ export function required(name: string, fallback?: string): string {
 }
 
 export function loadConfig() {
+  const env = process.env.NODE_ENV ?? "development";
+  const isProduction = env === "production";
+  const jwtAccessSecret = process.env.JWT_ACCESS_SECRET;
+  const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
+  if (isProduction && (!jwtAccessSecret || jwtAccessSecret.length < 32 || !jwtRefreshSecret || jwtRefreshSecret.length < 32)) {
+    throw new Error("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must each be at least 32 characters in production");
+  }
   return {
-    env: process.env.NODE_ENV ?? "development",
+    env,
     port: Number(process.env.PORT ?? 4000),
     apiPrefix: process.env.API_PREFIX ?? "/api/v1",
-    jwtAccessSecret: process.env.JWT_ACCESS_SECRET ?? "dev-access-secret-change-me-32chars",
-    jwtRefreshSecret: process.env.JWT_REFRESH_SECRET ?? "dev-refresh-secret-change-me-32chars",
+    jwtAccessSecret: jwtAccessSecret ?? "dev-access-secret-change-me-32chars",
+    jwtRefreshSecret: jwtRefreshSecret ?? "dev-refresh-secret-change-me-32chars",
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
     opensearchUrl: process.env.OPENSEARCH_URL ?? "http://localhost:9200",

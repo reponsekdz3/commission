@@ -1,10 +1,13 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import Redis from "ioredis";
+import { Pool } from "pg";
 import { loadConfig } from "@imizi/config";
 
 @Injectable()
 export class Dependencies implements OnModuleInit, OnModuleDestroy {
   private readonly log = new Logger(Dependencies.name);
+  db?: Pool;
+  databaseOk = false;
   redis?: Redis;
   redisOk = false;
   searchOk = false;
@@ -13,6 +16,17 @@ export class Dependencies implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     const config = loadConfig();
+    if (!config.databaseUrl) {
+      this.log.error("DATABASE_URL is required; refusing to report the API as ready.");
+    } else {
+      try {
+        this.db = new Pool({ connectionString: config.databaseUrl, max: 10, idleTimeoutMillis: 30_000 });
+        await this.db.query("SELECT 1");
+        this.databaseOk = true;
+      } catch (err) {
+        this.log.error(`PostgreSQL unavailable. ${(err as Error).message}`);
+      }
+    }
     try {
       this.redis = new Redis(config.redisUrl, { maxRetriesPerRequest: 1, lazyConnect: true, enableOfflineQueue: false });
       await this.redis.connect();
@@ -33,6 +47,7 @@ export class Dependencies implements OnModuleInit, OnModuleDestroy {
 
   async onModuleDestroy() {
     await this.redis?.quit();
+    await this.db?.end();
   }
 
   async cacheGet<T>(key: string): Promise<T | undefined> {

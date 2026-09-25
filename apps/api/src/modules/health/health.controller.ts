@@ -20,7 +20,7 @@ export class HealthController {
   @Get("/ready")
   ready() {
     const snap = this.snapshot();
-    return { ...snap, ready: snap.api };
+    return { ...snap, ready: snap.api && snap.database && snap.redis };
   }
 
   @Public()
@@ -57,7 +57,7 @@ export class HealthController {
     return {
       status: "ok",
       api: true,
-      database: true,
+      database: this.deps.databaseOk,
       redis: this.deps.redisOk,
       search: this.deps.searchOk,
       searchFallback: this.deps.searchOk ? "opensearch" : "postgres_ranked",

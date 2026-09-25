@@ -1,5 +1,6 @@
 {
     "recommendations": [
-        "amazonwebservices.amazon-q-vscode"
+        "amazonwebservices.amazon-q-vscode",
+        "kilocode.kilo-code"
     ]
 }

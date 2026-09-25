@@ -27,7 +27,7 @@ async function bootstrap() {
       { path: "metrics", method: RequestMethod.GET },
     ],
   });
-  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: false }));
+  app.useGlobalPipes(new ValidationPipe({ transform: true, whitelist: true, forbidNonWhitelisted: true }));
   app.useGlobalFilters(new HttpExceptionFilter());
 
   const swagger = new DocumentBuilder()
