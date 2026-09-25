@@ -11,6 +11,7 @@
     "lint": "echo lint-ok"
   },
   "dependencies": {
+    "@imizi/auth": "*",
     "@imizi/config": "*",
     "@imizi/domain": "*",
     "@imizi/maps": "*",

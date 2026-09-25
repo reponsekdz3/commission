@@ -95,6 +95,7 @@ export interface PaymentIntentRecord {
   status: string;
   internalReference: string;
   providerReference?: string;
+  checkoutUrl?: string;
   idempotencyKey: string;
   createdAt: string;
   completedAt?: string;

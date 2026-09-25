@@ -528,6 +528,101 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+
+  async getMfaSecret(userId:string){
+    const r=await this.query("SELECT mfa_secret,mfa_enabled FROM users WHERE id=$1",[userId]);
+    return r.rows[0] ? {secret:r.rows[0].mfa_secret ?? undefined,enabled:Boolean(r.rows[0].mfa_enabled)} : undefined;
+  }
+
+  async setMfaSecret(userId:string,secret:string){
+    await this.query("UPDATE users SET mfa_secret=$2,updated_at=now() WHERE id=$1",[userId,secret]);
+  }
+
+  async setMfaEnabled(userId:string,enabled:boolean){
+    await this.query("UPDATE users SET mfa_enabled=$2,updated_at=now() WHERE id=$1",[userId,enabled]);
+  }
+
+  async createReauthToken(userId:string,action:string,tokenHash:string,expiresAt:Date){
+    await this.query("DELETE FROM reauth_tokens WHERE user_id=$1 AND action=$2 AND (consumed_at IS NOT NULL OR expires_at<=now())",[userId,action]);
+    await this.query("INSERT INTO reauth_tokens(user_id,action,token_hash,expires_at) VALUES($1,$2,$3,$4)",[userId,action,tokenHash,expiresAt]);
+  }
+
+  async consumeReauthToken(userId:string,action:string,tokenHash:string){
+    const r=await this.query(
+      "UPDATE reauth_tokens SET consumed_at=now() WHERE user_id=$1 AND action=$2 AND token_hash=$3 AND consumed_at IS NULL AND expires_at>now() RETURNING id",
+      [userId,action,tokenHash],
+    );
+    return Boolean(r.rows[0]);
+  }
+
+  async listSessions(userId:string){
+    return this.query(
+      "SELECT id,user_agent,ip,expires_at,revoked_at,created_at FROM sessions WHERE user_id=$1 ORDER BY created_at DESC",
+      [userId],
+    ).then(r=>r.rows);
+  }
+
+  async revokeSession(userId:string,sessionId:string){
+    const r=await this.query(
+      "UPDATE sessions SET revoked_at=now() WHERE id=$1 AND user_id=$2 AND revoked_at IS NULL RETURNING id",
+      [sessionId,userId],
+    );
+    return Boolean(r.rows[0]);
+  }
+
+  async registerPushToken(userId:string,token:string,platform:string){
+    const r=await this.query(
+      "INSERT INTO device_push_tokens(user_id,token,platform) VALUES($1,$2,$3) ON CONFLICT(token) DO UPDATE SET user_id=EXCLUDED.user_id,platform=EXCLUDED.platform,updated_at=now() RETURNING *",
+      [userId,token,platform],
+    );
+    return r.rows[0];
+  }
+
+  async removePushToken(userId:string,token:string){
+    await this.query("DELETE FROM device_push_tokens WHERE user_id=$1 AND token=$2",[userId,token]);
+    return {ok:true};
+  }
+
+  async getPushTokens(userId:string){
+    return this.query("SELECT token,platform FROM device_push_tokens WHERE user_id=$1 ORDER BY updated_at DESC",[userId]).then(r=>r.rows);
+  }
+
+  async getNotification(id:string){
+    const r=await this.query("SELECT * FROM notifications WHERE id=$1",[id]);
+    return r.rows[0];
+  }
+
+  async getNotificationPreferences(userId:string){
+    const r=await this.query("SELECT * FROM notification_preferences WHERE user_id=$1",[userId]);
+    return r.rows[0] ?? {push_enabled:true,sms_enabled:true,email_enabled:true,in_app_enabled:true};
+  }
+
+  async updateNotificationPreferences(userId:string,input:{pushEnabled?:boolean;smsEnabled?:boolean;emailEnabled?:boolean;inAppEnabled?:boolean}){
+    const prefs=await this.getNotificationPreferences(userId);
+    const next={
+      push:prefs.push_enabled,
+      sms:prefs.sms_enabled,
+      email:prefs.email_enabled,
+      inApp:prefs.in_app_enabled,
+      ...(input.pushEnabled!==undefined?{push:input.pushEnabled}:{}),
+      ...(input.smsEnabled!==undefined?{sms:input.smsEnabled}:{}),
+      ...(input.emailEnabled!==undefined?{email:input.emailEnabled}:{}),
+      ...(input.inAppEnabled!==undefined?{inApp:input.inAppEnabled}:{}),
+    };
+    const r=await this.query(
+      "INSERT INTO notification_preferences(user_id,push_enabled,sms_enabled,email_enabled,in_app_enabled) VALUES($1,$2,$3,$4,$5) "+
+      "ON CONFLICT(user_id) DO UPDATE SET push_enabled=EXCLUDED.push_enabled,sms_enabled=EXCLUDED.sms_enabled,email_enabled=EXCLUDED.email_enabled,in_app_enabled=EXCLUDED.in_app_enabled "+
+      "RETURNING *",
+      [userId,next.push,next.sms,next.email,next.inApp],
+    );
+    return r.rows[0];
+  }
+
+  async updatePaymentRefundProviderReference(refundId:string,providerReference:string,status="PENDING"){
+    const r=await this.query("UPDATE payment_refunds SET provider_reference=$2,status=$3 WHERE id=$1 RETURNING *",[refundId,providerReference,status]);
+    return r.rows[0];
+  }
+
   private mapUser(row:any):UserRecord{
     return {
       id:String(row.id),email:String(row.email),phone:String(row.phone),passwordHash:String(row.password_hash),
@@ -556,7 +651,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return {
       id:String(row.id),bookingId:row.booking_id ?? undefined,payerId:String(row.payer_id),provider:String(row.provider),
       amountMinor:Number(row.amount_minor),currency:String(row.currency),status:String(row.status),internalReference:String(row.internal_reference),
-      providerReference:row.provider_reference ?? undefined,idempotencyKey:String(row.idempotency_key),
+      providerReference:row.provider_reference ?? undefined,checkoutUrl:row.checkout_url ?? undefined,idempotencyKey:String(row.idempotency_key),
       createdAt:new Date(row.created_at).toISOString(),completedAt:row.completed_at ? new Date(row.completed_at).toISOString() : undefined,
     };
   }
