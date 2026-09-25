@@ -40,6 +40,7 @@ export class PropertiesService {
     if(!property) throw new NotFoundException();
     assertPropertyAccess(user,property,true);
     const result=await this.db.updateProperty(id,patch);
+    for (const listing of (result?.listings ?? [])) await this.db.enqueueJob("search.index",{listingId:listing.id});
     await this.features.audit(user.id,"PROPERTY_UPDATED","property",id,undefined,patch);
     return result;
   }
@@ -50,6 +51,7 @@ export class PropertiesService {
     assertPropertyAccess(user,property,true);
     if(property.riskLevel==="BLOCKED") throw new ForbiddenException("Listing is blocked pending review");
     const result=await this.db.publishProperty(id);
+    for (const listing of (result?.listings ?? [])) await this.db.enqueueJob("search.index",{listingId:listing.id});
     for(const saved of await this.db.findMatchingSavedSearches(id)) {
       await this.features.notify(saved.user_id,"NEW_MATCHING_PROPERTY","New property matching your search",property.title);
     }
