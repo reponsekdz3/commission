@@ -25,6 +25,7 @@ export function loadConfig() {
     defaultCurrency: process.env.DEFAULT_CURRENCY ?? "RWF",
     defaultCountry: process.env.DEFAULT_COUNTRY ?? "RW",
     commissionBps: Number(process.env.PLATFORM_COMMISSION_BPS ?? 500),
+    mtnMomoCallbackSecret: process.env.MTN_MOMO_CALLBACK_SECRET,
     sentryDsn: process.env.SENTRY_DSN,
     s3Endpoint: process.env.S3_ENDPOINT,
     s3Region: process.env.S3_REGION ?? "us-east-1",
