@@ -447,9 +447,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       const r=await client.query("SELECT * FROM payment_intents WHERE id=$1 FOR UPDATE",[intentId]);
       if(!r.rows[0]) return undefined;
       const current=this.mapPayment(r.rows[0]);
-      if(current.status!=="SUCCEEDED") throw new Error("Only successful payments can be refunded");
+      if(current.status!=="SUCCEEDED" && current.status!=="PARTIALLY_REFUNDED") throw new Error("Only successful payments can be refunded");
+      const already=await client.query("SELECT COALESCE(SUM(amount_minor),0)::bigint total FROM payment_refunds WHERE intent_id=$1 AND status IN ('PENDING','COMPLETED')",[intentId]);
+      const refunded=Number(already.rows[0].total);
+      if(refunded+amountMinor>current.amountMinor) throw new Error("Refund exceeds remaining captured amount");
       await client.query("INSERT INTO payment_refunds(intent_id,amount_minor,reason,status) VALUES($1,$2,$3,'PENDING')",[intentId,amountMinor,reason]);
-      await client.query("UPDATE payment_intents SET status=CASE WHEN $2>=amount_minor THEN 'REFUNDED' ELSE 'PARTIALLY_REFUNDED' END WHERE id=$1",[intentId,amountMinor]);
+      const nextStatus=refunded+amountMinor>=current.amountMinor ? "REFUNDED" : "PARTIALLY_REFUNDED";
+      await client.query("UPDATE payment_intents SET status=$2 WHERE id=$1",[intentId,nextStatus]);
       const fresh=await client.query("SELECT * FROM payment_intents WHERE id=$1",[intentId]);
       return this.mapPayment(fresh.rows[0]);
     });
