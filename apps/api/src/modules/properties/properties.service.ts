@@ -3,10 +3,11 @@ import { scoreFraud, shouldQueueForModeration } from "@imizi/domain";
 import { UserRecord, PropertyRecord } from "../../store/platform.store";
 import { assertPermission, assertPropertyAccess } from "../../common/access";
 import { DatabaseService } from "../../infra/database.service";
+import { FeatureService } from "../../infra/feature.service";
 
 @Injectable()
 export class PropertiesService {
-  constructor(private readonly db: DatabaseService) {}
+  constructor(private readonly db: DatabaseService, private readonly features: FeatureService) {}
 
   async create(user: UserRecord, input: Record<string, any>) {
     assertPermission(user, "property:create");
@@ -21,7 +22,7 @@ export class PropertiesService {
     if (shouldQueueForModeration(fraud.level)) {
       await this.db.query("INSERT INTO fraud_cases(subject_type,subject_id,risk_level,score,signals) VALUES('property',$1,$2,$3,$4::jsonb)", [property.id,fraud.level,fraud.score,JSON.stringify(fraud)]);
     }
-    await this.db.auditLog(user.id,"PROPERTY_CREATED","property",property.id);
+    await this.features.audit(user.id,"PROPERTY_CREATED","property",property.id);
     return this.db.hydrateProperty(property.id);
   }
 
@@ -30,7 +31,7 @@ export class PropertiesService {
     if (!property) throw new NotFoundException("Property not found");
     assertPropertyAccess(user, property, false);
     await this.db.insertView(id, user?.id);
-    await this.db.trackEvent("property_viewed", user?.id, id);
+    await this.features.track("property_viewed", user?.id, id);
     return this.db.hydrateProperty(id);
   }
 
@@ -39,7 +40,7 @@ export class PropertiesService {
     if(!property) throw new NotFoundException();
     assertPropertyAccess(user,property,true);
     const result=await this.db.updateProperty(id,patch);
-    await this.db.auditLog(user.id,"PROPERTY_UPDATED","property",id,undefined,patch);
+    await this.features.audit(user.id,"PROPERTY_UPDATED","property",id,undefined,patch);
     return result;
   }
 
@@ -50,9 +51,9 @@ export class PropertiesService {
     if(property.riskLevel==="BLOCKED") throw new ForbiddenException("Listing is blocked pending review");
     const result=await this.db.publishProperty(id);
     for(const saved of await this.db.findMatchingSavedSearches(id)) {
-      await this.db.notify(saved.user_id,"NEW_MATCHING_PROPERTY","New property matching your search",property.title);
+      await this.features.notify(saved.user_id,"NEW_MATCHING_PROPERTY","New property matching your search",property.title);
     }
-    await this.db.auditLog(user.id,"PROPERTY_PUBLISHED","property",id);
+    await this.features.audit(user.id,"PROPERTY_PUBLISHED","property",id);
     return result;
   }
 
