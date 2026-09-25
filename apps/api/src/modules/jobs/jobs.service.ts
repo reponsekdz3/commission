@@ -8,12 +8,13 @@ import { tmpdir } from "os";
 import { DatabaseService } from "../../infra/database.service";
 import { Dependencies } from "../../infra/dependencies";
 import { StorageService } from "../../infra/storage.service";
+import { MalwareScanner } from "../../infra/malware.service";
 
 @Injectable()
 export class JobsService implements OnModuleInit {
   private readonly log=new Logger(JobsService.name);
   private readonly exec=promisify(execFile);
-  constructor(private readonly db:DatabaseService,private readonly deps:Dependencies,private readonly storage:StorageService){}
+  constructor(private readonly db:DatabaseService,private readonly deps:Dependencies,private readonly storage:StorageService,private readonly malware:MalwareScanner){}
   onModuleInit(){setInterval(()=>void this.drain(),5000).unref();void this.drain();}
   async drain(){
     if(!this.deps.databaseOk)return;
@@ -105,6 +106,8 @@ export class JobsService implements OnModuleInit {
           const media=await this.db.getMedia(String(job.payload?.mediaId ?? ""));
           if(media){
             const input=await this.storage.readBuffer(String(media.storage_key));
+            const scan=await this.malware.scan(input);
+            if(!scan.clean){throw new Error("Malware detected in uploaded media: "+scan.result);}
             const checksum=createHash("sha256").update(input).digest("hex");
             const dir=await mkdtemp(join(tmpdir(),"imizi-media-"));
             try{

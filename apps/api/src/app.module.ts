@@ -6,6 +6,7 @@ import { loadConfig } from "@imizi/config";
 import { DatabaseService } from "./infra/database.service";
 import { FeatureService } from "./infra/feature.service";
 import { StorageService } from "./infra/storage.service";
+import { MalwareScanner } from "./infra/malware.service";
 import { RequestIdInterceptor } from "./common/request-id.interceptor";
 import { TelemetryInterceptor } from "./common/telemetry.interceptor";
 import { AuthGuard } from "./common/auth.guard";
@@ -63,7 +64,7 @@ const config = loadConfig();
     AnalyticsController, PrivacyController, ViewingsController, LeasesController, RecommendationsController, CatalogController,
   ],
   providers: [
-    DatabaseService, FeatureService, StorageService, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService,
+    DatabaseService, FeatureService, StorageService, MalwareScanner, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService,
     MessagesGateway, JobsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
