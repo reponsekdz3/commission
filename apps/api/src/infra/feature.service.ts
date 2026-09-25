@@ -6,13 +6,13 @@ import { DatabaseService } from "./database.service";
 export class FeatureService {
   constructor(private readonly db: DatabaseService) {}
 
-  private async notify(userId:string,eventType:string,title:string,body:string){
+  async notify(userId:string,eventType:string,title:string,body:string){
     return this.db.query("INSERT INTO notifications(id,user_id,channel,event_type,title,body) VALUES($1,$2,'in_app',$3,$4,$5) RETURNING *",[randomUUID(),userId,eventType,title,body]).then((r)=>r.rows[0]);
   }
-  private async audit(actorId:string|undefined,action:string,subjectType:string,subjectId?:string,before?:unknown,after?:unknown){
+  async audit(actorId:string|undefined,action:string,subjectType:string,subjectId?:string,before?:unknown,after?:unknown){
     await this.db.query("INSERT INTO audit_logs(actor_id,action,subject_type,subject_id,before,after) VALUES($1,$2,$3,$4,$5::jsonb,$6::jsonb)",[actorId ?? null,action,subjectType,subjectId ?? null,before==null?null:JSON.stringify(before),after==null?null:JSON.stringify(after)]);
   }
-  private async track(name:string,userId?:string,propertyId?:string,payload:Record<string,unknown>={}){
+  async track(name:string,userId?:string,propertyId?:string,payload:Record<string,unknown>={}){
     await this.db.query("INSERT INTO analytics_events(name,user_id,property_id,payload) VALUES($1,$2,$3,$4::jsonb)",[name,userId ?? null,propertyId ?? null,JSON.stringify(payload)]);
   }
 
