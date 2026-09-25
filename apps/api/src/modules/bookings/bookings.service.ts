@@ -37,6 +37,8 @@ export class BookingsService {
   private async createProduction(user:UserRecord,input:{listingId:string;unitId?:string;startDate:string;endDate:string;guests?:number;idempotencyKey:string}){
     const listing=await this.source.getListing(input.listingId);
     if(!listing)throw new NotFoundException("Listing not found");
+    if(listing.listingType==="SALE")throw new BadRequestException("Sale listings require an offer, not a rental booking.");
+    if(new Date(input.startDate)<new Date(listing.availableFrom))throw new BadRequestException("Selected start date is before listing availability.");
     const quote=await this.quoteProduction(input.listingId,input.startDate,input.endDate);
     let booking;
     try{
