@@ -41,6 +41,7 @@ jobs:
       - run: npm ci
       - run: npm run db:migrate
       - run: npm run db:seed
+      - run: npm run db:smoke
       - run: npm run test:domain
       - run: npm run test -w @imizi/api --if-present
       - run: npm run typecheck --if-present
