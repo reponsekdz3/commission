@@ -75,6 +75,6 @@ export class BookingsService {
   private async confirmProduction(bookingId:string){
     const booking=await this.source.getBooking(bookingId);
     if(!booking)throw new NotFoundException();
-    return this.source.settlePaymentByBooking ? this.source.settlePaymentByBooking(bookingId) : this.source.getBooking(bookingId);
+    return this.source.getBooking(bookingId);
   }
 }
