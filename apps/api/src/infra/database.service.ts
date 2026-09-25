@@ -114,6 +114,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
+  async revokeAllSessions(userId:string){
+    await this.query("UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL",[userId]);
+  }
+
   async consumeRefreshToken(refreshHash: string) {
     const result = await this.query(
       "DELETE FROM sessions WHERE refresh_token_hash=$1 AND revoked_at IS NULL AND expires_at>now() RETURNING user_id",
