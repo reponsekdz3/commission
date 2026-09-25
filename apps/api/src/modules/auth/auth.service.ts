@@ -5,10 +5,11 @@ import { createHash, randomBytes, randomUUID } from "crypto";
 import type { Role } from "@imizi/types";
 import type { UserRecord } from "../../store/platform.store";
 import { DatabaseService } from "../../infra/database.service";
+import { FeatureService } from "../../infra/feature.service";
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly jwt: JwtService, private readonly db: DatabaseService) {}
+  constructor(private readonly jwt: JwtService, private readonly db: DatabaseService, private readonly features: FeatureService) {}
 
   async register(input: { email: string; phone: string; password: string; fullName: string; locale?: string }) {
     const existing = await this.db.findUserByIdentifier(input.email) ?? await this.db.findUserByIdentifier(input.phone);
@@ -19,17 +20,17 @@ export class AuthService {
       roles: ["USER" as Role], status: "ACTIVE", mfaEnabled: false, createdAt: new Date().toISOString(),
     };
     const created = await this.db.createUser(user);
-    await this.db.auditLog(created.id, "USER_REGISTERED", "user", created.id);
+    await this.features.audit(created.id, "USER_REGISTERED", "user", created.id);
     return this.issue(created);
   }
 
   async login(identifier: string, password: string, ip?: string) {
     const user = await this.db.findUserByIdentifier(identifier);
     if (!user || !compareSync(password, user.passwordHash)) {
-      await this.db.auditLog(undefined, "LOGIN_FAILED", "auth", identifier, undefined, undefined, ip);
+      await this.features.audit(undefined, "LOGIN_FAILED", "auth", identifier, undefined, undefined, ip);
       throw new UnauthorizedException("Invalid credentials");
     }
-    await this.db.auditLog(user.id, "LOGIN_SUCCESS", "user", user.id, undefined, undefined, ip);
+    await this.features.audit(user.id, "LOGIN_SUCCESS", "user", user.id, undefined, undefined, ip);
     return this.issue(user, undefined, ip);
   }
 
