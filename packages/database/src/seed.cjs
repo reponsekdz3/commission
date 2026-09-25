@@ -140,7 +140,7 @@ async function main() {
       );
     }
 
-    await client.query("DELETE FROM saved_searches WHERE user_id='22222222-2222-2222-222222222222' AND name='Kicukiro 2-3 bed under 900k'");
+    await client.query("DELETE FROM saved_searches WHERE user_id='22222222-2222-2222-2222-222222222222' AND name='Kicukiro 2-3 bed under 900k'");
     await client.query(
       "INSERT INTO saved_searches(id,user_id,name,criteria,notify) VALUES(gen_random_uuid(),'22222222-2222-2222-2222-222222222222','Kicukiro 2-3 bed under 900k',$1::jsonb,true)",
       [JSON.stringify({district:"Kicukiro",bedroomsMin:2,maxPriceMinor:900000,listingType:"RENT"})],
