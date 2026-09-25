@@ -38,13 +38,13 @@ describe("api domain wiring", () => {
       idempotencyKey: "idem-1-xxxxx",
     });
     expect((first as any).booking.status).toBe("PAYMENT_PENDING");
-    await expect(bookings.create(tenant, {
+    expect(() => bookings.create(tenant, {
         listingId: listing.id,
         startDate: "2030-10-15",
         endDate: "2030-10-20",
         idempotencyKey: "idem-2-xxxxx",
       }),
-    ).rejects.toThrow();
+    ).toThrow();
     const confirmed = await bookings.confirmFromPayment((first as any).booking.id);
     expect(confirmed.status).toBe("CONFIRMED");
     expect(transitionBooking("CONFIRMED", "ACTIVE")).toBe("ACTIVE");
