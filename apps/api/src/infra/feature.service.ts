@@ -6,6 +6,16 @@ import { DatabaseService } from "./database.service";
 export class FeatureService {
   constructor(private readonly db: DatabaseService) {}
 
+  private async notify(userId:string,eventType:string,title:string,body:string){
+    return this.db.query("INSERT INTO notifications(id,user_id,channel,event_type,title,body) VALUES($1,$2,'in_app',$3,$4,$5) RETURNING *",[randomUUID(),userId,eventType,title,body]).then((r)=>r.rows[0]);
+  }
+  private async audit(actorId:string|undefined,action:string,subjectType:string,subjectId?:string,before?:unknown,after?:unknown){
+    await this.db.query("INSERT INTO audit_logs(actor_id,action,subject_type,subject_id,before,after) VALUES($1,$2,$3,$4,$5::jsonb,$6::jsonb)",[actorId ?? null,action,subjectType,subjectId ?? null,before==null?null:JSON.stringify(before),after==null?null:JSON.stringify(after)]);
+  }
+  private async track(name:string,userId?:string,propertyId?:string,payload:Record<string,unknown>={}){
+    await this.db.query("INSERT INTO analytics_events(name,user_id,property_id,payload) VALUES($1,$2,$3,$4::jsonb)",[name,userId ?? null,propertyId ?? null,JSON.stringify(payload)]);
+  }
+
   async saveSearch(userId:string,name:string,criteria:Record<string,unknown>) {
     return this.db.query(
       "INSERT INTO saved_searches(id,user_id,name,criteria) VALUES($1,$2,$3,$4::jsonb) RETURNING *",
@@ -35,7 +45,7 @@ export class FeatureService {
     const property=await this.db.getProperty(propertyId);
     if(!property) return {error:"not_found"};
     await this.db.query("INSERT INTO favorites(user_id,property_id) VALUES($1,$2) ON CONFLICT DO NOTHING",[userId,propertyId]);
-    await this.db.trackEvent("property_saved",userId,propertyId);
+    await this.track("property_saved",userId,propertyId);
     return {saved:true};
   }
 
@@ -100,7 +110,7 @@ export class FeatureService {
       [id,conversationId,userId,input.body],
     );
     const members=await this.db.query("SELECT user_id FROM conversation_members WHERE conversation_id=$1 AND user_id<>$2",[conversationId,userId]);
-    for(const row of members.rows) await this.db.notify(row.user_id,"NEW_MESSAGE","New message",input.body.slice(0,80));
+    for(const row of members.rows) await this.notify(row.user_id,"NEW_MESSAGE","New message",input.body.slice(0,80));
     return result.rows[0];
   }
 
@@ -133,7 +143,7 @@ export class FeatureService {
       "INSERT INTO verification_requests(id,subject_type,subject_id,kind,status,evidence) VALUES($1,$2,$3,$4,'UNDER_REVIEW',$5::jsonb) RETURNING *",
       [id,input.subjectType,input.subjectId,input.kind,JSON.stringify(input.evidence ?? {})],
     );
-    await this.db.auditLog(userId,"VERIFICATION_SUBMITTED",input.subjectType,input.subjectId);
+    await this.audit(userId,"VERIFICATION_SUBMITTED",input.subjectType,input.subjectId);
     return result.rows[0];
   }
 
@@ -148,7 +158,7 @@ export class FeatureService {
       }
       return updated.rows[0];
     });
-    if(result) await this.db.auditLog(actorId,accept?"PROPERTY_VERIFIED":"VERIFICATION_REJECTED",String(result.subject_type),String(result.subject_id),{status:"UNDER_REVIEW"},{status:result.status});
+    if(result) await this.audit(actorId,accept?"PROPERTY_VERIFIED":"VERIFICATION_REJECTED",String(result.subject_type),String(result.subject_id),{status:"UNDER_REVIEW"},{status:result.status});
     return result ?? {error:"not_found"};
   }
 
@@ -198,7 +208,7 @@ export class FeatureService {
       "INSERT INTO viewing_appointments(id,listing_id,requester_id,slot_start,slot_end,status) VALUES($1,$2,$3,$4::timestamptz,$5::timestamptz,'REQUESTED') RETURNING *",
       [randomUUID(),listingId,userId,slotStart,new Date(new Date(slotStart).getTime()+3600000).toISOString()],
     );
-    await this.db.trackEvent("viewing_requested",userId,undefined,result.rows[0]);
+    await this.track("viewing_requested",userId,undefined,result.rows[0]);
     return result.rows[0];
   }
 
@@ -208,7 +218,7 @@ export class FeatureService {
     if(check.rows[0].owner_id!==userId) return {error:"forbidden"};
     const status=accept?"CONFIRMED":"DECLINED";
     const result=await this.db.query("UPDATE viewing_appointments SET status=$2 WHERE id=$1 RETURNING *",[id,status]);
-    await this.db.notify(result.rows[0].requester_id,"VIEWING_UPDATED","Viewing update",status);
+    await this.notify(result.rows[0].requester_id,"VIEWING_UPDATED","Viewing update",status);
     return result.rows[0];
   }
 
@@ -230,7 +240,7 @@ export class FeatureService {
       "INSERT INTO maintenance_requests(id,property_id,tenant_id,title,description,status) VALUES($1,$2,$3,$4,$5,'OPEN') RETURNING *",
       [randomUUID(),input.propertyId,userId,input.title,input.description],
     );
-    await this.db.notify(property.ownerId,"MAINTENANCE_OPEN","Maintenance request",input.title);
+    await this.notify(property.ownerId,"MAINTENANCE_OPEN","Maintenance request",input.title);
     return result.rows[0];
   }
 
@@ -249,7 +259,7 @@ export class FeatureService {
   }
 
   async track(name:string,userId?:string,propertyId?:string,payload:Record<string,unknown>={}) {
-    await this.db.trackEvent(name,userId,propertyId,payload);
+    await this.track(name,userId,propertyId,payload);
     return {ok:true};
   }
 
@@ -290,7 +300,7 @@ export class FeatureService {
 
   async deleteAccount(userId:string) {
     await this.db.query("UPDATE users SET status='PENDING_DELETION',email='deleted-'||id||'@imizi.invalid',phone='deleted-'||id,updated_at=now() WHERE id=$1",[userId]);
-    await this.db.auditLog(userId,"ACCOUNT_DELETE_REQUESTED","user",userId);
+    await this.audit(userId,"ACCOUNT_DELETE_REQUESTED","user",userId);
     return {status:"scheduled"};
   }
 
@@ -353,7 +363,7 @@ export class FeatureService {
   async setRisk(userId:string,id:string,level:string){
     const property=await this.db.getProperty(id);if(!property)return{error:"not_found"};
     const updated=await this.db.setPropertyRisk(id,level as any);
-    await this.db.auditLog(userId,"RISK_UPDATED","property",id,{riskLevel:property.riskLevel},{riskLevel:level});
+    await this.audit(userId,"RISK_UPDATED","property",id,{riskLevel:property.riskLevel},{riskLevel:level});
     return updated;
   }
 
