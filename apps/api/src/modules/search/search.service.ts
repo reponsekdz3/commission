@@ -110,7 +110,8 @@ export class SearchService {
 
   suggest(q:string){
     if(this.source instanceof DatabaseService){
-      return this.deps?.cacheGet<any>("suggest:"+q.toLowerCase()).then((cached)=>cached ?? this.createSuggestion(q));
+      if(!this.deps) return this.createSuggestion(q);
+      return this.deps.cacheGet<any>("suggest:"+q.toLowerCase()).then((cached)=>cached ?? this.createSuggestion(q));
     }
     return this.createSuggestion(q);
   }
