@@ -11,6 +11,7 @@ export function Nav() {
         <Link href="/map">Map</Link>
         <Link href="/compare">Compare</Link>
         <Link href="/dashboard">Dashboard</Link>
+        <Link href="/admin">Admin</Link>
         <Link href="/login">Sign in</Link>
       </nav>
     </header>
