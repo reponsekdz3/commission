@@ -53,6 +53,21 @@ export class PaymentsService {
     return this.db.updatePaymentIntent(intent.id,{status:parsed.status});
   }
 
+  async status(user:UserRecord,intentId:string){
+    const intent=await this.db.getPaymentIntent(intentId);
+    if(!intent)throw new NotFoundException("Payment not found");
+    if(intent.payerId!==user.id && !user.roles.includes("FINANCE_ADMIN") && !user.roles.includes("SUPER_ADMIN")) {
+      throw new UnauthorizedException("Payment access denied");
+    }
+    const provider=this.gateway.resolve(intent.provider);
+    if(intent.status==="PENDING_PROVIDER" && provider.getStatus && intent.providerReference){
+      const status=await provider.getStatus(intent.providerReference);
+      if(status==="SUCCEEDED") return this.db.settlePayment(intent.id);
+      return this.db.updatePaymentIntent(intent.id,{status});
+    }
+    return intent;
+  }
+
   async refund(intentId:string,amountMinor:number,reason:string){
     if(!Number.isInteger(amountMinor) || amountMinor<=0)throw new BadRequestException("Refund amount must be positive");
     const intent=await this.db.getPaymentIntent(intentId);
