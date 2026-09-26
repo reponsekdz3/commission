@@ -1,19 +1,2 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { offerSchema } from "@imizi/validation";
-import { CurrentUser } from "../../common/current-user.decorator";
-import type { UserRecord } from "../../store/platform.store";
-import { FeatureService } from "../../infra/feature.service";
-
-@ApiTags("offers")
-@ApiBearerAuth()
-@Controller("offers")
-export class OffersController {
-  constructor(private readonly features:FeatureService){}
-  @Post() create(@CurrentUser() user:UserRecord,@Body() body:unknown){return this.features.createOffer(user.id,offerSchema.parse(body));}
-  @Post(":id/respond")
-  respond(@CurrentUser() user:UserRecord,@Param("id") id:string,@Body() body:{action:"ACCEPT"|"REJECT"|"COUNTER"|"WITHDRAW";amountMinor?:number}){
-    return this.features.respondOffer(user.id,id,body.action,body.amountMinor);
-  }
-  @Get() list(@CurrentUser() user:UserRecord){return this.features.listOffers(user.id);}
-}
+import{Body,Controller,Get,Param,Post}from"@nestjs/common";import{ApiBearerAuth,ApiTags}from"@nestjs/swagger";import{offerSchema,offerRespondSchema}from"@imizi/validation";import{CurrentUser}from"../../common/current-user.decorator";import type{UserRecord}from"../../store/platform.store";import{FeatureService}from"../../infra/feature.service";
+@ApiTags("offers")@ApiBearerAuth()@Controller("offers")export class OffersController{constructor(private readonly features:FeatureService){}@Post()create(@CurrentUser()u:UserRecord,@Body()b:unknown){return this.features.createOffer(u.id,offerSchema.parse(b))}@Post(":id/respond")respond(@CurrentUser()u:UserRecord,@Param("id")id:string,@Body()b:unknown){const d=offerRespondSchema.parse(b);return this.features.respondOffer(u.id,id,d.action,d.amountMinor)}@Get()list(@CurrentUser()u:UserRecord){return this.features.listOffers(u.id)}}
