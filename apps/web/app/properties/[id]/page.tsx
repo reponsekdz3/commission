@@ -1,4 +1,5 @@
-import { api,formatRwf } from "../../../lib/api";import { BookingPanel } from "./booking-panel";export const dynamic="force-dynamic";
+import { api,formatRwf } from "../../../lib/api";import { BookingPanel } from "./booking-panel";
+import { ImmersiveTour } from "../../../components/immersive-tour";export const dynamic="force-dynamic";
 export default async function Property({params}:{params:Promise<{id:string}>}){
  const{id}=await params;let p:any;try{p=await api<any>("/properties/"+id)}catch(e:any){return <main className="wrap section"><div className="notice error">{e.message}</div></main>}
  const l=p.listings?.[0];let nearby:any[]=[];try{nearby=await api<any[]>("/maps/nearby?lat="+p.latitude+"&lng="+p.longitude)}catch{}
