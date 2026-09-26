@@ -4,6 +4,8 @@ async function main() {
   const url = process.env.DATABASE_URL;
   if (!url) throw new Error("DATABASE_URL is required to seed the database");
 
+  const seedPassword = process.env.SEED_PASSWORD;
+  if (!seedPassword || seedPassword.length < 16) throw new Error("SEED_PASSWORD (>=16 chars) is required for deterministic seeding");
   const client = new Client({ connectionString: url });
   await client.connect();
 
@@ -17,6 +19,7 @@ async function main() {
       "('33333333-3333-3333-3333-333333333333','admin@imizi.rw','+250780000003',crypt('ChangeMe!2026',gen_salt('bf',12)),'Imizi Admin','en',false)," +
       "('44444444-4444-4444-4444-444444444444','agent@imizi.rw','+250780000004',crypt('ChangeMe!2026',gen_salt('bf',12)),'Iradukunda Aline','fr',false) " +
       "ON CONFLICT(id) DO UPDATE SET full_name=EXCLUDED.full_name,locale=EXCLUDED.locale",
+      [seedPassword],
     );
 
     await client.query(
