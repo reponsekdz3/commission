@@ -22,7 +22,7 @@ export default function MapScreen(){
         lat=pos.coords.latitude;lng=pos.coords.longitude;
       }
       setRegion({latitude:lat,longitude:lng,latitudeDelta:.08,longitudeDelta:.08});
-      const data=await api<{items:SearchItem[]}>("/search?lat="+lat+"&lng="+lng+"&radiusKm=5&limit=30",{auth:false});
+      const data=await api<{items:SearchItem[]}>("/search?lat="+lat+"&lng="+lng+"&radiusKm=5&limit=30",{},false);
       setItems(data.items);
     }
     load().catch(()=>{});
