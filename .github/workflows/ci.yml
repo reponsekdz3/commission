@@ -1,50 +1,138 @@
 name: CI
-
 on:
   push:
-    branches: [main, develop, "feat/**"]
+    branches: [main]
   pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  quality:
+  api:
+    name: API • typecheck • test • build • DB smoke • health
     runs-on: ubuntu-latest
     services:
       postgres:
         image: postgis/postgis:16-3.4
         env:
-          POSTGRES_USER: imizi
-          POSTGRES_PASSWORD: imizi_dev
           POSTGRES_DB: imizi
-        ports:
-          - 5432:5432
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports: ["5432:5432"]
         options: >-
-          --health-cmd "pg_isready -U imizi -d imizi"
-          --health-interval 5s
+          --health-cmd "pg_isready -U postgres -d imizi"
+          --health-interval 10s
           --health-timeout 5s
           --health-retries 10
       redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
+        image: redis:7.4-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 10
+      opensearch:
+        image: opensearchproject/opensearch:2.19.0
+        env:
+          discovery.type: single-node
+          DISABLE_SECURITY_PLUGIN: "true"
+          DISABLE_INSTALL_DEMO_CONFIG: "true"
+          OPENSEARCH_JAVA_OPTS: "-Xms512m -Xmx512m"
+        ports: ["9200:9200"]
+        options: >-
+          --health-cmd "curl -fsS http://localhost:9200/_cluster/health"
+          --health-interval 15s
+          --health-timeout 10s
+          --health-retries 15
     env:
-      DATABASE_URL: postgresql://imizi:imizi_dev@localhost:5432/imizi?schema=public
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/imizi
       REDIS_URL: redis://localhost:6379
-      JWT_ACCESS_SECRET: ci-access-secret-must-be-long-enough-32
-      JWT_REFRESH_SECRET: ci-refresh-secret-must-be-long-enough-32
+      OPENSEARCH_URL: http://localhost:9200
+      OPENSEARCH_INDEX: imizi-listings
       NODE_ENV: test
+      JWT_ACCESS_SECRET: ci-access-secret-abcdefghijklmnopqrstuvwxyz-123456
+      JWT_REFRESH_SECRET: ci-refresh-secret-abcdefghijklmnopqrstuvwxyz-123456
+      API_PREFIX: /api/v1
+      DEFAULT_COUNTRY: RW
+      DEFAULT_CURRENCY: RWF
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
       - run: npm run db:migrate
       - run: npm run db:seed
       - run: npm run db:smoke
-      - run: npm run test:domain
-      - run: npm run test -w @imizi/api --if-present
-      - run: npm run typecheck --if-present
-      - run: npm run build -w @imizi/domain
-      - run: npm run build -w @imizi/api
+      - name: Start API
+        run: npm start -w @imizi/api > /tmp/imizi-api.log 2>&1 &
+      - name: Wait for API
+        run: |
+          for i in {1..30}; do
+            if curl -fsS http://127.0.0.1:4000/live >/tmp/live.json; then exit 0; fi
+            sleep 2
+          done
+          cat /tmp/imizi-api.log
+          exit 1
+      - name: Readiness and metrics smoke
+        run: |
+          curl -fsS http://127.0.0.1:4000/ready
+          curl -fsS http://127.0.0.1:4000/metrics | grep -E "imizi_database_up|imizi_redis_up|imizi_search_up"
+
+  web:
+    name: Web • typecheck • production build
+    runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: http://127.0.0.1:4000/api/v1
+      NEXT_PUBLIC_MAPBOX_TOKEN: ${{ secrets.NEXT_PUBLIC_MAPBOX_TOKEN }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck -w @imizi/web
       - run: npm run build -w @imizi/web
+
+  mobile:
+    name: Mobile • TypeScript • Expo validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm install --no-audit --no-fund
+      - name: Typecheck mobile
+        working-directory: apps/mobile
+        run: npm run typecheck
+      - name: Validate Expo config
+        working-directory: apps/mobile
+        run: npx expo config --type public
+
+  security:
+    name: Security • dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm audit --audit-level=high
