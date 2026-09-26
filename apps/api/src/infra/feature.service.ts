@@ -182,6 +182,9 @@ export class FeatureService {
   async createOffer(userId:string,input:{listingId:string;amountMinor:number;currency:string;message?:string}) {
     const listing=await this.db.getListing(input.listingId);
     if(!listing || listing.listingType!=="SALE") return {error:"sale_listing_required"};
+    const property=await this.db.getProperty(listing.propertyId);
+    if(!property) return {error:"not_found"};
+    if(property.ownerId===userId) return {error:"owner_cannot_offer_on_own_listing"};
     const result=await this.db.query(
       "INSERT INTO offers(id,listing_id,buyer_id,amount_minor,currency,status,message) VALUES($1,$2,$3,$4,$5,'SELLER_REVIEWING',$6) RETURNING *",
       [randomUUID(),input.listingId,userId,input.amountMinor,input.currency,input.message ?? null],
