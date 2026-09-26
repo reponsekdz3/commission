@@ -26,7 +26,7 @@ export class MessagesController {
 export class MessagesGateway {
   @WebSocketServer() server!:Server;
 
-  constructor(private readonly jwt: import("@nestjs/jwt").JwtService, private readonly features:FeatureService) {}
+  constructor(private readonly jwt: import("@nestjs/jwt").JwtService, private readonly features:FeatureService, private readonly db: import("../../infra/database.service").DatabaseService) {}
 
   async handleConnection(client:Socket) {
     try {
@@ -36,6 +36,8 @@ export class MessagesGateway {
       if(!token) return client.disconnect(true);
       const payload=await this.jwt.verifyAsync<{sub:string}>(token);
       if(!payload?.sub) return client.disconnect(true);
+      const user=await this.db.findUserById(payload.sub);
+      if(!user || user.status!=="ACTIVE") return client.disconnect(true);
       client.data.userId=payload.sub;
       await client.join("user:"+payload.sub);
     } catch {
