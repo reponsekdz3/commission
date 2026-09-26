@@ -85,10 +85,16 @@ jobs:
           done
           cat /tmp/imizi-api.log
           exit 1
-      - name: Readiness and metrics smoke
+      - name: Readiness, auth and search smoke
         run: |
           curl -fsS http://127.0.0.1:4000/ready
           curl -fsS http://127.0.0.1:4000/metrics | grep -E "imizi_database_up|imizi_redis_up|imizi_search_up"
+          LOGIN="$(curl -fsS -X POST http://127.0.0.1:4000/api/v1/auth/login -H 'content-type: application/json' -d '{"identifier":"tenant@imizi.rw","password":"ChangeMe!2026"}')"
+          TOKEN="$(printf '%s' "$LOGIN" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).accessToken))')"
+          test -n "$TOKEN"
+          curl -fsS -H "Authorization: Bearer $TOKEN" http://127.0.0.1:4000/api/v1/notifications >/tmp/notifications.json
+          curl -fsS "http://127.0.0.1:4000/api/v1/search?listingType=RENT&district=Kicukiro&limit=10" >/tmp/search.json
+          node -e 'const fs=require("fs"); const x=JSON.parse(fs.readFileSync("/tmp/search.json","utf8")); if(!Array.isArray(x.items)) process.exit(1); console.log("search smoke items:",x.items.length)'
 
   web:
     name: Web • typecheck • production build
