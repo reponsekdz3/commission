@@ -1,1 +1,16 @@
-import * as SecureStore from "expo-secure-store";export const API=process.env.EXPO_PUBLIC_API_URL||"http://localhost:4000/api/v1";export async function token(){return SecureStore.getItemAsync("imizi_token")}export async function api<T>(path:string,init:RequestInit={},auth=false){const t=auth?await token():null;const r=await fetch(API+(path.startsWith("/")?path:"/"+path),{...init,headers:{"content-type":"application/json",...(t?{authorization:`Bearer ${t}`}:{}),...(init.headers||{})}});const tx=await r.text();let d:any;try{d=tx?JSON.parse(tx):null}catch{d=tx}if(!r.ok)throw new Error(d?.message||d?.error||`API ${r.status}`);return d as T}export function money(n:number){return new Intl.NumberFormat("en-RW",{style:"currency",currency:"RWF",maximumFractionDigits:0}).format(Number(n||0))}
+import * as SecureStore from "expo-secure-store";
+export const API=process.env.EXPO_PUBLIC_API_URL||"http://localhost:4000/api/v1";
+const ACCESS="imizi.access",REFRESH="imizi.refresh",LEGACY_ACCESS="imizi_token",LEGACY_REFRESH="imizi_refresh";
+let refreshPromise:Promise<string|null>|null=null;
+export async function token(){return (await SecureStore.getItemAsync(ACCESS))??(await SecureStore.getItemAsync(LEGACY_ACCESS));}
+async function refresh(){if(refreshPromise)return refreshPromise;refreshPromise=(async()=>{const r=await SecureStore.getItemAsync(REFRESH)??await SecureStore.getItemAsync(LEGACY_REFRESH);if(!r)return null;const res=await fetch(API+"/auth/refresh",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({refreshToken:r})});if(!res.ok){await SecureStore.deleteItemAsync(ACCESS);await SecureStore.deleteItemAsync(REFRESH);await SecureStore.deleteItemAsync(LEGACY_ACCESS);await SecureStore.deleteItemAsync(LEGACY_REFRESH);return null}const d=await res.json();await SecureStore.setItemAsync(ACCESS,d.accessToken);await SecureStore.setItemAsync(REFRESH,d.refreshToken);await SecureStore.setItemAsync("imizi_user",JSON.stringify(d.user||{}));await SecureStore.deleteItemAsync(LEGACY_ACCESS);await SecureStore.deleteItemAsync(LEGACY_REFRESH);return d.accessToken as string})().finally(()=>{refreshPromise=null});return refreshPromise;}
+export async function api<T>(path:string,init:RequestInit={},auth=false,retry=true){
+ const headers:Record<string,string>={"content-type":"application/json",...(init.headers as Record<string,string>||{})};const t=auth?await token():null;if(t)headers.authorization="Bearer "+t;
+ const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
+ try{const r=await fetch(API+(path.startsWith("/")?path:"/"+path),{...init,headers,signal:init.signal??controller.signal});const tx=await r.text();let d:any;try{d=tx?JSON.parse(tx):null}catch{d=tx}
+ if(r.status===401&&auth&&retry){const next=await refresh();if(next)return api<T>(path,init,true,false);}
+ if(!r.ok)throw Object.assign(new Error(d?.message||d?.error||("API "+r.status)),{status:r.status,data:d});
+ return d as T;
+ }catch(e:any){if(e?.name==="AbortError")throw new Error("Request timed out. Check your connection and try again.");throw e}finally{clearTimeout(timer)}
+}
+export function money(n:number){return new Intl.NumberFormat("en-RW",{style:"currency",currency:"RWF",maximumFractionDigits:0}).format(Number(n||0))}
