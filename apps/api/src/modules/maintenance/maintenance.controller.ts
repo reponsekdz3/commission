@@ -1,15 +1,2 @@
-import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
-import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { CurrentUser } from "../../common/current-user.decorator";
-import { UserRecord } from "../../store/platform.store";
-import { FeatureService } from "../../infra/feature.service";
-
-@ApiTags("maintenance")
-@ApiBearerAuth()
-@Controller("maintenance")
-export class MaintenanceController {
-  constructor(private readonly features:FeatureService){}
-  @Post() create(@CurrentUser() user:UserRecord,@Body() body:{propertyId:string;title:string;description:string}){return this.features.createMaintenance(user.id,body);}
-  @Get() list(@CurrentUser() user:UserRecord){return this.features.maintenance(user.id);}
-  @Patch(":id") update(@CurrentUser() user:UserRecord,@Param("id") id:string,@Body() body:{status:string}){return this.features.updateMaintenance(user.id,id,body.status);}
-}
+import{Body,Controller,Get,Param,Patch,Post}from"@nestjs/common";import{ApiBearerAuth,ApiTags}from"@nestjs/swagger";import{CurrentUser}from"../../common/current-user.decorator";import{UserRecord}from"../../store/platform.store";import{FeatureService}from"../../infra/feature.service";import{maintenanceCreateSchema,maintenanceUpdateSchema}from"@imizi/validation";
+@ApiTags("maintenance")@ApiBearerAuth()@Controller("maintenance")export class MaintenanceController{constructor(private readonly features:FeatureService){}@Post()create(@CurrentUser()u:UserRecord,@Body()b:unknown){return this.features.createMaintenance(u.id,maintenanceCreateSchema.parse(b))}@Get()list(@CurrentUser()u:UserRecord){return this.features.maintenance(u.id)}@Patch(":id")update(@CurrentUser()u:UserRecord,@Param("id")id:string,@Body()b:unknown){return this.features.updateMaintenance(u.id,id,maintenanceUpdateSchema.parse(b).status)}}
