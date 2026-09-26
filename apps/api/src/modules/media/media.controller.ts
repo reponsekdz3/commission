@@ -15,11 +15,11 @@ export class MediaController {
   constructor(private readonly db:DatabaseService,private readonly storage:StorageService){}
   @Throttle({upload:{limit:15,ttl:60000}})
   @Post("signed-url")
-  async signed(@CurrentUser() user:UserRecord,@Body() body:{propertyId:string;filename:string;contentType:string;kind:"PHOTO"|"VIDEO"|"DOCUMENT"}){
+  async signed(@CurrentUser() user:UserRecord,@Body() body:{propertyId:string;filename:string;contentType:string;kind:"PHOTO"|"VIDEO"|"DOCUMENT"|"TOUR_360"|"FLOOR_PLAN"}){
     const property=await this.db.getProperty(body.propertyId);
     if(!property)return{error:"not_found"};
     assertPropertyAccess(user,property,true);
-    const allowed=["image/jpeg","image/png","image/webp","video/mp4","application/pdf"];
+    const allowed=["image/jpeg","image/png","image/webp","video/mp4","application/pdf","model/gltf-binary","model/gltf+json"];
     if(!allowed.includes(body.contentType))return{error:"file_type_rejected"};
     const safeName=body.filename.replace(/[^a-zA-Z0-9._-]/g,"_");
     const prefix=body.kind==="DOCUMENT"?"private/":"public/";
