@@ -1,12 +1,2 @@
-import { api } from "../../lib/api";
-import { MapClient, MapResultList } from "./map-client";
-
-export default async function MapPage(){
-  const data=await api<{items:any[]}>("/search?listingType=RENT&limit=50");
-  return <main className="wrap" style={{paddingTop:24}}>
-    <h1>Map view</h1>
-    <p className="muted">Live property coordinates from PostGIS. Move the map and select a listing to inspect it.</p>
-    <MapClient items={data.items}/>
-    <MapResultList items={data.items}/>
-  </main>;
-}
+"use client";import {useEffect,useState} from "react";import Link from "next/link";import {api} from "../../lib/api";
+export default function MapPage(){const [items,setItems]=useState<any[]>([]);const [q,setQ]=useState("");useEffect(()=>{api<any>("/search?listingType=RENT&limit=50").then(x=>setItems(x.items||[]))},[]);return <main className="wrap section"><div className="sectionHead"><div><div className="eyebrow">Geospatial discovery</div><h1>Property map</h1><p className="muted">Coordinates are supplied by the API; the provider key controls production map tiles.</p></div><input className="field" style={{maxWidth:320}} value={q} onChange={e=>setQ(e.target.value)} placeholder="Filter visible listings"/></div><div className="map" style={{marginTop:20}}>{items.map((x:any,i:number)=>{const lat=Number(x.property.latitude??-1.95),lng=Number(x.property.longitude??30.06);const left=((lng-29.8)/.55)*100,top=(( -lat-1.65)/.7)*100;return <Link key={x.listing.id} href={`/properties/${x.property.id}`} title={x.property.title} className="pin" style={{left:`${Math.max(2,Math.min(98,left))}%`,top:`${Math.max(2,Math.min(98,top))}%`}}/>})}</div><div className="grid">{items.filter(x=>!q||String(x.property.title).toLowerCase().includes(q.toLowerCase())).slice(0,12).map((x:any)=><Link className="row" href={`/properties/${x.property.id}`} key={x.listing.id}><span>{x.property.title}<br/><small className="muted">{x.property.district}</small></span><span>Open →</span></Link>)}</div></main>}

@@ -1,17 +1,5 @@
 const API = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:4000/api/v1";
-
-export async function api<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API}${path}`, {
-    ...init,
-    headers: { "content-type": "application/json", ...(init?.headers ?? {}) },
-    cache: "no-store",
-  });
-  if (!res.ok) {
-    throw new Error(`API ${res.status} ${path}`);
-  }
-  return res.json() as Promise<T>;
-}
-
-export function formatRwf(amount: number) {
-  return new Intl.NumberFormat("en-RW", { style: "currency", currency: "RWF", maximumFractionDigits: 0 }).format(amount);
-}
+export function apiUrl(path:string){return `${API}${path.startsWith("/")?path:"/"+path}`;}
+export async function api<T>(path:string, init:RequestInit={}){const r=await fetch(apiUrl(path),{...init,headers:{"content-type":"application/json",...(init.headers||{})},cache:"no-store"});const text=await r.text();let data:any;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw new Error(data?.message||data?.error||`API ${r.status}`);return data as T;}
+export async function authApi<T>(path:string,init:RequestInit={}){if(typeof window==="undefined")throw new Error("Browser authentication required");const token=localStorage.getItem("imizi_token");return api<T>(path,{...init,headers:{...(init.headers||{}),...(token?{authorization:`Bearer ${token}`}:{})}});}
+export function formatRwf(n:number){return new Intl.NumberFormat("en-RW",{style:"currency",currency:"RWF",maximumFractionDigits:0}).format(Number(n||0));}

@@ -1,29 +1,8 @@
 {
-  "name": "imizi",
-  "version": "1.0.0",
-  "private": true,
-  "description": "Imizi — Rwanda-first real estate marketplace, booking, payments, maps, messaging, and property operations platform.",
-  "packageManager": "npm@11.13.0",
-  "workspaces": [
-    "apps/api",
-    "apps/web",
-    "packages/*"
-  ],
-  "scripts": {
-    "build": "npm run build --workspaces --if-present",
-    "lint": "npm run lint --workspaces --if-present",
-    "typecheck": "npm run typecheck --workspaces --if-present",
-    "test": "npm run test --workspaces --if-present",
-    "test:domain": "npm run test -w @imizi/domain",
-    "dev:api": "npm run start:dev -w @imizi/api",
-    "dev:web": "npm run dev -w @imizi/web",
-    "dev:admin": "npm run dev -w @imizi/web -- --port 3002",
-    "db:generate": "npm run migrate -w @imizi/database",
-    "db:migrate": "npm run migrate -w @imizi/database",
-    "db:seed": "npm run seed -w @imizi/database",
-    "db:smoke": "npm run smoke -w @imizi/database"
-  },
-  "engines": {
-    "node": ">=20.18.0"
-  }
+  "name":"imizi","version":"1.0.0","private":true,
+  "description":"Imizi — Rwanda-first real estate marketplace, booking, payments, maps, messaging, and property operations platform.",
+  "packageManager":"npm@11.13.0",
+  "workspaces":["apps/*","packages/*"],
+  "scripts":{"build":"npm run build --workspaces --if-present","lint":"npm run lint --workspaces --if-present","typecheck":"npm run typecheck --workspaces --if-present","test":"npm run test --workspaces --if-present","test:domain":"npm run test -w @imizi/domain","dev:api":"npm run start:dev -w @imizi/api","dev:web":"npm run dev -w @imizi/web","dev:mobile":"npm run start -w @imizi/mobile","dev:admin":"npm run dev -w @imizi/web -- --port 3002","db:generate":"npm run migrate -w @imizi/database","db:migrate":"npm run migrate -w @imizi/database","db:seed":"npm run seed -w @imizi/database","db:smoke":"npm run smoke -w @imizi/database"},
+  "engines":{"node":">=20.18.0"}
 }

@@ -1,19 +1,4 @@
+"use client";
 import Link from "next/link";
-
-export function Nav() {
-  return (
-    <header className="wrap nav">
-      <Link className="brand" href="/">Imizi</Link>
-      <nav>
-        <Link href="/search?listingType=RENT">Rent</Link>
-        <Link href="/search?listingType=SALE">Buy</Link>
-        <Link href="/search?propertyType=LAND">Land</Link>
-        <Link href="/map">Map</Link>
-        <Link href="/compare">Compare</Link>
-        <Link href="/dashboard">Dashboard</Link>
-        <Link href="/admin">Admin</Link>
-        <Link href="/login">Sign in</Link>
-      </nav>
-    </header>
-  );
-}
+import {useEffect,useState} from "react";
+export function Nav(){const [user,setUser]=useState<any>(null);useEffect(()=>{try{setUser(JSON.parse(localStorage.getItem("imizi_user")||"null"))}catch{}},[]);function logout(){localStorage.removeItem("imizi_token");localStorage.removeItem("imizi_refresh");localStorage.removeItem("imizi_user");location.href="/";}return <header className="nav wrap"><Link className="brand" href="/">IMIZI</Link><nav><Link href="/search">Discover</Link><Link href="/map">Map</Link><Link href="/favorites">Saved</Link><Link href="/messages">Messages</Link>{user?<><Link href="/dashboard">Dashboard</Link><button className="navBtn" onClick={logout}>Sign out</button></>:<Link className="navCta" href="/login">Sign in</Link>}</nav></header>}
