@@ -1,0 +1,1 @@
+export function TextShimmer({children}:{children:React.ReactNode}){return <span className="bg-[linear-gradient(110deg,var(--color-fg)_35%,var(--color-primary)_50%,var(--color-fg)_65%)] bg-[length:250%_100%] bg-clip-text text-transparent animate-text-shimmer">{children}</span>}
