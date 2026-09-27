@@ -1,0 +1,6 @@
+"use client";
+import {useEffect,useMemo,useState} from "react";
+import {BellRing,Bookmark} from "lucide-react";
+import {useSearchParams} from "next/navigation";
+import {useProperties} from "../hooks/use-properties";
+export function SavedSearchChip(){const params=useSearchParams();const query=params.toString();const key=useMemo(()=>"imizi:saved-search:"+(query||"all"),[query]);const{data}=useProperties(query);const[count,setCount]=useState<number|null>(null);const[newMatch,setNewMatch]=useState(false);useEffect(()=>{if(!data)return;const ids=(data.items??[]).map(x=>x.listing.id).join(",");const k=key+":ids";const prev=localStorage.getItem(k);if(prev&&prev!==ids)setNewMatch(true);localStorage.setItem(k,ids);setCount(data.items?.length??0)},[data,key]);const save=()=>{localStorage.setItem(key,JSON.stringify({query,createdAt:new Date().toISOString(),count}));setNewMatch(false)};return <button type="button" onClick={save} className={"chip "+(newMatch?"animate-pulse border-amber-400 bg-amber-50 text-amber-800 dark:bg-amber-950/30":"")}><span>{newMatch?<BellRing size={15}/>:<Bookmark size={15}/>} {newMatch?"New listings match":"Save search"}{count!==null?" · "+count:""}</span></button>}
