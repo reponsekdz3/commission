@@ -1,0 +1,5 @@
+export const colors={light:{bg:"#FDFDFC",surface:"#FFFFFF",surface2:"#F4F6F5",border:"#E3E8E6",text:"#0B1210",muted:"#5B6B66",primary:"#0E9F6E",primaryPressed:"#067A53",primarySoft:"#ECFDF5",accent:"#F59E0B",danger:"#DC2626"},dark:{bg:"#07100D",surface:"#0D1A16",surface2:"#132621",border:"#1C302A",text:"#E9F2EE",muted:"#8FA6A0",primary:"#34D399",primaryPressed:"#10B981",primarySoft:"rgba(52,211,153,.12)",accent:"#FBBF24",danger:"#F87171"}} as const;
+export const spacing={xs:4,sm:8,md:12,lg:16,xl:20,xxl:28,xxxl:36} as const;
+export const radius={sm:10,md:14,lg:18,xl:24,pill:999} as const;
+export const typography={display:34,title:28,subtitle:20,body:16,callout:14,caption:12,mono:13} as const;
+export const shadows={card:{shadowColor:"#000",shadowOpacity:.07,shadowRadius:14,shadowOffset:{width:0,height:6},elevation:3}} as const;
