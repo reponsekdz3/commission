@@ -169,7 +169,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     const config=loadConfig();
     const [amenities,media] = await Promise.all([
       this.query("SELECT amenity FROM property_amenities WHERE property_id=$1 ORDER BY amenity",[id]),
-      this.query("SELECT id,kind,storage_key,sort_order FROM property_media WHERE property_id=$1 ORDER BY sort_order,id",[id]),
+      this.query("SELECT id,kind,storage_key,variants,sort_order FROM property_media WHERE property_id=$1 ORDER BY sort_order,id",[id]),
     ]);
     return {
       id:String(row.id),ownerId:String(row.owner_id),organizationId:row.organization_id ?? undefined,title:String(row.title),
@@ -182,7 +182,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       parking:row.parking == null ? undefined : Number(row.parking),
       areaValue:row.area_value == null ? undefined : Number(row.area_value),areaUnit:String(row.area_unit),
       amenities:amenities.rows.map((x:any)=>String(x.amenity)),
-      media:media.rows.map((x:any)=>({id:String(x.id),kind:String(x.kind),url:String(x.storage_key).startsWith("http") ? String(x.storage_key) : (config.cdnBaseUrl ? config.cdnBaseUrl.replace(/\/$/,"")+"/"+String(x.storage_key).split("/").map(encodeURIComponent).join("/") : new URL("/"+String(x.storage_key),config.s3Endpoint ?? "http://localhost:9000").toString()),sortOrder:Number(x.sort_order)})),
+      media:media.rows.map((x:any)=>{const variants=(x.variants ?? {}) as Record<string,string>;const source=String(x.kind)==="VIDEO" ? (variants.video ?? x.storage_key) : String(x.kind)==="PHOTO" ? (variants.large ?? variants.medium ?? x.storage_key) : String(x.kind)==="TOUR_360" ? (variants.panorama ?? x.storage_key) : x.storage_key;const toUrl=(key:string)=>String(key).startsWith("http") ? String(key) : (config.cdnBaseUrl ? config.cdnBaseUrl.replace(/\/$/,"")+"/"+String(key).split("/").map(encodeURIComponent).join("/") : new URL("/"+String(key),config.s3Endpoint ?? "http://localhost:9000").toString());return {id:String(x.id),kind:String(x.kind),url:toUrl(String(source)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(x.sort_order)};}),
       createdAt:new Date(row.created_at).toISOString(),updatedAt:new Date(row.updated_at).toISOString(),
     };
   }
