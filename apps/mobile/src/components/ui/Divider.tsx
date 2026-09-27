@@ -1,0 +1,1 @@
+import React from"react";import{StyleSheet,View}from"react-native";import{useTheme}from"../../stores/theme";export function Divider(){const c=useTheme(s=>s.palette);return <View style={[s.line,{backgroundColor:c.border}]}/>};const s=StyleSheet.create({line:{height:1,width:"100%"}});
