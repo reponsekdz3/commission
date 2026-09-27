@@ -7,7 +7,7 @@ import { api, API, token } from "../src/lib/api";
 import { Bubble, Composer, TypingIndicator } from "../src/components/chat";
 import { useTheme } from "../src/stores/theme";
 import { fonts, spacing } from "../src/theme";
-import { selection } from "../src/lib/haptics";
+import { selection } from "../src/lib/haptics";import { ChatRowSkeleton } from "../src/components/ui";
 
 type Conversation={id:string;memberIds:string[];propertyId?:string;bookingId?:string;createdAt:string};
 type Attachment={id:string;filename:string;contentType:string;sizeBytes:number};
@@ -25,7 +25,7 @@ export default function Messages(){
  function sendTyping(activeNow:boolean){socket.current?.emit("typing",{conversationId:active?.id,active:activeNow})}
  async function openAttachment(id:string){try{const r=await api<any>("/messages/attachments/"+id+"/download",{},true);if(r.downloadUrl)await Linking.openURL(r.downloadUrl)}catch(e){setError(e instanceof Error?e.message:"Unable to open attachment")}}
  return <SafeAreaView style={[s.safe,{backgroundColor:c.bg}]}><View style={s.wrap}><Text style={[s.title,{color:c.text,fontFamily:fonts.displayStrong}]}>Messages</Text>{!!error&&<Text style={[s.error,{color:c.danger}]}>{error}</Text>}
- <FlatList style={s.list} data={items} keyExtractor={x=>x.id} ListEmptyComponent={<Text style={{color:c.muted}}>No conversations yet.</Text>} renderItem={({item})=><View style={[s.item,{backgroundColor:c.surface,borderColor:c.border}]}><Text onPress={()=>void open(item.id)} style={[s.itemTitle,{color:c.text}]}>{active?.id===item.id?"● ":""}Conversation</Text><Text style={{color:c.muted}}>{item.propertyId?"Property "+item.propertyId:"General inquiry"}</Text></View>}/>
+ <FlatList style={s.list} data={items} refreshing={false} onRefresh={()=>void load()} keyExtractor={x=>x.id} ListEmptyComponent={<Text style={{color:c.muted,textAlign:"center",padding:30}}>No conversations yet. Start a conversation from a property listing.</Text>} renderItem={({item})=><View style={[s.item,{backgroundColor:c.surface,borderColor:c.border}]}><Text onPress={()=>void open(item.id)} style={[s.itemTitle,{color:c.text}]}>{active?.id===item.id?"● ":""}Conversation</Text><Text style={{color:c.muted}}>{item.propertyId?"Property "+item.propertyId:"General inquiry"}</Text></View>}/>
  {active&&<View style={[s.thread,{backgroundColor:c.surface,borderColor:c.border}]}><Text style={[s.threadTitle,{color:c.text}]}>Conversation</Text><FlatList data={active.messages||[]} keyExtractor={(x:any)=>x.id} style={s.history} renderItem={({item}:any)=><View><Bubble text={item.body} mine={Boolean(item.senderId&&item.senderId===active.currentUserId)} timestamp={new Date(item.createdAt).toLocaleTimeString()} read={Boolean(item.readAt)} onLongPress={()=>{}} />{(item.attachments||[]).map((a:any)=><Text key={a.id} onPress={()=>void openAttachment(a.id)} style={{color:c.primary,fontWeight:"800"}}>↗ {a.filename}</Text>)}</View>}/>{typing&&<TypingIndicator/>}<Composer onSend={send} onAttach={()=>void upload()} onCamera={()=>void upload()}/></View>}
  </View></SafeAreaView>;
 }
