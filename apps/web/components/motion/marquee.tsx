@@ -1,0 +1,1 @@
+export function Marquee({children}:{children:React.ReactNode}){return <div className="overflow-hidden"><div className="flex w-max animate-marquee gap-10">{children}{children}</div></div>}
