@@ -6,6 +6,7 @@ import{api}from"../src/lib/api";
 
 type Conversation={id:string;memberIds:string[];propertyId?:string;bookingId?:string;createdAt:string};
 type PendingAttachment={id:string;filename:string;contentType:string;sizeBytes:number};
+function mime(name:string,fallback?:string){if(fallback)return fallback;const ext=name.toLowerCase().split(".").pop();return ext==="jpg"||ext==="jpeg"?"image/jpeg":ext==="png"?"image/png":ext==="webp"?"image/webp":ext==="gif"?"image/gif":ext==="mp4"?"video/mp4":ext==="webm"?"video/webm":ext==="mp3"?"audio/mpeg":ext==="wav"?"audio/wav":ext==="pdf"?"application/pdf":"text/plain"}
 
 export default function Messages(){
  const[items,setItems]=useState<Conversation[]>([]),[active,setActive]=useState<any>(),[body,setBody]=useState(""),[error,setError]=useState(""),[sending,setSending]=useState(false),[uploading,setUploading]=useState(false),[attachments,setAttachments]=useState<PendingAttachment[]>([]);
@@ -20,12 +21,12 @@ export default function Messages(){
    if(result.canceled)return;
    const uploaded:PendingAttachment[]=[];
    for(const asset of result.assets){
-    const blob=await (await fetch(asset.uri)).blob();
+    const blob=await (await fetch(asset.uri)).blob();const contentType=mime(asset.name,asset.mimeType||blob.type);
     if(blob.size>50*1024*1024)throw new Error(`${asset.name} is larger than 50 MB`);
-    const signed=await api<any>("/messages/attachments/signed-url",{method:"POST",body:JSON.stringify({conversationId:active.id,filename:asset.name,contentType:asset.mimeType||blob.type||"application/octet-stream",sizeBytes:blob.size})},true);
-    const put=await fetch(signed.uploadUrl,{method:"PUT",headers:signed.headers||{"Content-Type":asset.mimeType||blob.type||"application/octet-stream"},body:blob});
+    const signed=await api<any>("/messages/attachments/signed-url",{method:"POST",body:JSON.stringify({conversationId:active.id,filename:asset.name,contentType,sizeBytes:blob.size})},true);
+    const put=await fetch(signed.uploadUrl,{method:"PUT",headers:signed.headers||{"Content-Type":contentType},body:blob});
     if(!put.ok)throw new Error(`Upload failed: ${asset.name}`);
-    const done=await api<PendingAttachment>("/messages/attachments/complete",{method:"POST",body:JSON.stringify({conversationId:active.id,key:signed.key,filename:asset.name,contentType:asset.mimeType||blob.type||"application/octet-stream"})},true);
+    const done=await api<PendingAttachment>("/messages/attachments/complete",{method:"POST",body:JSON.stringify({conversationId:active.id,key:signed.key,filename:asset.name,contentType})},true);
     uploaded.push(done);
    }
    setAttachments(x=>[...x,...uploaded]);
