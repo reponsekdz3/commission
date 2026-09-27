@@ -1,0 +1,1 @@
+"use client";import * as A from "@radix-ui/react-accordion";export const Accordion=A.Root;export const AccordionItem=A.Item;export const AccordionTrigger=A.Trigger;export const AccordionContent=A.Content;
