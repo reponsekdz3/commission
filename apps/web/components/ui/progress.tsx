@@ -1,0 +1,1 @@
+export function Progress({value=0}:{value?:number}){return <div role="progressbar" aria-valuenow={value} className="h-2 overflow-hidden rounded-full bg-[var(--color-surface-3)]"><div className="h-full rounded-full bg-[var(--color-primary)]" style={{width:(Math.max(0,Math.min(100,value)))+"%"}}/></div>}
