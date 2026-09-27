@@ -1,0 +1,1 @@
+"use client";import {useQuery} from "@tanstack/react-query";import {authApi} from "../lib/api";export type User={id?:string;fullName?:string;email?:string;roles?:string[]};export function useUser(){return useQuery<User|null>({queryKey:["user"],queryFn:async()=>{try{return await authApi<User>("/users/me")}catch{return null}},staleTime:300000})}
