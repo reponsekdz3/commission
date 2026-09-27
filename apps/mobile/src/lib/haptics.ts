@@ -1,0 +1,2 @@
+import {Platform,Vibration} from "react-native";
+export function tap(kind:"light"|"medium"|"success"|"error"="light"){if(Platform.OS==="web")return;Vibration.vibrate(kind==="light"?8:kind==="medium"?18:kind==="success"?[0,10,40,10]:[0,40,40,40]);}
