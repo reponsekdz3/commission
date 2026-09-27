@@ -1,4 +1,5 @@
 const { Client } = require("pg");
+const { syncRwandaLocations } = require("./locations.cjs");
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -11,13 +12,15 @@ async function main() {
 
   try {
     await client.query("BEGIN");
+    const locationCounts = await syncRwandaLocations(client);
+    console.log("Synced Rwanda administrative hierarchy", locationCounts);
 
     await client.query(
       "INSERT INTO users(id,email,phone,password_hash,full_name,locale,mfa_enabled) VALUES " +
-      "('11111111-1111-1111-1111-111111111111','landlord@imizi.rw','+250780000001',crypt('ChangeMe!2026',gen_salt('bf',12)),'Uwase Keza','rw',false)," +
-      "('22222222-2222-2222-2222-222222222222','tenant@imizi.rw','+250780000002',crypt('ChangeMe!2026',gen_salt('bf',12)),'Mugisha Eric','en',false)," +
-      "('33333333-3333-3333-3333-333333333333','admin@imizi.rw','+250780000003',crypt('ChangeMe!2026',gen_salt('bf',12)),'Imizi Admin','en',false)," +
-      "('44444444-4444-4444-4444-444444444444','agent@imizi.rw','+250780000004',crypt('ChangeMe!2026',gen_salt('bf',12)),'Iradukunda Aline','fr',false) " +
+      "('11111111-1111-1111-1111-111111111111','landlord@imizi.rw','+250780000001',crypt($1,gen_salt('bf',12)),'Uwase Keza','rw',false)," +
+      "('22222222-2222-2222-2222-222222222222','tenant@imizi.rw','+250780000002',crypt($1,gen_salt('bf',12)),'Mugisha Eric','en',false)," +
+      "('33333333-3333-3333-3333-333333333333','admin@imizi.rw','+250780000003',crypt($1,gen_salt('bf',12)),'Imizi Admin','en',false)," +
+      "('44444444-4444-4444-4444-444444444444','agent@imizi.rw','+250780000004',crypt($1,gen_salt('bf',12)),'Iradukunda Aline','fr',false) " +
       "ON CONFLICT(id) DO UPDATE SET full_name=EXCLUDED.full_name,locale=EXCLUDED.locale",
       [seedPassword],
     );
