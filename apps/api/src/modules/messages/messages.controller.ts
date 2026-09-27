@@ -109,10 +109,10 @@ export class MessagesGateway {
   }
 
   @SubscribeMessage("message:send")
-  async send(@MessageBody() body:{conversationId?:string;recipientId?:string;propertyId?:string;bookingId?:string;offerId?:string;body:string},@ConnectedSocket() client:Socket){
+  async send(@MessageBody() body:{conversationId?:string;recipientId?:string;propertyId?:string;bookingId?:string;offerId?:string;body:string;attachmentIds?:string[]},@ConnectedSocket() client:Socket){
     const userId=client.data.userId as string | undefined;
     if(!userId || !body?.body?.trim()) return {error:"unauthorized"};
-    const result=await this.features.sendMessage(userId,{...body,body:body.body.trim()});
+    const result=await this.features.sendMessage(userId,{...body,body:body.body.trim(),attachmentIds:body.attachmentIds});
     if((result as any)?.error) return result;
     const conversationId=(result as any)?.conversation_id ?? (result as any)?.conversationId ?? body.conversationId;
     if(conversationId) {
