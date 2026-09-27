@@ -4,13 +4,15 @@ import { UserRecord, PropertyRecord } from "../../store/platform.store";
 import { assertPermission, assertPropertyAccess } from "../../common/access";
 import { DatabaseService } from "../../infra/database.service";
 import { FeatureService } from "../../infra/feature.service";
+import { LocationsService } from "../catalog/locations.service";
 
 @Injectable()
 export class PropertiesService {
-  constructor(private readonly db: DatabaseService, private readonly features: FeatureService) {}
+  constructor(private readonly db: DatabaseService, private readonly features: FeatureService, private readonly locations: LocationsService) {}
 
   async create(user: UserRecord, input: Record<string, any>) {
     assertPermission(user, "property:create");
+    if ((input.countryCode ?? "RW") === "RW") await this.locations.validate(input);
     const recent = await this.db.count("properties", "owner_id=$1 AND created_at >= now()-interval '24 hours'", [user.id]);
     const fraud = scoreFraud({
       listingsLast24h: recent, duplicatePhotoHits: 0, priceVsMedianRatio: 1, reportCount: 0,
@@ -39,6 +41,7 @@ export class PropertiesService {
     const property=await this.db.getProperty(id);
     if(!property) throw new NotFoundException();
     assertPropertyAccess(user,property,true);
+    if ((patch.countryCode ?? property.countryCode) === "RW" && ["provinceId","districtId","sectorId","cellId","villageId"].some(k => patch[k] !== undefined)) await this.locations.validate(patch);
     const result=await this.db.updateProperty(id,patch);
     for (const listing of (result?.listings ?? [])) await this.db.enqueueJob("search.index",{listingId:listing.id});
     await this.features.audit(user.id,"PROPERTY_UPDATED","property",id,undefined,patch);
