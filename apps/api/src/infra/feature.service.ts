@@ -111,7 +111,7 @@ export class FeatureService {
       "FROM messages m LEFT JOIN message_attachments a ON a.message_id=m.id WHERE m.conversation_id=$1 GROUP BY m.id ORDER BY m.created_at ASC",
       [id],
     );
-    return {conversation:{id:x.id,propertyId:x.property_id,bookingId:x.booking_id,offerId:x.offer_id,memberIds:x.member_ids,createdAt:x.created_at},messages:messages.rows};
+    return {id:x.id,propertyId:x.property_id,bookingId:x.booking_id,offerId:x.offer_id,memberIds:x.member_ids,createdAt:x.created_at,messages:messages.rows};
   }
 
   async sendMessage(userId:string,input:{conversationId?:string;recipientId?:string;propertyId?:string;bookingId?:string;offerId?:string;body:string;attachmentIds?:string[]}) {
