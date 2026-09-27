@@ -6,6 +6,7 @@
   "scripts":{
     "migrate":"node ./src/migrate.cjs",
     "seed":"node ./src/seed.cjs",
+    "locations:sync":"node ./src/sync-locations.cjs",
     "smoke":"node ./src/smoke.cjs"
   },
   "dependencies":{
