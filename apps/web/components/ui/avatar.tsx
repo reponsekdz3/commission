@@ -1,0 +1,1 @@
+"use client";import * as A from "@radix-ui/react-avatar";export const Avatar=A.Root;export const AvatarImage=A.Image;export const AvatarFallback=A.Fallback;
