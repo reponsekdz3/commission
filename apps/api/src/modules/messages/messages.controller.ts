@@ -24,7 +24,7 @@ export class MessagesController {
   async attachmentSigned(@CurrentUser() user:UserRecord,@Body() body:{conversationId:string;filename:string;contentType:string;sizeBytes:number}){
     const member=await this.db.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND user_id=$2",[body.conversationId,user.id]);
     if(!member.rows[0]) return {error:"forbidden"};
-    const allowed=/^(image\\/(jpeg|png|webp|gif)|video\\/(mp4|webm|quicktime)|audio\\/(mpeg|mp4|wav|webm)|application\\/pdf|text\\/plain)$/.test(body.contentType);
+    const allowed=/^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime)|audio\/(mpeg|mp4|wav|webm)|application\/pdf|text\/plain)$/.test(body.contentType);
     if(!allowed) throw new BadRequestException("file_type_rejected");
     if(!Number.isInteger(body.sizeBytes)||body.sizeBytes<=0||body.sizeBytes>50*1024*1024) throw new BadRequestException("attachment_too_large");
     const safe=body.filename.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,180);
