@@ -42,6 +42,8 @@ import { ViewingsController } from "./modules/viewings/viewings.controller";
 import { LeasesController } from "./modules/leases/leases.controller";
 import { RecommendationsController } from "./modules/recommendations/recommendations.controller";
 import { CatalogController } from "./modules/catalog/catalog.controller";
+import { LocationsController } from "./modules/catalog/locations.controller";
+import { LocationsService } from "./modules/catalog/locations.service";
 import { Dependencies } from "./infra/dependencies";
 
 const config = loadConfig();
@@ -61,10 +63,10 @@ const config = loadConfig();
     HealthController, AuthController, UsersController, PropertiesController, ListingsController, SearchController, MapsController,
     FavoritesController, BookingsController, PaymentsController, OffersController, MessagesController, ReviewsController,
     VerificationController, NotificationsController, AgenciesController, AdminController, MediaController, DocumentsController, MaintenanceController,
-    AnalyticsController, PrivacyController, ViewingsController, LeasesController, RecommendationsController, CatalogController,
+    AnalyticsController, PrivacyController, ViewingsController, LeasesController, RecommendationsController, CatalogController, LocationsController,
   ],
   providers: [
-    DatabaseService, FeatureService, StorageService, MalwareScanner, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService,
+    DatabaseService, FeatureService, StorageService, MalwareScanner, Dependencies, AuthService, PropertiesService, SearchService, BookingsService, PaymentsService, LocationsService,
     MessagesGateway, JobsService,
     { provide: APP_GUARD, useClass: ThrottlerGuard },
     { provide: APP_GUARD, useClass: AuthGuard },
