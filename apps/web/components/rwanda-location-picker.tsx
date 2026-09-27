@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { authApi } from "../lib/api";
+import { api } from "../lib/api";
 
 type Item={id:string;name:string;code:string;parentId?:string};
 type Values={provinceId:string;districtId:string;sectorId:string;cellId:string;villageId:string;province:string;district:string;sector:string;cell:string;village:string};
@@ -12,7 +12,7 @@ export function RwandaLocationPicker({value,onChange}:{value:Values;onChange:(v:
   useEffect(()=>{if(value.districtId)void load("SECTOR",value.districtId);},[value.districtId]);
   useEffect(()=>{if(value.sectorId)void load("CELL",value.sectorId);},[value.sectorId]);
   useEffect(()=>{if(value.cellId)void load("VILLAGE",value.cellId);},[value.cellId]);
-  async function load(level:string,parentId?:string){try{setError("");const q=parentId?`/locations/rwanda?level=${level}&parentId=${parentId}`:`/locations/rwanda?level=${level}`;const rows=await authApi<Item[]>(q,{method:"GET"},false);setOptions(x=>({...x,[level]:rows}));}catch(e:any){setError(e.message||"Unable to load Rwanda locations");}}
+  async function load(level:string,parentId?:string){try{setError("");const q=parentId?`/locations/rwanda?level=${level}&parentId=${parentId}`:`/locations/rwanda?level=${level}`;const rows=await api<Item[]>(q,{method:"GET"});setOptions(x=>({...x,[level]:rows}));}catch(e:any){setError(e.message||"Unable to load Rwanda locations");}}
   function choose(level:keyof Values,id:string){
     const map:any={PROVINCE:"province",DISTRICT:"district",SECTOR:"sector",CELL:"cell",VILLAGE:"village"};
     const item=options[level].find(x=>x.id===id);
