@@ -144,6 +144,18 @@ export class JobsService implements OnModuleInit {
                   await this.storage.putBuffer("public/"+posterKey,"image/jpeg",posterBuffer);
                   variants.poster=posterKey;
                 }catch{}
+              } else if(media.kind==="TOUR_360"){
+                const identify=await this.exec("magick",[original,"-format","%w %h","info:"]);
+                const [width,height]=identify.stdout.trim().split(/\\s+/).map(Number);
+                if(!width||!height||Math.abs(width/height-2)>0.08) throw new Error("TOUR_360 media must use an equirectangular image close to a 2:1 aspect ratio");
+                const output=join(dir,"panorama.webp");
+                await this.exec("magick",[original,"-auto-orient","-strip","-resize","4096x2048>","-quality","86",output]);
+                const optimized=await readFile(output);
+                const key="property/"+media.property_id+"/optimized/"+media.id+"-panorama.webp";
+                await this.storage.putBuffer("public/"+key,"image/webp",optimized);
+                variants.panorama=key;
+                variants.width=String(width);
+                variants.height=String(height);
               } else {
                 variants.original=String(media.storage_key);
               }
