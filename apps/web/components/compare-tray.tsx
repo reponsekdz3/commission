@@ -1,0 +1,5 @@
+"use client";
+import Link from "next/link";
+import {X,GitCompareArrows} from "lucide-react";
+import {useCompareStore} from "./compare-store";
+export function CompareTray(){const{items,remove,clear}=useCompareStore();if(items.length<2)return null;return <div className="fixed bottom-5 left-1/2 z-50 w-[min(94vw,760px)] -translate-x-1/2 rounded-2xl border border-black/10 bg-[var(--surface-1)]/95 p-3 shadow-2xl backdrop-blur-xl"><div className="flex items-center gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[var(--color-primary)] text-white"><GitCompareArrows size={19}/></div><div className="min-w-0 flex-1"><b>{items.length} properties selected</b><div className="mt-1 flex gap-2 overflow-x-auto">{items.map(x=><span key={x.id} className="chip shrink-0">{x.title}<button aria-label={"Remove "+x.title} onClick={()=>remove(x.id)}><X size={13}/></button></span>)}</div></div><Link href="/compare" className="btn shrink-0">Compare</Link><button className="btn ghost shrink-0" onClick={clear}>Clear</button></div></div>}
