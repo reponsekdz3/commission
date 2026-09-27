@@ -27,6 +27,7 @@ import {
 import { api } from "../src/lib/api";
 import { asyncStoragePersister } from "../src/lib/queryPersistence";
 import { ThemeProvider, useTheme } from "../src/stores/theme";
+import { DebugPanel } from "../src/components/DebugPanel";
 
 const client = new QueryClient({
   defaultOptions: {
@@ -123,7 +124,7 @@ export default function Root() {
             client={client}
             persistOptions={{ persister: asyncStoragePersister, maxAge: 24 * 60 * 60 * 1000 }}
           >
-            <AppStack />
+            <><AppStack /><DebugPanel /></>
           </PersistQueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>
