@@ -3,6 +3,7 @@ import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
 import { Platform, View } from "react-native";
+import { router } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { QueryClient } from "@tanstack/react-query";
@@ -70,6 +71,19 @@ export default function Root() {
     JetBrainsMono_400Regular,
     JetBrainsMono_500Medium,
   });
+
+  useEffect(() => {
+    const open = (response: Notifications.NotificationResponse) => {
+      const data = response.notification.request.content.data as any;
+      if (!data) return;
+      if (data.type === "chat" || data.threadId || data.conversationId) router.push({ pathname: "/chat/[threadId]", params: { threadId: String(data.threadId || data.conversationId) } });
+      else if (data.type === "property" || data.propertyId) router.push({ pathname: "/property/[id]", params: { id: String(data.propertyId) } });
+      else if (data.type === "booking" || data.bookingId) router.push({ pathname: "/booking/[id]", params: { id: String(data.bookingId) } });
+    };
+    const sub = Notifications.addNotificationResponseReceivedListener(open);
+    Notifications.getLastNotificationResponseAsync().then((r) => { if (r) open(r); }).catch(() => {});
+    return () => sub.remove();
+  }, []);
 
   useEffect(() => {
     if (Platform.OS === "web") return;
