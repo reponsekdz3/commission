@@ -1,0 +1,1 @@
+import React from"react";import{Text}from"react-native";import{Counter}from"../motion";export function PriceTag({value,suffix=""}:{value:number;suffix?:string}){return <Text style={{fontSize:18,fontWeight:"900"}}><Counter value={value}/> {suffix}</Text>}
