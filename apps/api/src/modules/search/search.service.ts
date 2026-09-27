@@ -39,6 +39,7 @@ export class SearchService {
     const amenities=Array.isArray(query.amenities)?query.amenities:String(query.amenities ?? "").split(",").map((x:string)=>x.trim()).filter(Boolean);
     for(const amenity of amenities)filter.push({term:{amenities:String(amenity).toLowerCase()}});
     if(query.lat!=null&&query.lng!=null&&query.radiusKm!=null)filter.push({geo_distance:{distance:Number(query.radiusKm)+"km",location:{lat:Number(query.lat),lon:Number(query.lng)}}});
+    if([query.north,query.south,query.east,query.west].every((x)=>x!=null))filter.push({geo_bounding_box:{location:{top_left:{lat:Number(query.north),lon:Number(query.west)},bottom_right:{lat:Number(query.south),lon:Number(query.east)}}}});
     if(query.q)must.push({multi_match:{query:String(query.q),fields:["title^4","description^2","district^3","province","propertyType","amenities"],fuzziness:"AUTO"}});
     const body:any={
       size:limit,track_total_hits:false,query:{bool:{must,filter}},
