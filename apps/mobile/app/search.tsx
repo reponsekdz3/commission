@@ -17,7 +17,7 @@ export default function SearchScreen(){
     setLoading(true);setError("");
     try{
       const query=text.trim()?"/search?q="+encodeURIComponent(text.trim()):"/search";
-      const data=await api<{items:SearchItem[]}>(query,{auth:false});
+      const data=await api<{items:SearchItem[]}>(query);
       setItems(data.items);
       await cacheJson("search:"+text.trim(),data.items);
     }catch(e){
