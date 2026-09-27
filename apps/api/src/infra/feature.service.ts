@@ -106,25 +106,45 @@ export class FeatureService {
     );
     if(!result.rows[0]) return undefined;
     const x=result.rows[0];
-    const messages=await this.db.query("SELECT * FROM messages WHERE conversation_id=$1 ORDER BY created_at ASC",[id]);
+    const messages=await this.db.query(
+      "SELECT m.*,COALESCE(json_agg(json_build_object('id',a.id,'filename',a.filename,'contentType',a.content_type,'sizeBytes',a.size_bytes,'storageKey',a.storage_key)) FILTER (WHERE a.id IS NOT NULL),'[]') attachments " +
+      "FROM messages m LEFT JOIN message_attachments a ON a.message_id=m.id WHERE m.conversation_id=$1 GROUP BY m.id ORDER BY m.created_at ASC",
+      [id],
+    );
     return {conversation:{id:x.id,propertyId:x.property_id,bookingId:x.booking_id,offerId:x.offer_id,memberIds:x.member_ids,createdAt:x.created_at},messages:messages.rows};
   }
 
-  async sendMessage(userId:string,input:{conversationId?:string;recipientId?:string;propertyId?:string;bookingId?:string;offerId?:string;body:string}) {
+  async sendMessage(userId:string,input:{conversationId?:string;recipientId?:string;propertyId?:string;bookingId?:string;offerId?:string;body:string;attachmentIds?:string[]}) {
     const conversationId=input.conversationId ?? await this.conversation(userId,input.recipientId,input.propertyId,input.bookingId,input.offerId);
     const allowed=await this.db.query(
       "SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND user_id=$2",
       [conversationId,userId],
     );
     if(!allowed.rows[0]) return {error:"forbidden"};
+    const attachmentIds=[...(input.attachmentIds ?? [])];
+    if(attachmentIds.length>10)return {error:"too_many_attachments"};
+    if(attachmentIds.length){
+      const check=await this.db.query(
+        "SELECT id FROM message_attachments WHERE id=ANY($1::uuid[]) AND conversation_id=$2 AND uploader_id=$3 AND message_id IS NULL",
+        [attachmentIds,conversationId,userId],
+      );
+      if(check.rows.length!==attachmentIds.length)return {error:"invalid_attachments"};
+    }
     const id=randomUUID();
-    const result=await this.db.query(
-      "INSERT INTO messages(id,conversation_id,sender_id,body,status) VALUES($1,$2,$3,$4,'SENT') RETURNING *",
-      [id,conversationId,userId,input.body],
-    );
+    const result=await this.db.transaction(async(client)=>{
+      const inserted=await client.query(
+        "INSERT INTO messages(id,conversation_id,sender_id,body,status) VALUES($1,$2,$3,$4,'SENT') RETURNING *",
+        [id,conversationId,userId,input.body],
+      );
+      if(attachmentIds.length) await client.query("UPDATE message_attachments SET message_id=$1 WHERE id=ANY($2::uuid[])",[id,attachmentIds]);
+      return inserted.rows[0];
+    });
+    const attachments=attachmentIds.length
+      ? await this.db.query("SELECT id,filename,content_type,size_bytes FROM message_attachments WHERE message_id=$1 ORDER BY created_at",[id])
+      : {rows:[]};
     const members=await this.db.query("SELECT user_id FROM conversation_members WHERE conversation_id=$1 AND user_id<>$2",[conversationId,userId]);
     for(const row of members.rows) await this.notify(row.user_id,"NEW_MESSAGE","New message",input.body.slice(0,80));
-    return result.rows[0];
+    return {...result,attachments:attachments.rows};
   }
 
   async markRead(userId:string,conversationId:string) {
