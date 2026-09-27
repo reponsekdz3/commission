@@ -61,8 +61,8 @@ export function ImmersiveTour({media=[]}:{media?:Scene[]}) {
    const mvpLoc=gl.getUniformLocation(program,"uMvp");const texLoc=gl.getUniformLocation(program,"uTexture");
    const resize=()=>{const d=window.devicePixelRatio||1,w=Math.max(1,el.clientWidth*d),h=Math.max(1,el.clientHeight*d);if(el.width!==w||el.height!==h){el.width=w;el.height=h;gl.viewport(0,0,w,h)}};
    const draw=()=>{resize();gl.clearColor(.03,.03,.03,1);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);gl.useProgram(program);gl.bindBuffer(gl.ARRAY_BUFFER,vb);gl.enableVertexAttribArray(pos);gl.vertexAttribPointer(pos,3,gl.FLOAT,false,stride,0);gl.enableVertexAttribArray(uv);gl.vertexAttribPointer(uv,2,gl.FLOAT,false,stride,12);const projection=perspective(view.current.fov*Math.PI/180,el.width/el.height,.01,100);gl.uniformMatrix4fv(mvpLoc,false,multiply(projection,rotation(view.current.yaw,view.current.pitch)));gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,texture);gl.uniform1i(texLoc,0);gl.drawElements(gl.TRIANGLES,mesh.i.length,gl.UNSIGNED_SHORT,0);};
-   const onResize=()=>draw();window.addEventListener("resize",onResize);gl.disable(gl.CULL_FACE);gl.enable(gl.DEPTH_TEST);setStatus("Loading 360° scene…");
-   return()=>{window.removeEventListener("resize",onResize);img.src="";gl.deleteTexture(texture);gl.deleteBuffer(vb);gl.deleteBuffer(ib);gl.deleteProgram(program)};
+   const onResize=()=>draw();const onViewChange=()=>draw();window.addEventListener("resize",onResize);el.addEventListener("viewchange",onViewChange);gl.disable(gl.CULL_FACE);gl.enable(gl.DEPTH_TEST);setStatus("Loading 360° scene…");
+   return()=>{window.removeEventListener("resize",onResize);el.removeEventListener("viewchange",onViewChange);img.src="";gl.deleteTexture(texture);gl.deleteBuffer(vb);gl.deleteBuffer(ib);gl.deleteProgram(program)};
  },[scene?.url]);
 
  if(!scene)return null;
