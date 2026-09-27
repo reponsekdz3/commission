@@ -1,4 +1,4 @@
-import{router,useLocalSearchParams}from"expo-router";import{useQuery}from"@tanstack/react-query";import{useVideoPlayer,VideoView}from"expo-video";import{useEffect,useState}from"react";import{Alert,Image,Pressable,ScrollView,StyleSheet,Text,TextInput,View}from"react-native";import MapView,{Marker}from"react-native-maps";import{api,money}from"../../src/lib/api";import{OfflineBanner}from"../../src/components/ui";import{isSignedIn}from"../../src/lib/session";
+import{router,useLocalSearchParams}from"expo-router";import{useQuery}from"@tanstack/react-query";import{useVideoPlayer,VideoView}from"expo-video";import{useEffect,useState}from"react";import{Alert,Image,Pressable,ScrollView,StyleSheet,Text,TextInput,View}from"react-native";import MapView,{Marker}from"react-native-maps";import{api,money}from"../../src/lib/api";import{isSignedIn}from"../../src/lib/session";
 import{MobileImmersiveTour}from"../../components/immersive-tour";
 function PropertyVideo({url}:{url:string}){const player=useVideoPlayer(url,p=>{p.loop=false});return <VideoView player={player} nativeControls style={s.video}/>}
 
