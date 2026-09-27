@@ -1,0 +1,1 @@
+import {PropertyCard} from "./property-card";export function PropertyGrid({items}:{items:any[]}){return <div className="grid [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">{items.map(x=><PropertyCard key={x.listing?.id||x.id} item={x}/>)}</div>}
