@@ -34,46 +34,54 @@ async function fetchLayer(layer) {
   return rows;
 }
 
-async function upsert(client, level, code, name, parentId, metadata) {
-  const result = await client.query(
-    "INSERT INTO rwanda_admin_units(level,code,parent_id,name,normalized_name,source,metadata) VALUES($1,$2,$3,$4,$5,'NISR_2022',$6::jsonb) " +
-    "ON CONFLICT(level,code) DO UPDATE SET parent_id=EXCLUDED.parent_id,name=EXCLUDED.name,normalized_name=EXCLUDED.normalized_name,metadata=EXCLUDED.metadata,active=true,updated_at=now() RETURNING id",
-    [level, String(code), parentId, String(name), norm(name), JSON.stringify(metadata || {})],
-  );
-  return result.rows[0].id;
+async function upsertBatch(client, level, records) {
+  for (let offset = 0; offset < records.length; offset += 500) {
+    const chunk = records.slice(offset, offset + 500);
+    const values = [];
+    const placeholders = [];
+    for (let i = 0; i < chunk.length; i++) {
+      const base = i * 6;
+      placeholders.push("(" + [1,2,3,4,5,6].map(n => "$" + (base + n)).join(",") + ",'NISR_2022'," + "$" + (base + 6) + "::jsonb)");
+      values.push(level, String(chunk[i].code), chunk[i].parentId || null, String(chunk[i].name), norm(chunk[i].name), JSON.stringify(chunk[i].metadata || {}));
+    }
+    await client.query(
+      "INSERT INTO rwanda_admin_units(level,code,parent_id,name,normalized_name,source,metadata) VALUES " + placeholders.join(",") +
+      " ON CONFLICT(level,code) DO UPDATE SET parent_id=EXCLUDED.parent_id,name=EXCLUDED.name,normalized_name=EXCLUDED.normalized_name,metadata=EXCLUDED.metadata,active=true,updated_at=now()",
+      values,
+    );
+  }
+  const codes = records.map(r => String(r.code));
+  const result = await client.query("SELECT id,code FROM rwanda_admin_units WHERE level=$1 AND code=ANY($2::text[])", [level, codes]);
+  return new Map(result.rows.map(r => [String(r.code), r.id]));
 }
 
 async function syncRwandaLocations(client) {
   const [districts, sectors, cells, villages] = await Promise.all(LAYERS.map(fetchLayer));
   const provinces = new Map();
-  for (const r of districts) provinces.set(String(r.province_id), { code:r.province_id, name:r.province });
-  const provinceIds = new Map();
-  for (const p of provinces.values()) provinceIds.set(String(p.code), await upsert(client,"PROVINCE",p.code,p.name,null,{sourceLayer:"district"}));
+  for (const r of districts) provinces.set(String(r.province_id), { code: r.province_id, name: r.province });
 
-  const districtIds = new Map();
-  for (const r of districts) {
-    const id = await upsert(client,"DISTRICT",r.district_id,r.district,provinceIds.get(String(r.province_id)),r);
-    districtIds.set(String(r.district_id),id);
-  }
-  const sectorIds = new Map();
-  for (const r of sectors) {
-    const id = await upsert(client,"SECTOR",r.sector_id,r.sector,districtIds.get(String(r.district_id)),r);
-    sectorIds.set(String(r.sector_id),id);
-  }
-  const cellIds = new Map();
-  for (const r of cells) {
-    const id = await upsert(client,"CELL",r.cell_id,r.cell,sectorIds.get(String(r.sector_id)),r);
-    cellIds.set(String(r.cell_id),id);
-  }
-  for (const r of villages) {
-    await upsert(client,"VILLAGE",r.village_id,r.village,cellIds.get(String(r.cell_id)),r);
-  }
+  const provinceIds = await upsertBatch(client, "PROVINCE", Array.from(provinces.values()).map(p => ({
+    code: p.code, name: p.name, parentId: null, metadata: { sourceLayer: "district" }
+  })));
+  const districtIds = await upsertBatch(client, "DISTRICT", districts.map(r => ({
+    code: r.district_id, name: r.district, parentId: provinceIds.get(String(r.province_id)), metadata: r
+  })));
+  const sectorIds = await upsertBatch(client, "SECTOR", sectors.map(r => ({
+    code: r.sector_id, name: r.sector, parentId: districtIds.get(String(r.district_id)), metadata: r
+  })));
+  const cellIds = await upsertBatch(client, "CELL", cells.map(r => ({
+    code: r.cell_id, name: r.cell, parentId: sectorIds.get(String(r.sector_id)), metadata: r
+  })));
+  await upsertBatch(client, "VILLAGE", villages.map(r => ({
+    code: r.village_id, name: r.village, parentId: cellIds.get(String(r.cell_id)), metadata: r
+  })));
 
-  await client.query(
-    "UPDATE rwanda_admin_units SET active=false,updated_at=now() WHERE source='NISR_2022' AND id NOT IN (" +
-    "SELECT id FROM rwanda_admin_units WHERE source='NISR_2022')",
-  );
-  return { provinces:provinces.size, districts:districts.length, sectors:sectors.length, cells:cells.length, villages:villages.length };
+  return {
+    provinces: provinces.size,
+    districts: districts.length,
+    sectors: sectors.length,
+    cells: cells.length,
+    villages: villages.length,
+  };
 }
-
 module.exports = { syncRwandaLocations };
