@@ -1,0 +1,1 @@
+"use client";import {Command as C} from "cmdk";export const Command=C;export const CommandInput=C.Input;export const CommandList=C.List;export const CommandEmpty=C.Empty;export const CommandGroup=C.Group;export const CommandItem=C.Item;
