@@ -382,3 +382,14 @@ Those are separate engineering projects and should only be added to this README 
 ## Repository truth rule
 
 If a feature is not backed by an API, persistent model, real client wiring, background processing where required, or an explicitly configured external provider, it should not be described as fully functional here.
+
+
+## Rwanda administrative location integrity
+
+Property creation for Rwanda uses a canonical administrative hierarchy stored in PostgreSQL and exposed by the public location API:
+
+**Province → District → Sector → Cell → Village (optional at listing time).**
+
+The database seed synchronizes Rwanda administrative boundary data from the Rwanda government GIS service using NISR 2022 boundary data, including the full national hierarchy rather than a hand-written shortlist. New Rwanda properties must select canonical Province, District, Sector and Cell IDs; the API verifies every parent-child relationship before inserting the property. Names are resolved from canonical records instead of trusting client-supplied labels. Village is also available when the exact village is known.
+
+This prevents invalid combinations such as a sector belonging to one district being submitted under another district, and makes the same hierarchy available to web and mobile clients through the locations API.
