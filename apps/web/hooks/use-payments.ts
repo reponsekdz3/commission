@@ -1,0 +1,1 @@
+"use client";import {useMutation} from "@tanstack/react-query";import {authApi} from "../lib/api";export function usePaymentIntent(){return useMutation({mutationFn:(payload:Record<string,unknown>)=>authApi("/payments/intents",{method:"POST",body:JSON.stringify(payload)})})}
