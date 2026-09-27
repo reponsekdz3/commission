@@ -1,0 +1,7 @@
+"use client";
+import {useEditor,EditorContent} from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Link from "@tiptap/extension-link";
+import Placeholder from "@tiptap/extension-placeholder";
+import {Bold,Italic,List,Link as LinkIcon} from "lucide-react";
+export function PropertyDescriptionEditor({value,onChange}:{value:string;onChange:(value:string)=>void}){const editor=useEditor({extensions:[StarterKit,Link.configure({openOnClick:false}),Placeholder.configure({placeholder:"Describe the property, access, utilities, amenities and important terms…"})],content:value,onUpdate:({editor:e})=>onChange(e.getHTML()),immediatelyRender:false});return <div className="rounded-xl border border-black/10 bg-[var(--surface-1)]"><div className="flex flex-wrap gap-1 border-b border-black/10 p-2"><button type="button" className="btn ghost" onClick={()=>editor?.chain().focus().toggleBold().run()}><Bold size={16}/></button><button type="button" className="btn ghost" onClick={()=>editor?.chain().focus().toggleItalic().run()}><Italic size={16}/></button><button type="button" className="btn ghost" onClick={()=>editor?.chain().focus().toggleBulletList().run()}><List size={16}/></button><button type="button" className="btn ghost" onClick={()=>{const url=window.prompt("Link URL");if(url)editor?.chain().focus().setLink({href:url}).run()}}><LinkIcon size={16}/></button></div><EditorContent editor={editor} className="min-h-40 p-4 prose max-w-none"/></div>}
