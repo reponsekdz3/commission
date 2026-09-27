@@ -1,0 +1,1 @@
+"use client";import {Counter} from "../motion/counter";export function PriceTag({value}:{value:number}){return <div className="text-2xl font-extrabold tabular-nums">RWF <Counter value={value}/></div>}
