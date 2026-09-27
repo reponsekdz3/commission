@@ -1,0 +1,1 @@
+import {PropertyCardSkeleton as Skeleton} from "../ui/skeleton";export default Skeleton;
