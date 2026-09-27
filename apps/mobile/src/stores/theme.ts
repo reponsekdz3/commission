@@ -53,5 +53,5 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     }
   }, [mode]);
 
-  return <>{children}</>;
+  return React.createElement(React.Fragment, null, children);
 }
