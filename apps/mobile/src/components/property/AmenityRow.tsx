@@ -1,0 +1,1 @@
+import React from"react";import{ScrollView}from"react-native";import{Chip}from"../ui";export function AmenityRow({amenities}:{amenities:string[]}){return <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8}}>{amenities.map(x=><Chip key={x} label={x}/>)}</ScrollView>}
