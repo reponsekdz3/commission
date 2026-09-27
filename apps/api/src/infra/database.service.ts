@@ -139,13 +139,17 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           input.areaValue ?? null,input.areaUnit ?? "SQM",
         ],
       );
+      let location = { province: input.province, district: input.district, sector: input.sector ?? null, cell: input.cell ?? null, village: input.village ?? null };
+      if ((input.countryCode ?? "RW") === "RW" && input.provinceId) {
+        const ids=[input.provinceId,input.districtId,input.sectorId,input.cellId,input.villageId].filter(Boolean);
+        const locRows=await client.query("SELECT id,level,name FROM rwanda_admin_units WHERE id=ANY($1::uuid[])",[ids]);
+        const byLevel=new Map(locRows.rows.map((r:any)=>[String(r.level),r]));
+        location={province:byLevel.get("PROVINCE")?.name,district:byLevel.get("DISTRICT")?.name,sector:byLevel.get("SECTOR")?.name ?? null,cell:byLevel.get("CELL")?.name ?? null,village:byLevel.get("VILLAGE")?.name ?? null};
+      }
       await client.query(
-        "INSERT INTO property_locations(property_id,country_code,province,district,sector,cell,village,address_line,geom) " +
-        "VALUES($1,$2,$3,$4,$5,$6,$7,$8,ST_SetSRID(ST_MakePoint($9,$10),4326)::geography)",
-        [
-          id,input.countryCode ?? "RW",input.province,input.district,input.sector ?? null,input.cell ?? null,input.village ?? null,
-          input.addressLine ?? null,input.longitude,input.latitude,
-        ],
+        "INSERT INTO property_locations(property_id,country_code,province,district,sector,cell,village,address_line,province_id,district_id,sector_id,cell_id,village_id,geom) " +
+        "VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,ST_SetSRID(ST_MakePoint($14,$15),4326)::geography)",
+        [id,input.countryCode ?? "RW",location.province,location.district,location.sector,location.cell,location.village,input.addressLine ?? null,input.provinceId ?? null,input.districtId ?? null,input.sectorId ?? null,input.cellId ?? null,input.villageId ?? null,input.longitude,input.latitude],
       );
       for (const amenity of input.amenities ?? []) {
         await client.query(
@@ -229,17 +233,24 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         if (!column) continue;
         await client.query("UPDATE properties SET "+column+"=$2,updated_at=now() WHERE id=$1",[id,value]);
       }
-      if (["province","district","sector","cell","village","addressLine","latitude","longitude"].some((x)=>patch[x] !== undefined)) {
+      if (["province","district","sector","cell","village","provinceId","districtId","sectorId","cellId","villageId","addressLine","latitude","longitude"].some((x)=>patch[x] !== undefined)) {
         const location=await client.query("SELECT province,district,sector,cell,village,address_line,ST_Y(geom::geometry) lat,ST_X(geom::geometry) lng FROM property_locations WHERE property_id=$1",[id]);
         const current=location.rows[0];
-        const fields={
+        let fields={
           province:patch.province ?? current?.province,district:patch.district ?? current?.district,sector:patch.sector ?? current?.sector,
           cell:patch.cell ?? current?.cell,village:patch.village ?? current?.village,addressLine:patch.addressLine ?? current?.address_line,
+          provinceId:patch.provinceId ?? null,districtId:patch.districtId ?? null,sectorId:patch.sectorId ?? null,cellId:patch.cellId ?? null,villageId:patch.villageId ?? null,
           latitude:patch.latitude ?? current?.lat,longitude:patch.longitude ?? current?.lng,
         };
+        if (patch.provinceId || patch.districtId || patch.sectorId || patch.cellId || patch.villageId) {
+          const ids=[patch.provinceId,patch.districtId,patch.sectorId,patch.cellId,patch.villageId].filter(Boolean);
+          const locRows=await client.query("SELECT id,level,name FROM rwanda_admin_units WHERE id=ANY($1::uuid[])",[ids]);
+          const byLevel=new Map(locRows.rows.map((r:any)=>[String(r.level),r]));
+          fields={...fields,province:byLevel.get("PROVINCE")?.name ?? fields.province,district:byLevel.get("DISTRICT")?.name ?? fields.district,sector:byLevel.get("SECTOR")?.name ?? null,cell:byLevel.get("CELL")?.name ?? null,village:byLevel.get("VILLAGE")?.name ?? null};
+        }
         await client.query(
-          "UPDATE property_locations SET province=$2,district=$3,sector=$4,cell=$5,village=$6,address_line=$7,geom=ST_SetSRID(ST_MakePoint($8,$9),4326)::geography WHERE property_id=$1",
-          [id,fields.province,fields.district,fields.sector,fields.cell,fields.village,fields.addressLine,fields.longitude,fields.latitude],
+          "UPDATE property_locations SET province=$2,district=$3,sector=$4,cell=$5,village=$6,address_line=$7,province_id=$8,district_id=$9,sector_id=$10,cell_id=$11,village_id=$12,geom=ST_SetSRID(ST_MakePoint($13,$14),4326)::geography WHERE property_id=$1",
+          [id,fields.province,fields.district,fields.sector,fields.cell,fields.village,fields.addressLine,fields.provinceId,fields.districtId,fields.sectorId,fields.cellId,fields.villageId,fields.longitude,fields.latitude],
         );
       }
       if (Array.isArray(patch.amenities)) {
