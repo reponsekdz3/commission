@@ -107,7 +107,7 @@ export class FeatureService {
     if(!result.rows[0]) return undefined;
     const x=result.rows[0];
     const messages=await this.db.query(
-      "SELECT m.*,COALESCE(json_agg(json_build_object('id',a.id,'filename',a.filename,'contentType',a.content_type,'sizeBytes',a.size_bytes,'storageKey',a.storage_key)) FILTER (WHERE a.id IS NOT NULL),'[]') attachments " +
+      "SELECT m.*,COALESCE(json_agg(json_build_object('id',a.id,'filename',a.filename,'contentType',a.content_type,'sizeBytes',a.size_bytes)) FILTER (WHERE a.id IS NOT NULL),'[]') attachments " +
       "FROM messages m LEFT JOIN message_attachments a ON a.message_id=m.id WHERE m.conversation_id=$1 GROUP BY m.id ORDER BY m.created_at ASC",
       [id],
     );
