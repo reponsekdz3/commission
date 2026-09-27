@@ -1,0 +1,1 @@
+"use client";import * as T from "@radix-ui/react-tabs";export const Tabs=T.Root;export const TabsList=T.List;export const TabsTrigger=T.Trigger;export const TabsContent=T.Content;
