@@ -32,7 +32,7 @@ export class PaymentsController {
 
   @ApiBearerAuth()
   @Post("refunds")
-  refund(@CurrentUser() user:UserRecord,@Body() body:{intentId:string;amountMinor:number;reason?:string;reauthToken?:string}){
+  async refund(@CurrentUser() user:UserRecord,@Body() body:{intentId:string;amountMinor:number;reason?:string;reauthToken?:string}){
     if(!user.roles.includes("FINANCE_ADMIN")&&!user.roles.includes("SUPER_ADMIN"))return{error:"forbidden"};
     if(requiresReauth("payment:refund")){
       if(!body.reauthToken)return{requiresReauth:true};
