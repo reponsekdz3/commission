@@ -1,49 +1,162 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
-import { useVideoPlayer, VideoView } from "expo-video";
-import { useState } from "react";
-import { Alert, Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker } from "react-native-maps";
 import { api, money } from "../../src/lib/api";
+import { requestId } from "../../src/lib/ids";
+import { Gallery, BookingBar } from "../../src/components/property";
+import { Button, Chip, Input } from "../../src/components/ui";
 import { isSignedIn } from "../../src/lib/session";
-import { MobileImmersiveTour } from "../../components/immersive-tour";
-
-function PropertyVideo({url}:{url:string}) { const player=useVideoPlayer(url,p=>{p.loop=false}); return <VideoView player={player} nativeControls style={s.video}/>; }
+import { useTheme } from "../../src/stores/theme";
+import { fonts, spacing } from "../../src/theme";
+import { selection } from "../../src/lib/haptics";
 
 export default function Property(){
- const {id}=useLocalSearchParams<{id:string}>();
- const [start,setStart]=useState(new Date().toISOString().slice(0,10));
- const [end,setEnd]=useState(new Date(Date.now()+30*864e5).toISOString().slice(0,10));
- const [quote,setQuote]=useState<any>(); const [offer,setOffer]=useState(""); const [busy,setBusy]=useState(false);
- const propertyQuery=useQuery({queryKey:["property",id],enabled:Boolean(id),queryFn:()=>api<any>("/properties/"+id)});
- const p=propertyQuery.data;
- async function need(){if(!(await isSignedIn())){router.push("/login");return false;}return true;}
- async function quoteIt(){try{const l=p?.listings?.[0];if(!l)throw new Error("Listing unavailable");setQuote(await api("/bookings/quote",{method:"POST",body:JSON.stringify({listingId:l.id,startDate:start,endDate:end})}));}catch(e:any){Alert.alert("Quote",e.message);}}
- async function book(){if(!(await need()))return;setBusy(true);try{const l=p?.listings?.[0];if(!l)throw new Error("Listing unavailable");const b=await api<any>("/bookings",{method:"POST",body:JSON.stringify({listingId:l.id,startDate:start,endDate:end,guests:1,idempotencyKey:Date.now().toString()+Math.random().toString(16)})},true);const booking=b.booking||b;if(!booking.id)throw new Error(b.message||"Booking failed");const pay=await api<any>("/payments/intents",{method:"POST",body:JSON.stringify({bookingId:booking.id,provider:"MTN_MOMO",msisdn:"",idempotencyKey:Date.now().toString()+Math.random().toString(16)})},true);Alert.alert("Payment",pay.checkoutUrl?"Payment initiated: "+pay.status:"Payment status: "+pay.status);}catch(e:any){Alert.alert("Booking",e.message);}finally{setBusy(false);}}
- async function viewing(){if(!(await need()))return;try{const l=p?.listings?.[0];if(!l)throw new Error("Listing unavailable");const slots=await api<any[]>("/viewings/slots/"+l.id);const slot=(slots||[]).find(x=>x.available);if(!slot)throw new Error("No available slot");await api("/viewings",{method:"POST",body:JSON.stringify({listingId:l.id,slotStart:slot.slotStart})},true);Alert.alert("Viewing requested","Your request is now with the listing owner.");}catch(e:any){Alert.alert("Viewing",e.message);}}
- async function chat(){if(!(await need()))return;try{await api("/messages",{method:"POST",body:JSON.stringify({propertyId:p.id,recipientId:p.ownerId,body:"I am interested in this property. When can we view it?"})},true);router.push("/messages");}catch(e:any){Alert.alert("Message",e.message);}}
- async function sendOffer(){if(!(await need()))return;try{const l=p?.listings?.[0];if(!l)throw new Error("Listing unavailable");const result=await api<any>("/offers",{method:"POST",body:JSON.stringify({listingId:l.id,amountMinor:Number(offer),currency:l.currency||"RWF"})},true);if(!result.id)throw new Error(result.message||result.error||"Offer failed");Alert.alert("Offer sent","The seller can now accept, reject or counter your offer.");}catch(e:any){Alert.alert("Offer",e.message);}}
- if(!p)return <View style={s.center}><Text>{propertyQuery.isPending?"Loading property…":"Unable to load property"}</Text></View>;
- const l=p.listings?.[0];
- return <ScrollView style={s.root} contentContainerStyle={s.pad}>
-   {p.media?.[0]?.url?<Image source={{uri:p.media[0].url}} style={s.hero}/>:<View style={[s.hero,s.empty]}><Text>Media unavailable</Text></View>}
-   <View style={s.badge}><Text>{p.verificationStatus==="VERIFIED"?"VERIFIED":"LISTED"}</Text></View>
-   <Text style={s.title}>{p.title}</Text><Text style={s.meta}>{p.sector||"—"}, {p.district}, {p.province}</Text>
-   <Text style={s.price}>{l?money(l.priceMinor):"Price on request"}{l?.listingType==="RENT"?"/month":""}</Text>
-   <Text style={s.meta}>{p.bedrooms??"—"} bedrooms · {p.bathrooms??"—"} bathrooms · {p.parking??"—"} parking</Text>
-   <View style={s.chips}>{(p.amenities||[]).map((x:string)=><Text style={s.chip} key={x}>{x}</Text>)}</View>
-   <Text style={s.h2}>Description</Text><Text style={s.body}>{p.description}</Text>
-   {l&&<View style={s.panel}><Text style={s.h2}>{l.listingType==="SALE"?"Make an offer or purchase":"Book this property"}</Text>
-     <View style={s.row}><TextInput style={s.date} value={start} onChangeText={setStart} placeholder="Start date"/><TextInput style={s.date} value={end} onChangeText={setEnd} placeholder="End date"/></View>
-     <View style={s.row}><Pressable style={s.ghost} onPress={quoteIt}><Text>Quote</Text></Pressable><Pressable style={s.btn} onPress={book} disabled={busy}><Text style={s.btnText}>{busy?"Processing…":"Book & pay"}</Text></Pressable></View>
-     {quote&&<View style={s.quote}><Text>Base {money(quote.base?.amountMinor||0)}</Text><Text>Service {money(quote.serviceFee?.amountMinor||0)}</Text><Text style={s.total}>Total {money(quote.total?.amountMinor||0)}</Text></View>}
-     {l.listingType==="SALE"&&<><TextInput style={s.input} value={offer} onChangeText={setOffer} keyboardType="numeric" placeholder="Offer amount in minor RWF units"/><Pressable style={s.btn} onPress={sendOffer}><Text style={s.btnText}>Submit offer</Text></Pressable></>}
-     <Pressable style={s.ghostWide} onPress={viewing}><Text>Request a viewing</Text></Pressable><Pressable style={s.ghostWide} onPress={chat}><Text>Message owner</Text></Pressable>
-   </View>}
-   {(p.media||[]).filter((m:any)=>m.kind==="VIDEO"&&m.url).map((m:any)=><PropertyVideo key={m.id} url={m.url}/>)}
-   {p.media?.some((m:any)=>m.kind==="TOUR_360")&&<MobileImmersiveTour media={p.media.filter((m:any)=>m.kind==="TOUR_360")}/>}
-   {p.latitude&&<MapView style={s.map} initialRegion={{latitude:Number(p.latitude),longitude:Number(p.longitude),latitudeDelta:.03,longitudeDelta:.03}}><Marker coordinate={{latitude:Number(p.latitude),longitude:Number(p.longitude)}} title={p.title}/></MapView>}
-   <Pressable onPress={()=>router.back()} style={s.back}><Text>← Back</Text></Pressable>
- </ScrollView>;
+  const { id } = useLocalSearchParams<{id?:string}>();
+  const c = useTheme(s=>s.palette);
+  const qc = useQueryClient();
+  const [offer,setOffer]=useState("");
+  const [showViewing,setShowViewing]=useState(false);
+  const [error,setError]=useState("");
+
+  const q=useQuery({
+    queryKey:["property",id],
+    enabled:Boolean(id),
+    queryFn:()=>api<any>("/properties/"+id)
+  });
+  const p=q.data;
+  const l=p?.listings?.[0];
+  const media=useMemo(()=>((p?.media||[]).filter((m:any)=>m.url).map((m:any)=>m.url)),[p]);
+
+  const fav=useQuery({
+    queryKey:["favorite-state",id],
+    enabled:Boolean(id),
+    queryFn:async()=>{
+      const rows=await api<any[]>("/favorites",{},true);
+      return rows.some((x:any)=>String(x.propertyId||x.id)===String(id));
+    }
+  });
+  const save=useMutation({
+    mutationFn:async()=>{
+      if(!id)throw new Error("Property is missing");
+      return fav.data?api("/favorites/"+id,{method:"DELETE"},true):api("/favorites/"+id,{method:"POST"},true);
+    },
+    onSuccess:()=>qc.invalidateQueries({queryKey:["favorite-state",id]})
+  });
+  const slots=useQuery({
+    queryKey:["viewing-slots",l?.id],
+    enabled:showViewing&&Boolean(l?.id),
+    queryFn:()=>api<any[]>("/viewings/slots/"+l.id)
+  });
+  const offerMutation=useMutation({
+    mutationFn:async()=>{
+      if(!l)throw new Error("Listing unavailable");
+      return api("/offers",{method:"POST",body:JSON.stringify({listingId:l.id,amountMinor:Number(offer),currency:l.currency||"RWF"})},true);
+    },
+    onSuccess:()=>{
+      setOffer("");
+      Alert.alert("Offer sent","The seller can now accept, reject or counter it.");
+    }
+  });
+
+  async function auth(){
+    if(!(await isSignedIn())){router.push("/login");return false;}
+    return true;
+  }
+  async function chat(){
+    if(!await auth())return;
+    try{
+      await api("/messages",{method:"POST",body:JSON.stringify({propertyId:p.id,recipientId:p.ownerId,body:"I am interested in this property. When can we view it?"})},true);
+      router.push({pathname:"/chat/[threadId]",params:{threadId:"property-"+p.id}});
+    }catch(e){Alert.alert("Message",e instanceof Error?e.message:"Unable to start conversation");}
+  }
+  async function requestViewing(slotStart:string){
+    if(!await auth())return;
+    try{
+      await api("/viewings",{method:"POST",body:JSON.stringify({listingId:l.id,slotStart})},true);
+      setShowViewing(false);
+      Alert.alert("Viewing requested","Your selected slot is now with the owner or agent.");
+    }catch(e){Alert.alert("Viewing",e instanceof Error?e.message:"Unable to request viewing");}
+  }
+
+  if(q.isPending)return <View style={[s.center,{backgroundColor:c.bg}]}><Text style={{color:c.muted}}>Loading property…</Text></View>;
+  if(q.isError||!p)return <View style={[s.center,{backgroundColor:c.bg}]}><Text style={{color:c.danger}}>Unable to load this property.</Text><Button title="Retry" onPress={()=>void q.refetch()}/></View>;
+
+  return <View style={{flex:1,backgroundColor:c.bg}}>
+    <ScrollView contentContainerStyle={{paddingBottom:l?120:40}}>
+      <View style={s.top}>
+        <Pressable accessibilityRole="button" onPress={()=>router.back()} style={[s.circle,{backgroundColor:c.glass,borderColor:c.border}]}><Text style={{color:c.text,fontSize:20}}>‹</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>{selection();save.mutate()}} disabled={save.isPending} style={[s.circle,{backgroundColor:c.glass,borderColor:c.border}]}><Text style={{fontSize:20,color:fav.data?c.accent:c.text}}>{fav.data?"♥":"♡"}</Text></Pressable>
+      </View>
+
+      {media.length?<Gallery urls={media}/>:<View style={[s.noMedia,{backgroundColor:c.surface3}]}><Text style={{color:c.muted}}>Media is still processing.</Text></View>}
+
+      <View style={s.pad}>
+        <View style={s.badges}><Chip label={p.verificationStatus==="VERIFIED"?"VERIFIED":"LISTED"} active={p.verificationStatus==="VERIFIED"}/><Chip label={p.propertyType||"PROPERTY"}/></View>
+        <Text style={[s.title,{color:c.text,fontFamily:fonts.displayStrong}]}>{p.title}</Text>
+        <Text style={[s.meta,{color:c.muted}]}>{[p.village,p.cell,p.sector,p.district,p.province].filter(Boolean).join(" · ")}</Text>
+        <Text style={[s.price,{color:c.text}]}>{l?money(l.priceMinor):"Price on request"}{l?.listingType==="RENT"&&<Text style={{fontSize:14,color:c.muted}}> / month</Text>}</Text>
+        <View style={s.stats}>{[["Beds",p.bedrooms],["Baths",p.bathrooms],["Parking",p.parking],["Area",(p.areaValue??"—")+" "+(p.areaUnit||"")]].map(([k,v])=><View key={String(k)} style={[s.stat,{backgroundColor:c.surface,borderColor:c.border}]}><Text style={{color:c.muted,fontSize:12}}>{k}</Text><Text style={{color:c.text,fontWeight:"900",marginTop:4}}>{String(v??"—")}</Text></View>)}</View>
+
+        <Text style={[s.heading,{color:c.text}]}>Amenities</Text>
+        <View style={s.chips}>{(p.amenities||[]).map((x:string)=><Chip key={x} label={x}/>)}</View>
+
+        <Text style={[s.heading,{color:c.text}]}>Overview</Text>
+        <Text style={[s.body,{color:c.muted}]}>{p.description}</Text>
+
+        {p.latitude&&p.longitude&&<><Text style={[s.heading,{color:c.text}]}>Location</Text><MapView style={s.map} initialRegion={{latitude:Number(p.latitude),longitude:Number(p.longitude),latitudeDelta:.02,longitudeDelta:.02}}><Marker coordinate={{latitude:Number(p.latitude),longitude:Number(p.longitude)}} title={p.title}/></MapView></>}
+
+        {l&&<View style={[s.actions,{backgroundColor:c.surface,borderColor:c.border}]}>
+          <View style={{flexDirection:"row",gap:8}}>
+            <Button title="Request viewing" variant="accent" size="sm" onPress={()=>{selection();setShowViewing(true)}}/>
+            <Button title="Message owner" variant="ghost" size="sm" onPress={()=>void chat()}/>
+          </View>
+          {l.listingType==="SALE"&&<View style={{marginTop:12}}>
+            <Input label="Offer amount (RWF minor units)" value={offer} onChangeText={v=>setOffer(v.replace(/\D/g,""))} keyboardType="number-pad"/>
+            <Button title={offerMutation.isPending?"Sending…":"Submit offer"} onPress={()=>offerMutation.mutate()} disabled={!offer||offerMutation.isPending}/>
+            {offerMutation.isError&&<Text style={{color:c.danger,marginTop:7}}>{offerMutation.error instanceof Error?offerMutation.error.message:"Offer failed"}</Text>}
+          </View>}
+        </View>}
+
+        {!!error&&<Text style={{color:c.danger}}>{error}</Text>}
+      </View>
+    </ScrollView>
+
+    {l&&<BookingBar price={money(l.priceMinor)+(l.listingType==="RENT"?"/mo":"")} onBook={()=>router.push({pathname:"/booking",params:{listingId:l.id}})}/>}
+
+    <Modal visible={showViewing} transparent animationType="slide" onRequestClose={()=>setShowViewing(false)}>
+      <View style={[s.modal,{backgroundColor:c.scrim}]}>
+        <View style={[s.sheet,{backgroundColor:c.surface}]}>
+          <Text style={[s.heading,{color:c.text,marginTop:0}]}>Choose a viewing slot</Text>
+          {slots.isPending&&<Text style={{color:c.muted}}>Loading available slots…</Text>}
+          {slots.data?.map((slot:any)=><Pressable key={String(slot.slotStart||slot.id)} onPress={()=>void requestViewing(slot.slotStart)} style={[s.slot,{borderColor:c.border,backgroundColor:c.surface2}]}><Text style={{color:c.text,fontWeight:"800"}}>{new Date(slot.slotStart).toLocaleString()}</Text><Text style={{color:c.muted}}>Request this slot →</Text></Pressable>)}
+          {!slots.isPending&&!slots.data?.length&&<Text style={{color:c.muted}}>No available viewing slots are currently published.</Text>}
+          <Button title="Close" variant="ghost" onPress={()=>setShowViewing(false)}/>
+        </View>
+      </View>
+    </Modal>
+  </View>;
 }
-const s=StyleSheet.create({root:{flex:1,backgroundColor:"#F5F7F9"},pad:{padding:16,paddingBottom:60},center:{flex:1,alignItems:"center",justifyContent:"center"},hero:{width:"100%",height:290,borderRadius:20,marginBottom:14,backgroundColor:"#E8EDF2"},empty:{alignItems:"center",justifyContent:"center"},badge:{alignSelf:"flex-start",backgroundColor:"#EAF5EF",paddingHorizontal:10,paddingVertical:6,borderRadius:20},title:{fontSize:34,fontWeight:"900",color:"#0B1220",marginTop:8},meta:{color:"#64748B",marginTop:5},price:{fontSize:24,fontWeight:"900",marginTop:14},chips:{flexDirection:"row",flexWrap:"wrap",gap:6,marginTop:14},chip:{backgroundColor:"#fff",borderWidth:1,borderColor:"#E2E8F0",padding:7,borderRadius:20,fontSize:11},h2:{fontSize:20,fontWeight:"900",marginTop:22},body:{fontSize:15,lineHeight:24,color:"#334155",marginTop:7},panel:{backgroundColor:"#fff",borderWidth:1,borderColor:"#E2E8F0",borderRadius:18,padding:15,marginTop:22},row:{flexDirection:"row",gap:8,marginTop:10},date:{flex:1,backgroundColor:"#F8FAFC",borderWidth:1,borderColor:"#E2E8F0",borderRadius:11,padding:12},input:{backgroundColor:"#F8FAFC",borderWidth:1,borderColor:"#E2E8F0",borderRadius:11,padding:12,marginTop:10},btn:{backgroundColor:"#0F5132",borderRadius:11,padding:13,alignItems:"center",justifyContent:"center"},btnText:{color:"#fff",fontWeight:"900"},ghost:{backgroundColor:"#fff",borderWidth:1,borderColor:"#E2E8F0",borderRadius:11,padding:13},ghostWide:{backgroundColor:"#fff",borderWidth:1,borderColor:"#E2E8F0",borderRadius:11,padding:13,alignItems:"center",marginTop:9},quote:{backgroundColor:"#F7FAF8",borderRadius:12,padding:12,marginTop:10,gap:5},total:{fontWeight:"900",fontSize:17},map:{height:250,borderRadius:18,marginTop:20},video:{width:"100%",height:240,borderRadius:18,marginTop:14,backgroundColor:"#111"},back:{paddingVertical:20}});
+
+const s=StyleSheet.create({
+  center:{flex:1,alignItems:"center",justifyContent:"center",gap:12,padding:20},
+  top:{position:"absolute",top:58,left:14,right:14,zIndex:4,flexDirection:"row",justifyContent:"space-between"},
+  circle:{width:44,height:44,borderWidth:1,borderRadius:22,alignItems:"center",justifyContent:"center"},
+  pad:{padding:spacing.lg},
+  badges:{flexDirection:"row",flexWrap:"wrap",gap:7,marginTop:10},
+  title:{fontSize:32,marginTop:10},
+  meta:{fontSize:13,lineHeight:20,marginTop:5},
+  price:{fontSize:25,fontWeight:"900",marginTop:14},
+  stats:{flexDirection:"row",gap:8,marginTop:14},
+  stat:{flex:1,borderWidth:1,borderRadius:14,padding:10},
+  chips:{flexDirection:"row",flexWrap:"wrap",gap:7,marginTop:8},
+  heading:{fontSize:20,fontWeight:"900",marginTop:24},
+  body:{fontSize:15,lineHeight:24,marginTop:8},
+  map:{height:230,borderRadius:18,marginTop:10},
+  actions:{borderWidth:1,borderRadius:18,padding:14,marginTop:20},
+  slot:{borderWidth:1,borderRadius:14,padding:13,marginTop:8,gap:3},
+  noMedia:{height:270,alignItems:"center",justifyContent:"center"},
+  modal:{flex:1,justifyContent:"flex-end"},
+  sheet:{padding:20,borderTopLeftRadius:28,borderTopRightRadius:28,paddingBottom:34}
+});
