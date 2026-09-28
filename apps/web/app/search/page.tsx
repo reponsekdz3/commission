@@ -1,6 +1,6 @@
 "use client";
 import{useCallback,useEffect,useMemo,useRef,useState}from"react";
-import{useSearchParams}from"next/navigation";
+import{usePathname,useRouter,useSearchParams}from"next/navigation";
 import Link from"next/link";
 import{MapboxClient}from"../map/mapbox-client";
 import{PropertyCard}from"../../components/property/property-card";
@@ -18,7 +18,7 @@ export default function SearchPage(){
   const listRef=useRef<HTMLDivElement>(null);
   const[activeId,setActiveId]=useState<string>();\n  useEffect(()=>{trackEvent("search",{query:q})},[q]);
 
-  const scrollToProperty=useCallback((id:string)=>{
+  const onBoundsChange=useCallback((b:{north:number;south:number;east:number;west:number})=>{const p=new URLSearchParams(params.toString());for(const[k,v]of Object.entries(b))p.set(k,v.toFixed(6));router.replace(pathname+"?"+p.toString(),{scroll:false})},[params,pathname,router]);\n  const scrollToProperty=useCallback((id:string)=>{
     setActiveId(id);
     listRef.current?.querySelector<HTMLElement>('[data-property-id="'+CSS.escape(id)+'"]')?.scrollIntoView({behavior:"smooth",block:"center"});
   },[]);
@@ -52,6 +52,6 @@ export default function SearchPage(){
       items.length?<div className="grid [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">{items.map((item:SearchItem)=><div key={item.listing.id} data-property-id={item.property.id} className={activeId===item.property.id?"[&_.card]:ring-2 [&_.card]:ring-[var(--color-accent)]":""}><PropertyCard item={item}/></div>)}</div>:
       <EmptyState kind="search" title="No properties match" description="The live backend returned no listings for these filters." action={<Link href="/search" className="btn">Reset search</Link>}/>}
     </section>
-    <aside className="searchMap"><MapboxClient items={items} activeId={activeId} onMarkerSelect={scrollToProperty}/></aside>
+    <aside className="searchMap"><MapboxClient items={items} activeId={activeId} onMarkerSelect={scrollToProperty} onBoundsChange={onBoundsChange}/></aside>
   </main>
 }
