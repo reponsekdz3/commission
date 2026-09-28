@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { DatabaseService } from "./database.service";
 
 @Injectable()
@@ -482,5 +482,50 @@ export class FeatureService {
 
   async compare(){const rows=await this.db.query("SELECT id,property_id FROM property_listings WHERE status='ACTIVE' ORDER BY created_at DESC LIMIT 4");return Promise.all(rows.rows.map(async(x)=>({listing:await this.db.getListing(x.id),property:await this.db.getProperty(x.property_id)})));}
 
-  async addMedia(propertyId:string,kind:string,key:string){return this.db.addMedia(propertyId,kind,key);}
-}
+  async addMedia(propertyId:string,kind:string,key:string){return this.db.addMedia(propertyId,kind,key);}\n
+  async signLease(userId:string,leaseId:string){
+    const access=await this.db.query(
+      "SELECT b.tenant_id,p.owner_id FROM rental_agreements ra JOIN bookings b ON b.id=ra.booking_id JOIN property_listings pl ON pl.id=b.listing_id JOIN properties p ON p.id=pl.property_id WHERE ra.id=$1",
+      [leaseId],
+    );
+    const row=access.rows[0];
+    if(!row)return {error:"not_found"};
+    if(String(row.tenant_id)!==userId && String(row.owner_id)!==userId)return {error:"forbidden"};
+    const lease=await this.lease(leaseId);
+    if(!lease)return {error:"not_found"};
+    const signatureHash=createHash("sha256").update(JSON.stringify({leaseId,userId,terms:lease})).digest("hex");
+    if(String(row.tenant_id)===userId){
+      await this.db.query("UPDATE rental_agreements SET tenant_signature_hash=$2,tenant_signed_at=COALESCE(tenant_signed_at,now()),updated_at=now() WHERE id=$1",[leaseId,signatureHash]);
+    }else{
+      await this.db.query("UPDATE rental_agreements SET landlord_signature_hash=$2,landlord_signed_at=COALESCE(landlord_signed_at,now()),updated_at=now() WHERE id=$1",[leaseId,signatureHash]);
+    }
+    return this.lease(leaseId);
+  }
+
+  async leasePdf(userId:string,leaseId:string){
+    if(!(await this.canAccessLease(userId,leaseId,[])))return undefined;
+    const lease=await this.lease(leaseId);
+    if(!lease)return undefined;
+    const esc=(value:unknown)=>String(value??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
+    const lines=["IMIZI RENTAL AGREEMENT","Lease ID: "+leaseId,"",...Object.entries(lease).slice(0,20).map(([k,v])=>k+": "+(typeof v==="object"?JSON.stringify(v):String(v??"")))];
+    const stream=lines.map((line,i)=>"BT /F1 "+(i===0?18:10)+" Tf 48 "+(760-i*18)+" Td ("+esc(line).slice(0,180)+") Tj ET").join("\n");
+    const objects=[
+      "<< /Type /Catalog /Pages 2 0 R >>",
+      "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+      "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
+      "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+      "<< /Length "+Buffer.byteLength(stream,"utf8")+" >>\nstream\n"+stream+"\nendstream",
+    ];
+    let pdf="%PDF-1.4\n";
+    const offsets=[0];
+    for(let i=0;i<objects.length;i++){
+      offsets.push(Buffer.byteLength(pdf,"utf8"));
+      pdf+=(i+1)+" 0 obj\n"+objects[i]+"\nendobj\n";
+    }
+    const xref=Buffer.byteLength(pdf,"utf8");
+    pdf+="xref\n0 "+(objects.length+1)+"\n0000000000 65535 f \n";
+    for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
+    pdf+="trailer\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
+    return Buffer.from(pdf,"utf8");
+  }
+}\n
