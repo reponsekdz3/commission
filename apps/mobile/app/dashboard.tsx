@@ -1,3 +1,25 @@
-import{useQuery}from"@tanstack/react-query";import{ScrollView,StyleSheet,Text,View}from"react-native";import{api,money}from"../src/lib/api";import{useTheme}from"../src/stores/theme";import{Button}from"../src/components/ui";import{router}from"expo-router";import{fonts,spacing}from"../src/theme";
-export default function Dashboard(){const c=useTheme(s=>s.palette);const q=useQuery({queryKey:["landlord-dashboard"],queryFn:async()=>{const[a,p]=await Promise.all([api<any>("/analytics/landlord",{},true),api<any[]>("/properties/owned",{},true)]);return{a,p:p||[]}});return <ScrollView style={[s.root,{backgroundColor:c.bg}]} contentContainerStyle={s.pad}><Text style={[s.eyebrow,{color:c.primary,fontFamily:fonts.sansBold}]}>OWNER WORKSPACE</Text><Text style={[s.h1,{color:c.text,fontFamily:fonts.displayStrong}]}>Portfolio dashboard</Text>{q.isPending&&<Text style={{color:c.muted}}>Loading live portfolio metrics…</Text>}{q.isError&&<Text style={{color:c.danger}}>Unable to load portfolio metrics.</Text>}{q.data?.a&&<><View style={s.stats}>{[["Properties",q.data.a.properties],["Active",q.data.a.active],["Views",q.data.a.views],["Bookings",q.data.a.bookings]].map(([a,b])=><View style={[s.stat,{backgroundColor:c.surface,borderColor:c.border}]} key={String(a)}><Text style={{color:c.muted}}>{a}</Text><Text style={[s.num,{color:c.text}]}>{String(b??0)}</Text></View>)}</View><View style={[s.revenue,{backgroundColor:c.surface,borderColor:c.border}]}><Text style={{color:c.muted}}>Recorded revenue</Text><Text style={[s.money,{color:c.text}]}>{money(q.data.a.revenue||0)}</Text></View></>}{q.data?.p?.map((x:any)=><View style={[s.row,{backgroundColor:c.surface,borderColor:c.border}]} key={x.id}><View style={{flex:1}}><Text style={[s.bold,{color:c.text}]}>{x.title}</Text><Text style={{color:c.muted,marginTop:4}}>{x.district} · {x.status} · {x.verificationStatus}</Text></View><Button title="Open" size="sm" variant="ghost" onPress={()=>router.push("/property/"+x.id)}/></View>)}<Button title="Add new property" onPress={()=>router.push("/add-property")}/></ScrollView>}
+import { useQuery } from "@tanstack/react-query";
+import { ScrollView,StyleSheet,Text,View } from "react-native";
+import { api,money } from "../src/lib/api";
+import { useTheme } from "../src/stores/theme";
+import { Button } from "../src/components/ui";
+import { router } from "expo-router";
+import { fonts,spacing } from "../src/theme";
+
+export default function Dashboard(){
+ const c=useTheme(s=>s.palette);
+ const q=useQuery({queryKey:["landlord-dashboard"],queryFn:async()=>{const [a,p]=await Promise.all([api<any>("/analytics/landlord",{},true),api<any[]>("/properties/owned",{},true)]);return {a,p:p||[]};}});
+ return <ScrollView style={[s.root,{backgroundColor:c.bg}]} contentContainerStyle={s.pad}>
+  <Text style={[s.eyebrow,{color:c.primary,fontFamily:fonts.sansBold}]}>OWNER WORKSPACE</Text>
+  <Text style={[s.h1,{color:c.text,fontFamily:fonts.displayStrong}]}>Portfolio dashboard</Text>
+  {q.isPending&&<Text style={{color:c.muted}}>Loading live portfolio metrics…</Text>}
+  {q.isError&&<Text style={{color:c.danger}}>Unable to load portfolio metrics.</Text>}
+  {q.data?.a&&<View>
+    <View style={s.stats}>{[["Properties",q.data.a.properties],["Active",q.data.a.active],["Views",q.data.a.views],["Bookings",q.data.a.bookings]].map(([a,b])=><View style={[s.stat,{backgroundColor:c.surface,borderColor:c.border}]} key={String(a)}><Text style={{color:c.muted}}>{String(a)}</Text><Text style={[s.num,{color:c.text}]}>{String(b??0)}</Text></View>)}</View>
+    <View style={[s.revenue,{backgroundColor:c.surface,borderColor:c.border}]}><Text style={{color:c.muted}}>Recorded revenue</Text><Text style={[s.money,{color:c.text}]}>{money(q.data.a.revenue||0)}</Text></View>
+  </View>}
+  {q.data?.p?.map((x:any)=><View style={[s.row,{backgroundColor:c.surface,borderColor:c.border}]} key={x.id}><View style={{flex:1}}><Text style={[s.bold,{color:c.text}]}>{x.title}</Text><Text style={{color:c.muted,marginTop:4}}>{x.district} · {x.status} · {x.verificationStatus}</Text></View><Button title="Open" size="sm" variant="ghost" onPress={()=>router.push("/property/"+x.id)}/></View>)}
+  <Button title="Add new property" onPress={()=>router.push("/add-property")}/>
+ </ScrollView>;
+}
 const s=StyleSheet.create({root:{flex:1},pad:{padding:spacing.lg,paddingBottom:100},eyebrow:{fontSize:11,letterSpacing:2},h1:{fontSize:34,marginTop:5,marginBottom:18},stats:{flexDirection:"row",flexWrap:"wrap",gap:8},stat:{width:"47%",borderWidth:1,borderRadius:16,padding:14},num:{fontSize:23,fontWeight:"900",marginTop:5},revenue:{borderWidth:1,borderRadius:17,padding:16,marginTop:10},money:{fontSize:27,fontWeight:"900",marginTop:5},row:{borderWidth:1,borderRadius:17,padding:14,marginTop:9,flexDirection:"row",alignItems:"center"},bold:{fontWeight:"900"}});
