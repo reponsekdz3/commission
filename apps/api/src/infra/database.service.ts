@@ -325,7 +325,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     q?:string;listingType?:string;propertyType?:string;district?:string;province?:string;sector?:string;
     bedroomsMin?:number;bedroomsMax?:number;bathroomsMin?:number;minPriceMinor?:number;maxPriceMinor?:number;
     currency?:string;amenities?:string|string[];verifiedOnly?:boolean;availableFrom?:string;radiusKm?:number;
-    lat?:number;lng?:number;north?:number;south?:number;east?:number;west?:number;limit:number;
+    lat?:number;lng?:number;north?:number;south?:number;east?:number;west?:number;cursor?:string;limit:number;
   }) {
     const values:any[]=[query.q ?? ""];
     const where:string[]=["p.status='PUBLISHED'","pl.status='ACTIVE'"];
@@ -429,10 +429,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return {created:false,intent:existing};
   }
 
-  async updatePaymentIntent(id:string,patch:{status?:string;providerReference?:string;completedAt?:string}){
+  async updatePaymentIntent(id:string,patch:{status?:string;providerReference?:string;completedAt?:string;checkoutUrl?:string}){
     const r=await this.query(
-      "UPDATE payment_intents SET status=COALESCE($2,status),provider_reference=COALESCE($3,provider_reference),completed_at=COALESCE($4::timestamptz,completed_at) WHERE id=$1 RETURNING *",
-      [id,patch.status ?? null,patch.providerReference ?? null,patch.completedAt ?? null],
+      "UPDATE payment_intents SET status=COALESCE($2,status),provider_reference=COALESCE($3,provider_reference),completed_at=COALESCE($4::timestamptz,completed_at),checkout_url=COALESCE($5,checkout_url) WHERE id=$1 RETURNING *",
+      [id,patch.status ?? null,patch.providerReference ?? null,patch.completedAt ?? null,patch.checkoutUrl ?? null],
     );
     return r.rows[0]?this.mapPayment(r.rows[0]):undefined;
   }
