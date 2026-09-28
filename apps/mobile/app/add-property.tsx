@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../src/lib/api";
-import { pickAndUploadPropertyMedia } from "../src/lib/media";
+import { pickAndUploadPropertyDocument,pickAndUploadPropertyMedia } from "../src/lib/media";
 import { Button, Chip, Input } from "../src/components/ui";
 import { useTheme } from "../src/stores/theme";
 import { fonts, spacing } from "../src/theme";
@@ -24,7 +24,7 @@ export default function AddProperty(){
  const c=useTheme(s=>s.palette);
  const[f,setF]=useState<any>({title:"",description:"",propertyType:"HOUSE",listingType:"RENT",priceMinor:"",currency:"RWF",provinceId:"",districtId:"",sectorId:"",cellId:"",villageId:"",province:"",district:"",sector:"",cell:"",village:"",latitude:"",longitude:"",bedrooms:"",bathrooms:"",parking:"0",areaValue:"",areaUnit:"SQM",amenities:[]});
  const[o,setO]=useState<Record<string,Item[]>>({PROVINCE:[],DISTRICT:[],SECTOR:[],CELL:[],VILLAGE:[]});
- const[propertyId,setPropertyId]=useState("");const[busy,setBusy]=useState(false);const[uploading,setUploading]=useState(false);const[err,setErr]=useState("");const[mediaCount,setMediaCount]=useState(0);
+ const[propertyId,setPropertyId]=useState("");const[busy,setBusy]=useState(false);const[uploading,setUploading]=useState(false);const[err,setErr]=useState("");const[mediaCount,setMediaCount]=useState(0);const[documentCount,setDocumentCount]=useState(0);
  useEffect(()=>{void load("PROVINCE")},[]);
  async function load(level:string,parentId?:string){
   try{const p=parentId?"?level="+level+"&parentId="+parentId:"?level="+level;const rows=await api<Item[]>("/locations/rwanda"+p);setO(x=>({...x,[level]:rows}));}
@@ -58,6 +58,12 @@ export default function AddProperty(){
   }catch(e){setErr(e instanceof Error?e.message:"Unable to create property and listing")}
   finally{setBusy(false)}
  }
+ async function uploadDocument(){
+  if(!propertyId){setErr("Create the property first.");return;}
+  setUploading(true);setErr("");
+  try{const doc=await pickAndUploadPropertyDocument(propertyId);if(doc){setDocumentCount(v=>v+1);commit();Alert.alert("Document uploaded","The private document is stored and protected by backend authorization.")}}
+  catch(e){setErr(e instanceof Error?e.message:"Document upload failed")}finally{setUploading(false)}
+}
  async function upload(kind:"PHOTO"|"VIDEO"|"TOUR_360"){
   if(!propertyId){setErr("Create the property first.");return;}
   setUploading(true);setErr("");
@@ -96,8 +102,8 @@ export default function AddProperty(){
      <Text style={[s.h2,{color:c.text,marginTop:0}]}>Media pipeline</Text>
      <Text style={{color:c.muted}}>Upload photos first, then videos or a 360° tour. The backend verifies the uploaded object and queues optimization.</Text>
      <View style={s.row}><Button title={uploading?"Uploading…":"Add photos"} size="sm" onPress={()=>void upload("PHOTO")} disabled={uploading}/><Button title="Add video" size="sm" variant="ghost" onPress={()=>void upload("VIDEO")} disabled={uploading}/></View>
-     <Button title="Add 360° tour" size="sm" variant="accent" onPress={()=>void upload("TOUR_360")} disabled={uploading}/>
-     <Text style={{color:c.muted,fontSize:12}}>{mediaCount?mediaCount+" newly uploaded item(s) returned by the backend.":"No media uploaded in this session yet."}</Text>
+     <Button title="Add 360° tour" size="sm" variant="accent" onPress={()=>void upload("TOUR_360")} disabled={uploading}/><Button title="Upload private document" size="sm" variant="ghost" onPress={()=>void uploadDocument()} disabled={uploading}/>
+     <Text style={{color:c.muted,fontSize:12}}>{mediaCount?mediaCount+" newly uploaded media item(s).":"No media uploaded in this session yet."} {documentCount?documentCount+" private document(s).":""}</Text>
      <Button title="Open property" variant="ghost" onPress={()=>router.replace("/property/"+propertyId)}/>
    </View>}
  </ScrollView></View>;
