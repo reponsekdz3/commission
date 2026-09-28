@@ -30,16 +30,13 @@ export default function Search() {
     if (q) x.set("q", q); if (district) x.set("district", district);
     if (min) x.set("minPriceMinor", String(Number(min))); if (max) x.set("maxPriceMinor", String(Number(max)));
     if (verified) x.set("verifiedOnly", "true");
+    if (points.length >= 3) x.set("polygon", JSON.stringify(points.map(v=>({lat:v.latitude,lng:v.longitude}))));
     x.set("lat", String(region.latitude)); x.set("lng", String(region.longitude)); x.set("radiusKm", String(Math.max(5, Math.ceil(Math.max(region.latitudeDelta, region.longitudeDelta) * 111 / 2))));
     return x.toString();
-  }, [type,q,district,min,max,verified,region.latitude,region.longitude,region.latitudeDelta,region.longitudeDelta]);
+  }, [type,q,district,min,max,verified,points,region.latitude,region.longitude,region.latitudeDelta,region.longitudeDelta]);
   const query = useQuery({ queryKey: ["search", params], queryFn: () => api<{items:SearchItem[]}>("/search?" + params) });
   const items = query.data?.items ?? [];
-  const visible = useMemo(() => {
-    if (points.length < 3) return items;
-    const inside = (lat:number,lng:number) => { let hit=false; for(let i=0,j=points.length-1;i<points.length;j=i++){const xi=points[i].longitude,yi=points[i].latitude,xj=points[j].longitude,yj=points[j].latitude;const cross=((yi>lat)!==(yj>lat))&&(lng<(xj-xi)*(lat-yi)/(yj-yi)+xi);if(cross)hit=!hit;} return hit; };
-    return items.filter(x => inside(x.property.latitude,x.property.longitude));
-  }, [items, points]);
+  const visible = items;
   const addPoint = (e:any) => { if (drawing) { selection(); setPoints(v => [...v, e.nativeEvent.coordinate]); } };
   const centerOnItem = (item:SearchItem) => { setSelected(item); sheet.current?.snapToIndex(1); setRegion(r => ({...r, latitude:item.property.latitude, longitude:item.property.longitude})); selection(); };
   return <View style={[s.root,{backgroundColor:c.bg}]}>
