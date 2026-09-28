@@ -18,7 +18,7 @@ export function SavedSearchChip(){
     if(saving)return;
     setSaving(true);
     try{
-      await authApi("/notifications/saved-searches",{method:"POST",body:JSON.stringify({name:query||"All Rwanda properties",criteria:Object.fromEntries(params.entries())})});
+      await authApi("/saved-searches",{method:"POST",body:JSON.stringify({name:query||"All Rwanda properties",criteria:Object.fromEntries(params.entries())})});
       localStorage.setItem(key,JSON.stringify({query,createdAt:new Date().toISOString(),count}));
       setNewMatch(false);toast("Search saved to your account");
     }catch(e){toast(e instanceof Error?e.message:"Sign in to save searches")}finally{setSaving(false)}
