@@ -50,7 +50,7 @@ export class SearchService {
       ]
     };
     const os=await this.deps?.searchListings(body);
-    if(os){
+    if(os && !query.polygon){
       const items=(os.hits?.hits ?? []).map((hit:any)=>{
         const s=hit._source;
         return {
@@ -72,7 +72,7 @@ export class SearchService {
       amenities:query.amenities,verifiedOnly:Boolean(query.verifiedOnly),availableFrom:query.availableFrom,radiusKm:query.radiusKm,cursor:query.cursor,
       lat:query.lat==null?undefined:Number(query.lat),lng:query.lng==null?undefined:Number(query.lng),
       north:query.north==null?undefined:Number(query.north),south:query.south==null?undefined:Number(query.south),
-      east:query.east==null?undefined:Number(query.east),west:query.west==null?undefined:Number(query.west),limit
+      east:query.east==null?undefined:Number(query.east),west:query.west==null?undefined:Number(query.west),polygon:query.polygon,limit
     });
     const last=result.length===limit ? result[result.length-1]?.listing : undefined;
     const nextCursor=last?.id&&last?.createdAt ? Buffer.from(JSON.stringify({createdAt:last.createdAt,id:last.id})).toString("base64url") : null;
