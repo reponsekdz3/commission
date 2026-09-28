@@ -6,6 +6,8 @@ import{authApi}from"../../lib/api";
 type Notification={id:string;title:string;body:string;read_at?:string|null;created_at:string};
 export function NotificationsBell(){
   const q=useQueryClient();
+  const[enabled,setEnabled]=useState(false);
+  useEffect(()=>setEnabled(Boolean(localStorage.getItem("imizi_token"))),[]);
   const{data=[]}=useQuery<Notification[]>({queryKey:["notifications"],queryFn:()=>authApi<Notification[]>("/notifications"),staleTime:30000,enabled});
   const read=useMutation({mutationFn:()=>authApi("/notifications/read-all",{method:"PATCH"}),onSuccess:()=>q.invalidateQueries({queryKey:["notifications"]})});
   const unread=data.filter(x=>!x.read_at).length;
