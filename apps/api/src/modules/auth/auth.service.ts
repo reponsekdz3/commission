@@ -4,6 +4,7 @@ import { compareSync, hashSync } from "bcryptjs";
 import { createHash, randomBytes, randomUUID } from "crypto";
 import type { Role } from "@imizi/types";
 import { generateTotpSecret, otpauthUrl, verifyTotp } from "@imizi/auth";
+import { forgotPasswordSchema, resetPasswordSchema } from "@imizi/validation";
 import type { UserRecord } from "../../store/platform.store";
 import { DatabaseService } from "../../infra/database.service";
 import { FeatureService } from "../../infra/feature.service";
@@ -40,6 +41,31 @@ export class AuthService {
     return this.issue(user, userAgent, ip);
   }
 
+
+  async forgotPassword(email:string){
+    const normalized=email.toLowerCase().trim();
+    const user=await this.db.findUserByIdentifier(normalized);
+    if(user){
+      const code=String(Math.floor(100000+Math.random()*900000));
+      const codeHash=createHash("sha256").update(code).digest("hex");
+      await this.db.createPasswordResetChallenge(user.id,user.email,codeHash,new Date(Date.now()+15*60_000));
+      await this.db.enqueueJob("auth.password-reset-email",{email:user.email,code,expiresInMinutes:15},0);
+      await this.features.audit(user.id,"PASSWORD_RESET_REQUESTED","user",user.id);
+    }
+    return {ok:true,message:"If the account exists, recovery instructions have been sent."};
+  }
+
+  async resetPassword(email:string,code:string,password:string){
+    const codeHash=createHash("sha256").update(code).digest("hex");
+    const challenge=await this.db.consumePasswordResetChallenge(email.toLowerCase().trim(),codeHash);
+    if(!challenge) throw new UnauthorizedException("Invalid or expired recovery code");
+    const user=await this.db.findUserById(String(challenge.user_id));
+    if(!user||user.status!=="ACTIVE") throw new UnauthorizedException("Account is unavailable");
+    await this.db.query("UPDATE users SET password_hash=$2,updated_at=now() WHERE id=$1",[user.id,hashSync(password,12)]);
+    await this.db.revokeAllSessions(user.id);
+    await this.features.audit(user.id,"PASSWORD_RESET_COMPLETED","user",user.id);
+    return {reset:true};
+  }
 
   async setupMfa(user:UserRecord){
     const secret=generateTotpSecret();
