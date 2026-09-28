@@ -28,6 +28,10 @@ import { api } from "../src/lib/api";
 import { asyncStoragePersister } from "../src/lib/queryPersistence";
 import { ThemeProvider, useTheme } from "../src/stores/theme";
 import { DebugPanel } from "../src/components/DebugPanel";
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({shouldShowBanner:true,shouldShowList:true,shouldPlaySound:true,shouldSetBadge:true}),
+});
+
 
 const client = new QueryClient({
   defaultOptions: {
@@ -89,6 +93,7 @@ export default function Root() {
   useEffect(() => {
     if (Platform.OS === "web") return;
     void (async () => {
+      if (!await (async()=>Boolean(await import("../src/lib/session").then(m=>m.isSignedIn())))()) return;
       try {
         const permission = await Notifications.getPermissionsAsync();
         let status = permission.status;
@@ -96,6 +101,7 @@ export default function Root() {
         if (status !== "granted") return;
         const projectId = process.env.EXPO_PUBLIC_EAS_PROJECT_ID;
         if (!projectId) return;
+        if (Platform.OS === "android") await Notifications.setNotificationChannelAsync("default",{name:"Imizi",importance:Notifications.AndroidImportance.HIGH,sound:"default"});
         const token = (await Notifications.getExpoPushTokenAsync({ projectId })).data;
         await api(
           "/notifications/push-token",
