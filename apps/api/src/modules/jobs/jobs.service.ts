@@ -15,7 +15,11 @@ export class JobsService implements OnModuleInit {
   private readonly log=new Logger(JobsService.name);
   private readonly exec=promisify(execFile);
   constructor(private readonly db:DatabaseService,private readonly deps:Dependencies,private readonly storage:StorageService,private readonly malware:MalwareScanner){}
-  onModuleInit(){setInterval(()=>void this.drain(),5000).unref();void this.drain();}
+  onModuleInit(){
+  setInterval(()=>void this.drain(),5000).unref();
+  void this.db.enqueueJob("saved-search.match",{},5).catch(()=>undefined);
+  void this.drain();
+}
   async drain(){
     if(!this.deps.databaseOk)return;
     const jobs=await this.db.transaction(async(client)=>{
@@ -69,6 +73,47 @@ export class JobsService implements OnModuleInit {
             }
           }
         }
+        if(job.name==="saved-search.match"){
+          const saved=await this.db.query("SELECT id,user_id,name,criteria,last_notified_at FROM saved_searches ORDER BY created_at ASC LIMIT 500");
+          for(const row of saved.rows){
+            const criteria=(row.criteria&&typeof row.criteria==="object")?row.criteria:{};
+            const result=await this.db.searchListings({
+              q:typeof criteria.q==="string"?criteria.q:undefined,
+              listingType:typeof criteria.listingType==="string"?criteria.listingType:undefined,
+              propertyType:typeof criteria.propertyType==="string"?criteria.propertyType:undefined,
+              province:typeof criteria.province==="string"?criteria.province:undefined,
+              district:typeof criteria.district==="string"?criteria.district:undefined,
+              sector:typeof criteria.sector==="string"?criteria.sector:undefined,
+              minPriceMinor:criteria.minPriceMinor!=null?Number(criteria.minPriceMinor):undefined,
+              maxPriceMinor:criteria.maxPriceMinor!=null?Number(criteria.maxPriceMinor):undefined,
+              bedroomsMin:criteria.bedroomsMin!=null?Number(criteria.bedroomsMin):undefined,
+              bedroomsMax:criteria.bedroomsMax!=null?Number(criteria.bedroomsMax):undefined,
+              bathroomsMin:criteria.bathroomsMin!=null?Number(criteria.bathroomsMin):undefined,
+              verifiedOnly:Boolean(criteria.verifiedOnly),
+              radiusKm:criteria.radiusKm!=null?Number(criteria.radiusKm):undefined,
+              lat:criteria.lat!=null?Number(criteria.lat):undefined,
+              lng:criteria.lng!=null?Number(criteria.lng):undefined,
+              north:criteria.north!=null?Number(criteria.north):undefined,
+              south:criteria.south!=null?Number(criteria.south):undefined,
+              east:criteria.east!=null?Number(criteria.east):undefined,
+              west:criteria.west!=null?Number(criteria.west):undefined,
+              polygon:typeof criteria.polygon==="string"?criteria.polygon:undefined,
+              amenities:typeof criteria.amenities==="string"?criteria.amenities:undefined,
+              limit:10,
+            });
+            const cutoff=row.last_notified_at?new Date(row.last_notified_at).getTime():0;
+            const fresh=(result.items||[]).filter((x:any)=>new Date(x.listing?.createdAt||x.property?.createdAt||0).getTime()>cutoff);
+            if(fresh.length){
+              const first=fresh[0];
+              const title=String(first.property?.title||"New property match");
+              const body=fresh.length===1?title:(fresh.length+" new listings match your saved search \""+row.name+"\".");
+              await this.db.query("INSERT INTO notifications(id,user_id,channel,event_type,title,body) VALUES($1,$2,'in_app','SAVED_SEARCH_MATCH',$3,$4)",[require("crypto").randomUUID(),row.user_id,"Saved search update",body]);
+              await this.db.query("UPDATE saved_searches SET last_notified_at=now() WHERE id=$1",[row.id]);
+            }
+          }
+          await this.db.enqueueJob("saved-search.match",{},300);
+        }
+
         if(job.name==="booking.expire"){
           const booking=await this.db.getBooking(String(job.payload?.bookingId ?? ""));
           if(booking && (booking.status==="PENDING" || booking.status==="PAYMENT_PENDING")){
