@@ -39,7 +39,7 @@ export function PropertyFilters(){
       {open&&<div id="property-filter-panel" className="grid w-full gap-6 border-t border-[var(--color-border)] pt-4 md:grid-cols-3">
         <fieldset className="min-w-0"><legend className="text-sm font-semibold">Minimum bedrooms</legend><div className="mt-2 flex flex-wrap gap-2">{[0,1,2,3,4].map(n=><button key={n} type="button" className={"chip "+(beds===n?"active":"")} onClick={()=>{setBeds(n);apply({beds:n})}}>{n===0?"Any":n+"+"}</button>)}</div></fieldset>
         <label className="text-sm font-semibold">Maximum price
-          <Slider min={100000} max={5000000} step={100000} value={[maxPrice]} onValueChange={v=>setMaxPrice(v[0]??maxPrice)} onValueCommit={v=>apply({maxPrice:v[0]??maxPrice})}/>
+          <Slider min={100000} max={5000000} step={100000} value={[maxPrice]} onValueChange={(v:number[])=>setMaxPrice(v[0]??maxPrice)} onValueCommit={(v:number[])=>apply({maxPrice:v[0]??maxPrice})}/>
           <span className="mt-1 block text-xs text-[var(--color-fg-muted)]">{new Intl.NumberFormat("en-RW",{style:"currency",currency:"RWF",maximumFractionDigits:0}).format(maxPrice)}</span>
         </label>
         <label className="flex items-start gap-3 pt-1 text-sm font-semibold"><Switch checked={verified} onCheckedChange={v=>{setVerified(v);apply({verified:v})}}/><span>Verified listings only</span></label>
