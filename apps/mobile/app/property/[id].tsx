@@ -12,6 +12,11 @@ import { useTheme } from "../../src/stores/theme";
 import { fonts, spacing } from "../../src/theme";
 import { selection } from "../../src/lib/haptics";
 
+
+function PropertyVideo({url}:{url:string}){
+ const player=useVideoPlayer(url,p=>{p.loop=false});
+ return <VideoView player={player} nativeControls style={{width:"100%",height:240,borderRadius:18,marginTop:12,backgroundColor:"#111"}} />;
+}
 export default function Property(){
   const { id } = useLocalSearchParams<{id?:string}>();
   const c = useTheme(s=>s.palette);
