@@ -324,7 +324,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async searchListings(query:{
     q?:string;listingType?:string;propertyType?:string;district?:string;province?:string;sector?:string;
     bedroomsMin?:number;bedroomsMax?:number;bathroomsMin?:number;minPriceMinor?:number;maxPriceMinor?:number;
-    currency?:string;amenities?:string|string[];verifiedOnly?:boolean;availableFrom?:string;radiusKm?:number;
+    currency?:string;amenities?:string|string[];verifiedOnly?:boolean;availableFrom?:string;radiusKm?:number;polygon?:string;
     lat?:number;lng?:number;north?:number;south?:number;east?:number;west?:number;cursor?:string;limit:number;
   }) {
     const values:any[]=[query.q ?? ""];
