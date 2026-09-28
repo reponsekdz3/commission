@@ -8,7 +8,7 @@ import{PropertyFilters}from"../../components/property/property-filters";
 import{useProperties,type SearchItem}from"../../hooks/use-properties";
 import{PropertyCardSkeleton}from"../../components/ui";
 import{SavedSearchChip}from"../../components/saved-search-chip";
-import{EmptyState}from"../../components/empty-state";
+import{EmptyState}from"../../components/empty-state";import{trackEvent}from"../../lib/analytics";
 
 export default function SearchPage(){
   const params=useSearchParams();
@@ -16,7 +16,7 @@ export default function SearchPage(){
   const{data,isLoading,isError,error}=useProperties(q);
   const items=useMemo(()=>data?.items??[],[data]);
   const listRef=useRef<HTMLDivElement>(null);
-  const[activeId,setActiveId]=useState<string>();
+  const[activeId,setActiveId]=useState<string>();\n  useEffect(()=>{trackEvent("search",{query:q})},[q]);
 
   const scrollToProperty=useCallback((id:string)=>{
     setActiveId(id);
