@@ -14,7 +14,7 @@ export function SuccessOverlay({title="Payment successful",onDone}:{title?:strin
    <LottieView source={require("../../../assets/confetti.json")} autoPlay loop={false} style={s.confetti}/>
    <Svg width={100} height={100}><Circle cx="50" cy="50" r="44" fill="none" stroke={c.primaryFg} strokeWidth="5"/><AP d="M28 52 L44 67 L74 35" fill="none" stroke={c.primaryFg} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" strokeDasharray="90" animatedProps={a}/></Svg>
    <Text style={[s.t,{color:c.primaryFg}]}>{title}</Text>
-   {onDone&&<Pressable accessibilityRole="button" onPress={onDone} style={[s.done,{borderColor:c.primaryFg}]}><Text style={{color:c.primaryFg,fontWeight:"800"}}>Continue</Text></Pressable>}
+   {subtitle&&<Text style={[s.sub,{color:c.primaryFg}]}>{subtitle}</Text>}{onDone&&<Pressable accessibilityRole="button" onPress={onDone} style={[s.done,{borderColor:c.primaryFg}]}><Text style={{color:c.primaryFg,fontWeight:"800"}}>Continue</Text></Pressable>}
  </View>
 }
-const s=StyleSheet.create({wrap:{...StyleSheet.absoluteFillObject,alignItems:"center",justifyContent:"center"},confetti:{...StyleSheet.absoluteFillObject},t:{fontSize:24,fontWeight:"800",marginTop:20},done:{marginTop:24,borderWidth:1,borderRadius:14,paddingHorizontal:22,paddingVertical:12}});
+const s=StyleSheet.create({sub:{maxWidth:320,textAlign:"center",marginTop:8,lineHeight:20},wrap:{...StyleSheet.absoluteFillObject,alignItems:"center",justifyContent:"center"},confetti:{...StyleSheet.absoluteFillObject},t:{fontSize:24,fontWeight:"800",marginTop:20},done:{marginTop:24,borderWidth:1,borderRadius:14,paddingHorizontal:22,paddingVertical:12}});
