@@ -1,10 +1,13 @@
 import type { Money, PaymentStatus } from "@imizi/types";
-import { randomUUID } from "crypto";
+import { createHmac, randomUUID } from "crypto";
 
 export interface PaymentChargeRequest {
   amount: Money;
   msisdn?: string;
   customerEmail?: string;
+  customerName?: string;
+  redirectUrl?: string;
+  paymentOptions?: string;
   idempotencyKey: string;
   internalReference: string;
   description: string;
@@ -15,6 +18,7 @@ export interface ProviderChargeResult {
   provider: string;
   providerReference: string;
   status: PaymentStatus;
+  checkoutUrl?: string;
   raw?: Record<string, unknown>;
 }
 
@@ -24,6 +28,7 @@ export interface PaymentProvider {
   verifyWebhook(headers: Record<string, string | string[] | undefined>, rawBody: string): boolean;
   parseWebhook(rawBody: string): { providerReference: string; status: PaymentStatus };
   getStatus?(providerReference: string): Promise<PaymentStatus>;
+  refund?(providerReference:string,amountMinor:number,currency:string,reason:string):Promise<{providerReference:string}>;
 }
 
 function normalizeMsisdn(value:string) {
@@ -125,28 +130,68 @@ export class MtnMoMoProvider implements PaymentProvider {
 
 export class FlutterwaveProvider implements PaymentProvider {
   readonly name="FLUTTERWAVE";
-  constructor(private readonly secret?:string) {}
-  async charge():Promise<ProviderChargeResult>{
-    throw new Error("Flutterwave live charge adapter is not enabled yet; use MTN MoMo for Rwanda collections");
+  constructor(private readonly secret?:string, private readonly defaultPaymentOptions?:string) {}
+  private headers(){
+    if(!this.secret)throw new Error("Flutterwave secret key is not configured");
+    return {"Authorization":"Bearer "+this.secret,"Content-Type":"application/json"};
   }
-  verifyWebhook(headers:Record<string,string|string[]|undefined>){
-    const hash=headers["verif-hash"];
-    return Boolean(this.secret&&hash===this.secret);
+  async charge(request:PaymentChargeRequest):Promise<ProviderChargeResult>{
+    const txRef="IMZ_"+request.internalReference+"_"+randomUUID().slice(0,8);
+    const response=await fetch("https://api.flutterwave.com/v3/payments",{
+      method:"POST",
+      headers:this.headers(),
+      body:JSON.stringify({
+        tx_ref:txRef,
+        amount:String(request.amount.amountMinor),
+        currency:request.amount.currency,
+        redirect_url:request.redirectUrl,
+        customer:{email:request.customerEmail||"customer@imizi.rw",name:request.customerName||"Imizi customer",phone_number:request.msisdn},
+        customizations:{title:"Imizi payment",description:request.description},
+        payment_options:request.paymentOptions||this.defaultPaymentOptions,
+        meta:request.metadata,
+      }),
+    });
+    const body=await response.json() as {status?:string;message?:string;data?:{link?:string;tx_ref?:string}};
+    if(!response.ok||body.status!=="success"||!body.data?.link)throw new Error("Flutterwave checkout failed: "+(body.message||response.status));
+    return {provider:this.name,providerReference:body.data.tx_ref||txRef,status:"PENDING_PROVIDER",checkoutUrl:body.data.link,raw:body as Record<string,unknown>};
+  }
+  async getStatus(providerReference:string):Promise<PaymentStatus>{
+    const response=await fetch("https://api.flutterwave.com/v3/transactions/"+encodeURIComponent(providerReference)+"/verify",{headers:this.headers()});
+    const body=await response.json() as {status?:string;data?:{status?:string}};
+    if(!response.ok)throw new Error("Flutterwave verify failed: "+response.status);
+    const state=(body.data?.status||body.status||"").toLowerCase();
+    return state==="successful"?"SUCCEEDED":state==="failed"||state==="cancelled"?"FAILED":"PENDING_PROVIDER";
+  }
+  async refund(providerReference:string,amountMinor:number,currency:string,reason:string){
+    const response=await fetch("https://api.flutterwave.com/v3/transactions/"+encodeURIComponent(providerReference)+"/refund",{method:"POST",headers:this.headers(),body:JSON.stringify({amount:amountMinor,currency,comments:reason})});
+    const body=await response.json() as {status?:string;message?:string;data?:{id?:string}};
+    if(!response.ok||body.status!=="success")throw new Error("Flutterwave refund failed: "+(body.message||response.status));
+    return {providerReference:String(body.data?.id||providerReference)};
+  }
+  verifyWebhook(headers:Record<string,string|string[]|undefined>,rawBody:string){
+    if(!this.secret)return false;
+    const signature=headers["flutterwave-signature"];
+    if(typeof signature==="string"){
+      const digest=createHmac("sha256",this.secret).update(rawBody).digest("hex");
+      if(digest===signature)return true;
+    }
+    const legacy=headers["verif-hash"];
+    return typeof legacy==="string"&&legacy===this.secret;
   }
   parseWebhook(rawBody:string){
-    const body=JSON.parse(rawBody) as {data?:{tx_ref?:string;status?:string}};
-    const ok=body.data?.status==="successful";
-    return {providerReference:body.data?.tx_ref ?? "",status:ok?"SUCCEEDED":"FAILED" as PaymentStatus};
+    const body=JSON.parse(rawBody) as {data?:{tx_ref?:string;status?:string;id?:number}};
+    return {providerReference:body.data?.tx_ref||String(body.data?.id||""),status:body.data?.status==="successful"?"SUCCEEDED":"FAILED" as PaymentStatus};
   }
 }
 
 export class CardProvider implements PaymentProvider {
   readonly name="CARD";
-  async charge():Promise<ProviderChargeResult>{
-    throw new Error("Card provider requires a configured PCI-compliant gateway adapter");
-  }
-  verifyWebhook(){return false;}
-  parseWebhook(){return {providerReference:"",status:"FAILED" as PaymentStatus};}
+  constructor(private readonly flutterwave:FlutterwaveProvider){}
+  charge(request:PaymentChargeRequest){return this.flutterwave.charge({...request,paymentOptions:"card"});}
+  verifyWebhook(headers:Record<string,string|string[]|undefined>,rawBody:string){return this.flutterwave.verifyWebhook(headers,rawBody);}
+  parseWebhook(rawBody:string){return this.flutterwave.parseWebhook(rawBody);}
+  getStatus(providerReference:string){return this.flutterwave.getStatus?.(providerReference);}
+  refund(providerReference:string,amountMinor:number,currency:string,reason:string){return this.flutterwave.refund(providerReference,amountMinor,currency,reason);}
 }
 
 export class PaymentGateway {
@@ -168,7 +213,7 @@ export function createPaymentGateway(env:Record<string,string|undefined>):Paymen
       apiKey:env.MTN_MOMO_API_KEY,
       callbackUrl:env.MTN_MOMO_CALLBACK_URL,
     })],
-    ["FLUTTERWAVE",new FlutterwaveProvider(env.FLUTTERWAVE_WEBHOOK_HASH)],
-    ["CARD",new CardProvider()],
+    ["FLUTTERWAVE",new FlutterwaveProvider(env.FLUTTERWAVE_SECRET_KEY,env.FLUTTERWAVE_PAYMENT_OPTIONS ?? "card,mobilemoneyrwanda")],
+    ["CARD",new CardProvider(new FlutterwaveProvider(env.FLUTTERWAVE_SECRET_KEY,"card"))],
   ]));
 }
