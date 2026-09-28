@@ -4,7 +4,7 @@ import { compareSync, hashSync } from "bcryptjs";
 import { createHash, randomBytes, randomInt, randomUUID } from "crypto";
 import type { Role } from "@imizi/types";
 import { generateTotpSecret, otpauthUrl, verifyTotp } from "@imizi/auth";
-import { forgotPasswordSchema, resetPasswordSchema } from "@imizi/validation";
+
 import type { UserRecord } from "../../store/platform.store";
 import { DatabaseService } from "../../infra/database.service";
 import { FeatureService } from "../../infra/feature.service";
