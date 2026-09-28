@@ -11,7 +11,7 @@ import{SavedSearchChip}from"../../components/saved-search-chip";
 import{EmptyState}from"../../components/empty-state";import{trackEvent}from"../../lib/analytics";
 
 export default function SearchPage(){
-  const params=useSearchParams();
+  const params=useSearchParams(),router=useRouter(),pathname=usePathname();
   const q=params.toString();
   const{data,isLoading,isError,error}=useProperties(q);
   const items=useMemo(()=>data?.items??[],[data]);
