@@ -151,9 +151,9 @@ export class FlutterwaveProvider implements PaymentProvider {
         meta:request.metadata,
       }),
     });
-    const body=await response.json() as {status?:string;message?:string;data?:{link?:string;tx_ref?:string}};
+    const body=await response.json() as {status?:string;message?:string;data?:{id?:number;link?:string;tx_ref?:string}};
     if(!response.ok||body.status!=="success"||!body.data?.link)throw new Error("Flutterwave checkout failed: "+(body.message||response.status));
-    return {provider:this.name,providerReference:body.data.tx_ref||txRef,status:"PENDING_PROVIDER",checkoutUrl:body.data.link,raw:body as Record<string,unknown>};
+    return {provider:this.name,providerReference:String(body.data.id??body.data.tx_ref??txRef),status:"PENDING_PROVIDER",checkoutUrl:body.data.link,raw:body as Record<string,unknown>};
   }
   async getStatus(providerReference:string):Promise<PaymentStatus>{
     const response=await fetch("https://api.flutterwave.com/v3/transactions/"+encodeURIComponent(providerReference)+"/verify",{headers:this.headers()});
@@ -180,7 +180,7 @@ export class FlutterwaveProvider implements PaymentProvider {
   }
   parseWebhook(rawBody:string){
     const body=JSON.parse(rawBody) as {data?:{tx_ref?:string;status?:string;id?:number}};
-    return {providerReference:body.data?.tx_ref||String(body.data?.id||""),status:body.data?.status==="successful"?"SUCCEEDED":"FAILED" as PaymentStatus};
+    return {providerReference:String(body.data?.id ?? body.data?.tx_ref ?? ""),status:body.data?.status==="successful"?"SUCCEEDED":"FAILED" as PaymentStatus};
   }
 }
 
