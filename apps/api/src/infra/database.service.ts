@@ -362,6 +362,19 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         }
       }catch{}
     }
+    if(query.polygon){
+      let points:any[]=[];
+      try{points=JSON.parse(String(query.polygon));}catch{points=[];}
+      if(Array.isArray(points)&&points.length>=3&&points.length<=100){
+        const valid=points.every((p:any)=>Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lng)));
+        if(valid){
+          const first=points[0],closed=[...points,first];
+          const wkt="POLYGON(("+closed.map((p:any)=>Number(p.lng)+" "+Number(p.lat)).join(",")+"))";
+          values.push(wkt);
+          where.push("ST_Intersects(ploc.geom::geometry,ST_GeomFromText($"+values.length+",4326))");
+        }
+      }
+    }
     if([query.north,query.south,query.east,query.west].every((x)=>x != null)){
       values.push(query.west,query.south,query.east,query.north);
       const w=values.length-3,s=values.length-2,e=values.length-1,n=values.length;
