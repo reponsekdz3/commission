@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Param, Post, Get, Req } from "@nestjs/common"
 import type { Request } from "express";
 import { Throttle } from "@nestjs/throttler";
 import { ApiTags } from "@nestjs/swagger";
-import { loginSchema, registerSchema, mfaCodeSchema, reauthSchema, refreshSchema } from "@imizi/validation";
+import { loginSchema, registerSchema, mfaCodeSchema, reauthSchema, refreshSchema, forgotPasswordSchema, resetPasswordSchema } from "@imizi/validation";
 import { z } from "zod";
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
@@ -13,6 +13,8 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
   @Public() @Throttle({auth:{limit:10,ttl:60000}}) @Post("register") register(@Body() body:unknown){return this.auth.register(registerSchema.parse(body));}
   @Public() @Throttle({auth:{limit:10,ttl:60000}}) @Post("login") login(@Body() body:unknown,@Req() req:Request){const d=loginSchema.parse(body);return this.auth.login(d.identifier,d.password,d.mfaCode,req.ip,req.headers["user-agent"]);}
+  @Public() @Throttle({auth:{limit:5,ttl:60000}}) @Post("forgot-password") forgotPassword(@Body() body:unknown){return this.auth.forgotPassword(forgotPasswordSchema.parse(body).email);}
+  @Public() @Throttle({auth:{limit:8,ttl:60000}}) @Post("verify-otp") verifyOtp(@Body() body:unknown){const d=resetPasswordSchema.parse(body);return this.auth.resetPassword(d.email,d.code,d.password);}
   @Public() @Throttle({auth:{limit:10,ttl:60000}}) @Post("refresh") refresh(@Body() body:unknown){return this.auth.refresh(refreshSchema.parse(body).refreshToken);}
   @Post("mfa/setup") setupMfa(@CurrentUser()u:UserRecord){return this.auth.setupMfa(u);}
   @Post("mfa/enable") enableMfa(@CurrentUser()u:UserRecord,@Body()b:unknown){return this.auth.enableMfa(u,mfaCodeSchema.parse(b).code);}
