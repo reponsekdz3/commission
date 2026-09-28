@@ -11,7 +11,6 @@ import { useTheme } from "../../src/stores/theme";
 import { fonts, spacing } from "../../src/theme";
 import { selection } from "../../src/lib/haptics";
 import { isSignedIn } from "../../src/lib/session";
-import { requestId } from "../../src/lib/ids";
 
 export default function Search() {
   const c = useTheme((s) => s.palette);
@@ -52,7 +51,7 @@ export default function Search() {
       <View style={s.row}><Field value={district} onChangeText={setDistrict} placeholder="District" style={s.small}/><Button title={drawing?"Finish area":"Draw area"} size="sm" variant={drawing?"accent":"primary"} onPress={()=>{selection();setDrawing(v=>!v)}} /></View>
       {drawing && <Text style={[s.hint,{color:c.text}]}>Tap the map to add boundary points. Turn off Draw area when finished.</Text>}
       {points.length>0 && <Pressable onPress={()=>{selection();setPoints([])}}><Text style={[s.clear,{color:c.primary}]}>Clear drawn area</Text></Pressable>}
-      <Pressable onPress={async()=>{if(!(await isSignedIn())){router.push("/login");return;}try{await api("/saved-searches",{method:"POST",body:JSON.stringify({name:q||("Map "+type+" search"),criteria:Object.fromEntries(new URLSearchParams(params))})},true);Alert.alert("Search saved","You will keep this search on your account.");}catch(e){Alert.alert("Save search",e instanceof Error?e.message:"Unable to save search")}}}><Text style={[s.saveSearch,{color:c.primary}]}>☆ Save this search</Text></Pressable>}
+      <Pressable onPress={async()=>{if(!(await isSignedIn())){router.push("/login");return;}try{await api("/saved-searches",{method:"POST",body:JSON.stringify({name:q||("Map "+type+" search"),criteria:Object.fromEntries(new URLSearchParams(params))})},true);Alert.alert("Search saved","You will keep this search on your account.");}catch(e){Alert.alert("Save search",e instanceof Error?e.message:"Unable to save search")}}}><Text style={[s.saveSearch,{color:c.primary}]}>☆ Save this search</Text></Pressable>
     </View>
     <View style={s.fab}><Button title="Search here" size="sm" variant="accent" onPress={()=>{selection();void query.refetch()}} /></View><BottomSheet ref={sheet} index={1} snapPoints={["12%","45%","90%"]} enablePanDownToClose={false} backgroundStyle={{backgroundColor:c.surface}} handleIndicatorStyle={{backgroundColor:c.border}}>
       <BottomSheetFlatList data={visible} refreshing={query.isRefetching} onRefresh={()=>void query.refetch()} keyExtractor={(x:SearchItem)=>x.listing.id} contentContainerStyle={{padding:spacing.lg,paddingBottom:120}} ListHeaderComponent={<View><Text style={[s.count,{color:c.text,fontFamily:fonts.sansBold}]}>{query.isFetching?"Updating…":visible.length+" properties"}</Text><OfflineBanner visible={query.isError && visible.length>0}/></View>} renderItem={({item}:{item:SearchItem})=><PropertyCard item={item} onPress={()=>router.push("/property/"+item.property.id)} />} ListEmptyComponent={<Text style={[s.hint,{color:c.muted}]}>No matching live listings.</Text>} />
