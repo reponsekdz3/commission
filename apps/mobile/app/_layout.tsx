@@ -28,6 +28,7 @@ import { api } from "../src/lib/api";
 import { asyncStoragePersister } from "../src/lib/queryPersistence";
 import { ThemeProvider, useTheme } from "../src/stores/theme";
 import { DebugPanel } from "../src/components/DebugPanel";
+import { BiometricGate } from "../src/components/BiometricGate";
 import { isSignedIn } from "../src/lib/session";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({shouldShowBanner:true,shouldShowList:true,shouldPlaySound:true,shouldSetBadge:true}),
@@ -131,7 +132,7 @@ export default function Root() {
             client={client}
             persistOptions={{ persister: asyncStoragePersister, maxAge: 24 * 60 * 60 * 1000 }}
           >
-            <><AppStack /><DebugPanel /></>
+            <BiometricGate><><AppStack /><DebugPanel /></></BiometricGate>
           </PersistQueryClientProvider>
         </ThemeProvider>
       </SafeAreaProvider>
