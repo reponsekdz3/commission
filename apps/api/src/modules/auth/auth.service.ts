@@ -1,7 +1,7 @@
 import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
 import { compareSync, hashSync } from "bcryptjs";
-import { createHash, randomBytes, randomUUID } from "crypto";
+import { createHash, randomBytes, randomInt, randomUUID } from "crypto";
 import type { Role } from "@imizi/types";
 import { generateTotpSecret, otpauthUrl, verifyTotp } from "@imizi/auth";
 import { forgotPasswordSchema, resetPasswordSchema } from "@imizi/validation";
@@ -46,7 +46,7 @@ export class AuthService {
     const normalized=email.toLowerCase().trim();
     const user=await this.db.findUserByIdentifier(normalized);
     if(user){
-      const code=String(Math.floor(100000+Math.random()*900000));
+      const code=String(randomInt(100000,1000000));
       const codeHash=createHash("sha256").update(code).digest("hex");
       await this.db.createPasswordResetChallenge(user.id,user.email,codeHash,new Date(Date.now()+15*60_000));
       await this.db.enqueueJob("auth.password-reset-email",{email:user.email,code,expiresInMinutes:15},0);
