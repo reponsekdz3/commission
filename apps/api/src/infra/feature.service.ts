@@ -36,6 +36,11 @@ export class FeatureService {
     ).then((r)=>r.rows[0]);
   }
 
+  async deleteSavedSearch(userId:string,id:string){
+    const r=await this.db.query("DELETE FROM saved_searches WHERE id=$1 AND user_id=$2 RETURNING id",[id,userId]);
+    return {deleted:Boolean(r.rows[0])};
+  }
+
   async listSavedSearches(userId:string) {
     return this.db.query("SELECT * FROM saved_searches WHERE user_id=$1 ORDER BY created_at DESC",[userId]).then((r)=>r.rows);
   }
