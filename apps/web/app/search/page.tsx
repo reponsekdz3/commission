@@ -16,9 +16,11 @@ export default function SearchPage(){
   const{data,isLoading,isError,error}=useProperties(q);
   const items=useMemo(()=>data?.items??[],[data]);
   const listRef=useRef<HTMLDivElement>(null);
-  const[activeId,setActiveId]=useState<string>();\n  useEffect(()=>{trackEvent("search",{query:q})},[q]);
+  const[activeId,setActiveId]=useState<string>();
+  useEffect(()=>{trackEvent("search",{query:q})},[q]);
 
-  const onBoundsChange=useCallback((b:{north:number;south:number;east:number;west:number})=>{const p=new URLSearchParams(params.toString());for(const[k,v]of Object.entries(b))p.set(k,v.toFixed(6));router.replace(pathname+"?"+p.toString(),{scroll:false})},[params,pathname,router]);\n  const scrollToProperty=useCallback((id:string)=>{
+  const onBoundsChange=useCallback((b:{north:number;south:number;east:number;west:number})=>{const p=new URLSearchParams(params.toString());for(const[k,v]of Object.entries(b))p.set(k,v.toFixed(6));router.replace(pathname+"?"+p.toString(),{scroll:false})},[params,pathname,router]);
+  const scrollToProperty=useCallback((id:string)=>{
     setActiveId(id);
     listRef.current?.querySelector<HTMLElement>('[data-property-id="'+CSS.escape(id)+'"]')?.scrollIntoView({behavior:"smooth",block:"center"});
   },[]);
