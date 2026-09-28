@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
@@ -16,6 +16,7 @@ export class CatalogController {
   @Public() @Post("mortgage/estimate") mortgage(@Body() body:{priceMinor:number;downPaymentMinor:number;annualRateBps?:number;termMonths?:number}){return estimateMonthlyPayment({priceMinor:body.priceMinor,downPaymentMinor:body.downPaymentMinor,annualRateBps:body.annualRateBps ?? 1600,termMonths:body.termMonths ?? 240});}
   @ApiBearerAuth() @Get("saved-searches") saved(@CurrentUser() user:UserRecord){return this.features.listSavedSearches(user.id);}
   @ApiBearerAuth() @Post("saved-searches") save(@CurrentUser() user:UserRecord,@Body() body:{name:string;criteria:Record<string,unknown>}){return this.features.saveSearch(user.id,body.name,body.criteria);}
+  @ApiBearerAuth() @Delete("saved-searches/:id") remove(@CurrentUser() user:UserRecord,@Param("id") id:string){return this.features.deleteSavedSearch(user.id,id);}
   @Public() @Get("compare") compare(){return this.features.compare();}
   @ApiBearerAuth() @Get("admin/settings") settings(@CurrentUser() user:UserRecord){if(!hasPermission(user.roles,"admin:access"))return{error:"forbidden"};return{commissionsBps:Number(process.env.PLATFORM_COMMISSION_BPS ?? 500),environments:["development","staging","production"],backups:{daily:true,pitr:true,offsite:true}};}
 }
