@@ -485,7 +485,20 @@ export class FeatureService {
     return this.db.searchListings({district:first?.district,propertyType:first?.propertyType,limit:8});
   }
 
-  async compare(){const rows=await this.db.query("SELECT id,property_id FROM property_listings WHERE status='ACTIVE' ORDER BY created_at DESC LIMIT 4");return Promise.all(rows.rows.map(async(x)=>({listing:await this.db.getListing(x.id),property:await this.db.getProperty(x.property_id)})));}
+  async compare(propertyIds?:string[]){
+    if(propertyIds?.length){
+      const ids=[...new Set(propertyIds)].slice(0,4);
+      const rows=await this.db.query("SELECT id,property_id FROM property_listings WHERE status='ACTIVE' AND property_id=ANY($1::uuid[]) ORDER BY created_at DESC",[ids]);
+      const byProperty=new Map(rows.rows.map((x:any)=>[String(x.property_id),x]));
+      return Promise.all(ids.map(async id=>{
+        const row=byProperty.get(id);
+        if(!row)return undefined;
+        return {listing:await this.db.getListing(row.id),property:await this.db.getProperty(id)};
+      })).then(x=>x.filter(Boolean));
+    }
+    const rows=await this.db.query("SELECT id,property_id FROM property_listings WHERE status='ACTIVE' ORDER BY created_at DESC LIMIT 4");
+    return Promise.all(rows.rows.map(async(x)=>({listing:await this.db.getListing(x.id),property:await this.db.getProperty(x.property_id)})));
+  }
 
   async addMedia(propertyId:string,kind:string,key:string){return this.db.addMedia(propertyId,kind,key);}\n
   async signLease(userId:string,leaseId:string){
