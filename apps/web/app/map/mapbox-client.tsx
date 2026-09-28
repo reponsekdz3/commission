@@ -3,9 +3,9 @@ import{useEffect,useRef,useState}from"react";
 import{useRouter}from"next/navigation";
 import{MapSearchDraw}from"../../components/map-search-draw";
 
-type Props={items:any[];activeId?:string;onMarkerSelect?:(id:string)=>void};
+type Bounds={north:number;south:number;east:number;west:number};type Props={items:any[];activeId?:string;onMarkerSelect?:(id:string)=>void;onBoundsChange?:(bounds:Bounds)=>void};
 
-export function MapboxClient({items,activeId,onMarkerSelect}:Props){
+export function MapboxClient({items,activeId,onMarkerSelect,onBoundsChange}:Props){
   const ref=useRef<HTMLDivElement>(null);
   const mapRef=useRef<any>(null);
   const markersRef=useRef<Map<string,any>>(new Map());
@@ -26,7 +26,7 @@ export function MapboxClient({items,activeId,onMarkerSelect}:Props){
       if(!mb||cancelled||mapRef.current||!ref.current)return;
       mb.accessToken=token;
       const instance=new mb.Map({container:ref.current,style:"mapbox://styles/mapbox/standard",center:[30.0619,-1.9441],zoom:11});
-      instance.addControl(new mb.NavigationControl(),"top-right");
+      instance.addControl(new mb.NavigationControl(),"top-right");instance.on("moveend",(event:any)=>{if(!event.originalEvent||!boundsChangeRef.current)return;const b=instance.getBounds();boundsChangeRef.current({north:b.getNorth(),south:b.getSouth(),east:b.getEast(),west:b.getWest()})});
       mapRef.current=instance;setMap(instance);
     };
     if(script)script.addEventListener("load",start);
