@@ -45,4 +45,4 @@ export function PropertyFilters(){
         <label className="flex items-start gap-3 pt-1 text-sm font-semibold"><Switch checked={verified} onCheckedChange={v=>{setVerified(v);apply({verified:v})}}/><span>Verified listings only</span></label>
       </div>}
     </div>
-  </div>
+  </div>}
