@@ -18,12 +18,23 @@ export default function Messages(){
  const[items,setItems]=useState<Conversation[]>([]),[active,setActive]=useState<any>(),[error,setError]=useState(""),[uploading,setUploading]=useState(false),[typing,setTyping]=useState(false),[refreshing,setRefreshing]=useState(false);
  const socket=useRef<Socket|null>(null);
  async function load(refresh=false){if(refresh)setRefreshing(true);try{setItems(await api<Conversation[]>("/messages/conversations",{},true))}catch(e){setError(e instanceof Error?e.message:"Unable to load messages")}finally{setRefreshing(false)}}
- useEffect(()=>{void load();let alive=true;(async()=>{const t=await token();if(!t||!alive)return;const base=API.replace(/\/api\/v1$/,"");const s=io(base+"/realtime",{auth:{token:t},transports:["websocket"]});socket.current=s;s.on("message:new",(m:any)=>{setActive((v:any)=>v?({...v,messages:[...(v.messages||[]),m]}):v);void load()});s.on("typing",(m:any)=>setTyping(Boolean(m.active)));s.on("connect_error",()=>setError("Realtime connection unavailable; REST messaging remains active."));})();return()=>{alive=false;socket.current?.disconnect();socket.current=null}},[]);
+ useEffect(()=>{void load();let alive=true;(async()=>{const t=await token();if(!t||!alive)return;const base=API.replace(/\/api\/v1$/,"");const s=io(base+"/realtime",{auth:{token:t},transports:["websocket"]});socket.current=s;s.on("message:new",(m:any)=>{setActive((v:any)=>v?({...v,messages:[...(v.messages||[]),m]}):v);void load()});s.on("typing",(m:any)=>setTyping(Boolean(m.active)));s.on("connect",()=>{setError("");if(active?.id)s.emit("join:conversation",{conversationId:active.id})});s.on("connect_error",()=>setError("Realtime connection unavailable; REST messaging remains active."));})();return()=>{alive=false;socket.current?.disconnect();socket.current=null}},[]);
  useEffect(()=>{if(params.threadId)void open(String(params.threadId));},[params.threadId]);
- useEffect(()=>{if(active?.id)socket.current?.emit("join:conversation",{conversationId:active.id})},[active?.id]);
+ useEffect(()=>{if(active?.id&&socket.current?.connected)socket.current.emit("join:conversation",{conversationId:active.id})},[active?.id]);
  async function open(id:string){try{const x=await api<any>("/messages/conversations/"+id,{},true);setActive(x);await api("/messages/"+id+"/read",{method:"POST"},true)}catch(e){setError(e instanceof Error?e.message:"Unable to open conversation")}}
  async function upload(){if(!active||uploading)return;setUploading(true);try{const result=await DocumentPicker.getDocumentAsync({multiple:true,copyToCacheDirectory:true,type:"*/*"});if(result.canceled)return;const uploaded:Attachment[]=[];for(const asset of result.assets){const blob=await(await fetch(asset.uri)).blob();if(blob.size>50*1024*1024)throw new Error("Attachment exceeds 50 MB");const signed=await api<any>("/messages/attachments/signed-url",{method:"POST",body:JSON.stringify({conversationId:active.id,filename:asset.name,contentType:asset.mimeType||blob.type,sizeBytes:blob.size})},true);const put=await fetch(signed.uploadUrl,{method:"PUT",headers:signed.headers||{"Content-Type":asset.mimeType||blob.type},body:blob});if(!put.ok)throw new Error("Upload failed");uploaded.push(await api<Attachment>("/messages/attachments/complete",{method:"POST",body:JSON.stringify({conversationId:active.id,key:signed.key,filename:asset.name,contentType:asset.mimeType||blob.type})},true));}socket.current?.emit("message:send",{conversationId:active.id,body:"Attachment",attachmentIds:uploaded.map(x=>x.id)});await open(active.id)}catch(e){setError(e instanceof Error?e.message:"Unable to upload attachment")}finally{setUploading(false)}}
- function send(body:string){if(!active)return;selection();socket.current?.emit("message:send",{conversationId:active.id,body});}
+ async function send(body:string){
+  if(!active||!body.trim())return;
+  selection();
+  try{
+    if(socket.current?.connected){
+      socket.current.emit("message:send",{conversationId:active.id,body:body.trim()});
+    }else{
+      await api("/messages",{method:"POST",body:JSON.stringify({conversationId:active.id,body:body.trim()})},true);
+      await open(active.id);
+    }
+  }catch(e){setError(e instanceof Error?e.message:"Message failed");}
+}
  function sendTyping(activeNow:boolean){socket.current?.emit("typing",{conversationId:active?.id,active:activeNow})}
  async function openAttachment(id:string){try{const r=await api<any>("/messages/attachments/"+id+"/download",{},true);if(r.downloadUrl)await Linking.openURL(r.downloadUrl)}catch(e){setError(e instanceof Error?e.message:"Unable to open attachment")}}
  return <SafeAreaView style={[s.safe,{backgroundColor:c.bg}]}><View style={s.wrap}><Text style={[s.title,{color:c.text,fontFamily:fonts.displayStrong}]}>Messages</Text>{!!error&&<Text style={[s.error,{color:c.danger}]}>{error}</Text>}
