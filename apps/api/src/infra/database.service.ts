@@ -568,6 +568,28 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   }
 
 
+  async createPasswordResetChallenge(userId:string,email:string,codeHash:string,expiresAt:Date){
+    await this.query("UPDATE password_reset_challenges SET consumed_at=now() WHERE user_id=$1 AND consumed_at IS NULL",[userId]);
+    const r=await this.query("INSERT INTO password_reset_challenges(user_id,email,code_hash,expires_at) VALUES($1,$2,$3,$4) RETURNING id,expires_at",[userId,email,codeHash,expiresAt]);
+    return r.rows[0];
+  }
+
+  async consumePasswordResetChallenge(email:string,codeHash:string){
+    return this.transaction(async(client)=>{
+      const r=await client.query(
+        "SELECT * FROM password_reset_challenges WHERE email=$1 AND consumed_at IS NULL AND expires_at>now() ORDER BY created_at DESC LIMIT 1 FOR UPDATE",
+        [email],
+      );
+      if(!r.rows[0]) return undefined;
+      if(Number(r.rows[0].attempts)>=5) return undefined;
+      const challenge=r.rows[0];
+      await client.query("UPDATE password_reset_challenges SET attempts=attempts+1 WHERE id=$1",[challenge.id]);
+      if(challenge.code_hash!==codeHash) return undefined;
+      await client.query("UPDATE password_reset_challenges SET verified_at=now(),consumed_at=now() WHERE id=$1",[challenge.id]);
+      return challenge;
+    });
+  }
+
   async getMfaSecret(userId:string){
     const r=await this.query("SELECT mfa_secret,mfa_enabled FROM users WHERE id=$1",[userId]);
     return r.rows[0] ? {secret:r.rows[0].mfa_secret ?? undefined,enabled:Boolean(r.rows[0].mfa_enabled)} : undefined;
