@@ -52,7 +52,7 @@ export function MapboxClient({items,activeId,onMarkerSelect}:Props){
       const el=document.createElement("button");
       el.type="button";el.title=item.property.title||"Property";el.setAttribute("aria-label","Open "+(item.property.title||"property"));
       el.style.cssText="width:22px;height:22px;border-radius:999px;border:3px solid white;background:#0E9F6E;box-shadow:0 4px 14px #0005;cursor:pointer;transition:transform .18s ease,background .18s ease,box-shadow .18s ease";
-      el.onclick=()=>{onMarkerSelect?.(id);router.push("/properties/"+id)};
+      el.onclick=()=>{if(onMarkerSelect){onMarkerSelect(id);}else{router.push("/properties/"+id);}};
       const marker=new mb.Marker(el).setLngLat([lng,lat]).addTo(instance);
       markersRef.current.set(id,marker);bounds.extend([lng,lat]);hasBounds=true;
     }
