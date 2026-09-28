@@ -8,7 +8,7 @@ import{fonts,spacing}from"../../src/theme";
 import{Button,Input}from"../../src/components/ui";
 
 export default function Security(){
- const c=useTheme(s=>s.palette);const[enabled,setEnabled]=useState(false);const[busy,setBusy]=useState(true);const[mfa,setMfa]=useState<any>();const[code,setCode]=useState("");const[reauthCode,setReauthCode]=useState("");const[sessions,setSessions]=useState<any[]>([]);const[loadingMfa,setLoadingMfa]=useState(false);
+ const c=useTheme(s=>s.palette);const[enabled,setEnabled]=useState(false);const[busy,setBusy]=useState(true);const[mfa,setMfa]=useState<any>();const[code,setCode]=useState("");const[sessions,setSessions]=useState<any[]>([]);const[loadingMfa,setLoadingMfa]=useState(false);
  async function load(){try{setEnabled(await SecureStore.getItemAsync("imizi.biometricUnlock")==="enabled");const ss=await api<any[]>("/auth/sessions",{},true);setSessions(ss||[])}catch{}finally{setBusy(false)}}
  useEffect(()=>{void load()},[]);
  async function toggle(){
