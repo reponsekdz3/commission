@@ -28,6 +28,7 @@ import { api } from "../src/lib/api";
 import { asyncStoragePersister } from "../src/lib/queryPersistence";
 import { ThemeProvider, useTheme } from "../src/stores/theme";
 import { DebugPanel } from "../src/components/DebugPanel";
+import { isSignedIn } from "../src/lib/session";
 Notifications.setNotificationHandler({
   handleNotification: async () => ({shouldShowBanner:true,shouldShowList:true,shouldPlaySound:true,shouldSetBadge:true}),
 });
@@ -93,7 +94,7 @@ export default function Root() {
   useEffect(() => {
     if (Platform.OS === "web") return;
     void (async () => {
-      if (!await (async()=>Boolean(await import("../src/lib/session").then(m=>m.isSignedIn())))()) return;
+      if (!await isSignedIn()) return;
       try {
         const permission = await Notifications.getPermissionsAsync();
         let status = permission.status;
