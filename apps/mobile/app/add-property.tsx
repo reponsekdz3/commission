@@ -78,6 +78,7 @@ export default function AddProperty(){
    {levels.map(([key,name,level],i)=><Select key={key} label={name} items={o[level]} value={f[key]} disabled={i>0&&!f[levels[i-1][0]]} onChange={id=>choose(key,name,level,id)}/>)}
 
    <Text style={[s.h2,{color:c.text}]}>Coordinates and size</Text>
+   <Button title="Use current device location" size="sm" variant="ghost" onPress={async()=>{try{const permission=await Location.requestForegroundPermissionsAsync();if(permission.status!=="granted"){setErr("Location permission is required to set the property position.");return;}const pos=await Location.getCurrentPositionAsync({accuracy:Location.Accuracy.Balanced});setF((x:any)=>({...x,latitude:String(pos.coords.latitude),longitude:String(pos.coords.longitude)}));}catch(e){setErr(e instanceof Error?e.message:"Unable to read device location");}}}/>
    <View style={s.row}><Input label="Latitude" keyboardType="numeric" value={f.latitude} onChangeText={v=>setF({...f,latitude:v})} containerStyle={s.flex}/>
    <Input label="Longitude" keyboardType="numeric" value={f.longitude} onChangeText={v=>setF({...f,longitude:v})} containerStyle={s.flex}/></View>
    <View style={s.row}><Input label="Bedrooms" keyboardType="number-pad" value={f.bedrooms} onChangeText={v=>setF({...f,bedrooms:v})} containerStyle={s.flex}/>
