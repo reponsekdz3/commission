@@ -7,10 +7,26 @@
     "scheme": "imizi",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-    "plugins": ["expo-router", "expo-secure-store", "expo-location", "expo-notifications"],
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-location",
+      "expo-notifications",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Imizi uses your photos to upload property media and documents.",
+          "cameraPermission": "Imizi uses your camera to capture property media.",
+          "microphonePermission": false
+        }
+      ]
+    ],
     "android": {
       "package": "rw.imizi.mobile",
-      "permissions": ["ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ]
     },
     "ios": {
       "bundleIdentifier": "rw.imizi.mobile",
