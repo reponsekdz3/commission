@@ -36,6 +36,25 @@ export class JobsService implements OnModuleInit {
     for(const job of jobs){
       try{
 
+        if(job.name==="auth.password-reset-email"){
+          const email=String(job.payload?.email??"");
+          const code=String(job.payload?.code??"");
+          const minutes=Number(job.payload?.expiresInMinutes??15);
+          if(!process.env.RESEND_API_KEY||!process.env.EMAIL_FROM) throw new Error("RESEND_API_KEY and EMAIL_FROM are required for password recovery email delivery");
+          const response=await fetch("https://api.resend.com/emails",{
+            method:"POST",
+            headers:{Authorization:"Bearer "+process.env.RESEND_API_KEY,"content-type":"application/json"},
+            body:JSON.stringify({
+              from:process.env.EMAIL_FROM,
+              to:[email],
+              subject:"Imizi password reset code",
+              text:"Your Imizi password reset code is "+code+". It expires in "+minutes+" minutes. If you did not request this, ignore this email.",
+            }),
+            signal:AbortSignal.timeout(7000),
+          });
+          if(!response.ok) throw new Error("Password recovery email delivery failed: "+response.status);
+        }
+
         if(job.name==="notification.dispatch"){
           const notification=await this.db.getNotification(String(job.payload?.notificationId ?? ""));
           const user=await this.db.findUserById(String(job.payload?.userId ?? ""));
