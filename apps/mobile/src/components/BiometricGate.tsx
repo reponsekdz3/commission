@@ -2,7 +2,7 @@ import{useEffect,useState}from"react";
 import{ActivityIndicator,Pressable,StyleSheet,Text,View}from"react-native";
 import*as LocalAuthentication from"expo-local-authentication";
 import*as SecureStore from"expo-secure-store";
-import{useTheme}from"../stores/theme";
+import{useTheme}from"../stores/theme";import{isSignedIn}from"../lib/session";
 import{fonts}from"../theme";
 
 export function BiometricGate({children}:{children:React.ReactNode}){
@@ -10,8 +10,9 @@ export function BiometricGate({children}:{children:React.ReactNode}){
  const unlock=async()=>{
   setMessage("");
   try{
+    const signedIn=await isSignedIn();
     const enabled=await SecureStore.getItemAsync("imizi.biometricUnlock")==="enabled";
-    if(!enabled){setLocked(false);setReady(true);return;}
+    if(!signedIn||!enabled){setLocked(false);setReady(true);return;}
     const has=await LocalAuthentication.hasHardwareAsync();
     const enrolled=await LocalAuthentication.isEnrolledAsync();
     if(!has||!enrolled){setLocked(false);setReady(true);return;}
