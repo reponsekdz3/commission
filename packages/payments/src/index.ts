@@ -130,7 +130,7 @@ export class MtnMoMoProvider implements PaymentProvider {
 
 export class FlutterwaveProvider implements PaymentProvider {
   readonly name="FLUTTERWAVE";
-  constructor(private readonly secret?:string, private readonly defaultPaymentOptions?:string) {}
+  constructor(private readonly secretKey?:string, private readonly webhookSecret?:string, private readonly defaultPaymentOptions?:string) {}
   private headers(){
     if(!this.secret)throw new Error("Flutterwave secret key is not configured");
     return {"Authorization":"Bearer "+this.secret,"Content-Type":"application/json"};
@@ -213,7 +213,7 @@ export function createPaymentGateway(env:Record<string,string|undefined>):Paymen
       apiKey:env.MTN_MOMO_API_KEY,
       callbackUrl:env.MTN_MOMO_CALLBACK_URL,
     })],
-    ["FLUTTERWAVE",new FlutterwaveProvider(env.FLUTTERWAVE_SECRET_KEY,env.FLUTTERWAVE_PAYMENT_OPTIONS ?? "card,mobilemoneyrwanda")],
-    ["CARD",new CardProvider(new FlutterwaveProvider(env.FLUTTERWAVE_SECRET_KEY,"card"))],
+    ["FLUTTERWAVE",new FlutterwaveProvider(env.FLUTTERWAVE_SECRET_KEY,env.FLUTTERWAVE_WEBHOOK_HASH,env.FLUTTERWAVE_PAYMENT_OPTIONS ?? "card,mobilemoneyrwanda")],
+    ["CARD",new CardProvider(new FlutterwaveProvider(env.FLUTTERWAVE_SECRET_KEY,env.FLUTTERWAVE_WEBHOOK_HASH,"card"))],
   ]));
 }
