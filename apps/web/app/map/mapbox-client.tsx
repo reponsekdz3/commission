@@ -11,6 +11,8 @@ export function MapboxClient({items,activeId,onMarkerSelect,onBoundsChange}:Prop
   const markersRef=useRef<Map<string,any>>(new Map());
   const[map,setMap]=useState<any>(null);
   const router=useRouter();
+  const boundsChangeRef=useRef(onBoundsChange);
+  boundsChangeRef.current=onBoundsChange;
 
   useEffect(()=>{
     const token=process.env.NEXT_PUBLIC_MAPBOX_TOKEN;
