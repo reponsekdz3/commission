@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
-import { createHash } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { execFile } from "child_process";
 import { promisify } from "util";
 import { mkdtemp, readFile, rm, writeFile } from "fs/promises";
@@ -107,7 +107,9 @@ export class JobsService implements OnModuleInit {
               const first=fresh[0];
               const title=String(first.property?.title||"New property match");
               const body=fresh.length===1?title:(fresh.length+" new listings match your saved search \""+row.name+"\".");
-              await this.db.query("INSERT INTO notifications(id,user_id,channel,event_type,title,body) VALUES($1,$2,'in_app','SAVED_SEARCH_MATCH',$3,$4)",[require("crypto").randomUUID(),row.user_id,"Saved search update",body]);
+              const notificationId=randomUUID();
+              await this.db.query("INSERT INTO notifications(id,user_id,channel,event_type,title,body) VALUES($1,$2,'in_app','SAVED_SEARCH_MATCH',$3,$4)",[notificationId,row.user_id,"Saved search update",body]);
+              await this.db.enqueueJob("notification.dispatch",{notificationId,userId:row.user_id,eventType:"SAVED_SEARCH_MATCH"});
               await this.db.query("UPDATE saved_searches SET last_notified_at=now() WHERE id=$1",[row.id]);
             }
           }
