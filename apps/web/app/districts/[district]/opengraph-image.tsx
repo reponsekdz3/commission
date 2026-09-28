@@ -1,5 +1,5 @@
 import { ImageResponse } from "next/og";
-import { api } from "../../../../lib/api";
+import { api } from "../../../lib/api";
 export const runtime="edge";
 export const alt="Imizi district property search";
 export const size={width:1200,height:630};
