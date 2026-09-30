@@ -4,6 +4,7 @@ import { haversineMeters } from "@imizi/maps";
 import { DatabaseService } from "../../infra/database.service";
 import { Dependencies } from "../../infra/dependencies";
 import { PlatformStore } from "../../store/platform.store";
+import { loadConfig } from "@imizi/config";
 
 @Injectable()
 export class SearchService {
@@ -50,18 +51,19 @@ export class SearchService {
       ]
     };
     const os=await this.deps?.searchListings(body);
-    if(os && !query.polygon){
+    if(os && !query.polygon && (os.hits?.hits?.length ?? 0) > 0){
       const items=(os.hits?.hits ?? []).map((hit:any)=>{
         const s=hit._source;
         return {
           score:Number(hit._score ?? 0),
           distanceMeters:Array.isArray(hit.sort) ? hit.sort.find((x:any)=>typeof x==="number") : undefined,
           listing:{id:s.listingId,listingType:s.listingType,priceMinor:Number(s.priceMinor),currency:s.currency,availableFrom:s.availableFrom,status:s.status,createdAt:s.createdAt,updatedAt:s.updatedAt,propertyId:s.id},
-          property:{id:s.id,title:s.title,description:s.description,district:s.district,province:s.province,sector:s.sector,propertyType:s.propertyType,bedrooms:s.bedrooms,bathrooms:s.bathrooms,parking:s.parking,verificationStatus:s.verificationStatus,amenities:s.amenities ?? [],media:[],latitude:s.location?.lat,longitude:s.location?.lon}
+          property:{id:s.id,title:s.title,description:s.description,district:s.district,province:s.province,sector:s.sector,propertyType:s.propertyType,bedrooms:s.bedrooms,bathrooms:s.bathrooms,parking:s.parking,verificationStatus:s.verificationStatus,amenities:s.amenities ?? [],media:s.media ?? [],latitude:s.location?.lat,longitude:s.location?.lon}
         };
       });
-      const last=items.length===limit ? (os.hits?.hits ?? [])[items.length-1]?.sort : undefined;
-      const payload={items,nextCursor:last?Buffer.from(JSON.stringify(last)).toString("base64url"):null,engine:"opensearch"};
+      const hydrated=await this.attachMedia(db,items);
+      const last=hydrated.length===limit ? (os.hits?.hits ?? [])[hydrated.length-1]?.sort : undefined;
+      const payload={items:hydrated,nextCursor:last?Buffer.from(JSON.stringify(last)).toString("base64url"):null,engine:"opensearch"};
       await this.deps?.cacheSet(cacheKey,payload,15);
       return payload;
     }
@@ -76,9 +78,31 @@ export class SearchService {
     });
     const last=result.length===limit ? result[result.length-1]?.listing : undefined;
     const nextCursor=last?.id&&last?.createdAt ? Buffer.from(JSON.stringify({createdAt:last.createdAt,id:last.id})).toString("base64url") : null;
-    const payload={items:result,nextCursor,engine:"postgres-postgis"};
+    const hydrated=await this.attachMedia(db,result);
+    const payload={items:hydrated,nextCursor,engine:"postgres-postgis"};
     await this.deps?.cacheSet(cacheKey,payload,10);
     return payload;
+  }
+
+  private async attachMedia(db:DatabaseService,items:any[]){
+    if(!items.length)return items;
+    const ids=[...new Set(items.map((item:any)=>String(item.property?.id)).filter(Boolean))];
+    if(!ids.length)return items;
+    const rows=await db.query(
+      "SELECT property_id,id,kind,storage_key,variants,sort_order FROM property_media WHERE property_id=ANY($1::uuid[]) ORDER BY property_id,sort_order,id",
+      [ids],
+    );
+    const config=loadConfig();
+    const toUrl=(key:string)=>String(key).startsWith("http") ? String(key) : (config.cdnBaseUrl ? config.cdnBaseUrl.replace(/\/$/,"")+"/"+String(key).split("/").map(encodeURIComponent).join("/") : new URL("/"+String(key),config.s3Endpoint ?? "http://localhost:9000").toString());
+    const grouped=new Map<string,any[]>();
+    for(const row of rows.rows){
+      const variants=(row.variants ?? {}) as Record<string,string>;
+      const kind=String(row.kind);
+      const source=kind==="VIDEO" ? (variants.video ?? row.storage_key) : kind==="PHOTO" ? (variants.large ?? variants.medium ?? row.storage_key) : kind==="TOUR_360" ? (variants.panorama ?? row.storage_key) : row.storage_key;
+      const media={id:String(row.id),kind,url:toUrl(String(source)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(row.sort_order)};
+      const key=String(row.property_id); if(!grouped.has(key))grouped.set(key,[]); grouped.get(key)!.push(media);
+    }
+    return items.map((item:any)=>({...item,property:{...item.property,media:grouped.get(String(item.property.id)) ?? item.property.media ?? []}}));
   }
 
   private searchLegacy(store:PlatformStore,query:Record<string,any>){
