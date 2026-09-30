@@ -15,11 +15,13 @@
   <img src='https://img.shields.io/badge/API-NestJS-E0234E?logo=nestjs' alt='NestJS'>
 </p>
 
-<p><img src='docs/assets/imizi-hero.svg' alt='Imizi product overview' width='100%'></p>
+![Imizi product overview](./docs/assets/imizi-hero.svg)
 
 ## App showcase — Web + Mobile
 
-<p><img src='docs/assets/imizi-app-showcase.svg' alt='Imizi web and mobile app showcase' width='100%'></p>
+[![Imizi web and mobile app showcase](./docs/assets/imizi-app-showcase.svg)](https://github.com/reponsekdz3/commission)
+
+**Open the showcase image:** [Web + Mobile product visual](./docs/assets/imizi-app-showcase.svg)
 
 > Repository-native product showcase based on the current UI surfaces. It is a product visual, not a production screenshot.
 
