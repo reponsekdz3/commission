@@ -73,7 +73,7 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgis/postgis:16-3.4
         env:
           POSTGRES_USER: imizi
           POSTGRES_PASSWORD: imizi_dev
@@ -113,7 +113,7 @@ jobs:
         run: npm run build -w @imizi/domain
 
       - name: Run tests
-        run: npm run test 2>/dev/null || true
+        run: npm test
         env:
-          DATABASE_URL: postgresql://imizi:[REDACTED]@localhost:5432/imizi
+          DATABASE_URL: postgresql://imizi:imizi_dev@localhost:5432/imizi
           REDIS_URL: redis://localhost:6379

@@ -1,4 +1,4 @@
-﻿services:
+services:
   postgres:
     image: postgis/postgis:16-3.4
     container_name: imizi-postgres
@@ -69,23 +69,19 @@
       retries: 20
 
   minio-init:
-    image: alpine/minio:RELEASE.2025-10-15T17-29-55Z
+    image: minio/mc:latest
     container_name: imizi-minio-init
-    user: "0:0"
     depends_on:
       minio:
         condition: service_healthy
-    environment:
-      MINIO_ROOT_USER: imizi
-      MINIO_ROOT_PASSWORD: imizi_secret
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >
-        /usr/local/bin/minio --help >/dev/null 2>&1 || true;
-        echo "MinIO init: creating buckets via API";
-        until curl -sf http://minio:9000/minio/health/live; do sleep 1; done;
-        curl -sf -X PUT http://localhost:9000/imizi-public -H "Authorization: " || true;
-        echo "Buckets initialized"
+        mc alias set local http://minio:9000 imizi imizi_secret &&
+        mc mb --ignore-existing local/imizi-public &&
+        mc mb --ignore-existing local/imizi-private &&
+        mc anonymous set download local/imizi-public &&
+        echo "MinIO buckets initialized"
 
   prometheus:
     image: prom/prometheus:v2.50.0
@@ -105,6 +101,34 @@
     volumes:
       - grafanadata:/var/lib/grafana
 
+  db-migrate:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: imizi-db-migrate
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://imizi:imizi_dev@postgres:5432/imizi?schema=public
+    command: ["node", "packages/database/src/migrate.cjs"]
+
+  db-seed:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: imizi-db-seed
+    restart: "no"
+    profiles: ["seed"]
+    depends_on:
+      db-migrate:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_URL: postgresql://imizi:imizi_dev@postgres:5432/imizi?schema=public
+      SEED_PASSWORD: ${SEED_PASSWORD:-ChangeMeLocalOnly2026!}
+    command: ["node", "packages/database/src/seed.cjs"]
+
   api:
     build:
       context: .
@@ -119,6 +143,8 @@
         condition: service_healthy
       minio-init:
         condition: service_completed_successfully
+      db-migrate:
+        condition: service_completed_successfully
     env_file:
       - .env.example
     environment:
@@ -131,6 +157,33 @@
       MAPS_PROVIDER: catalog
     ports:
       - "4000:4000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:4000/health',(r)=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN:-}
+    container_name: imizi-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/',(r)=>process.exit(r.statusCode<500?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
 
 volumes:
   pgdata:
