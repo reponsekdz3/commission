@@ -33,6 +33,11 @@
         "executionId": "3764252c-6613-4a65-b18e-db2b2ce32161",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790764244893
+      },
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766385722
       }
     ],
     "2.2 Wait for PostgreSQL health": [
@@ -40,6 +45,11 @@
         "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790696274331
+      },
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766420423
       }
     ],
     "2.3 Wait for Redis health": [
@@ -47,6 +57,11 @@
         "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790696274736
+      },
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766421179
       }
     ],
     "2.4 Wait for OpenSearch health": [
@@ -54,6 +69,11 @@
         "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790696275292
+      },
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766421596
       }
     ],
     "2.5 Wait for MinIO health": [
@@ -61,6 +81,11 @@
         "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790696275596
+      },
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766422156
       }
     ],
     "3.1 Execute `npm install` at workspace root": [
@@ -78,6 +103,11 @@
         "executionId": "5ab52e24-20da-4c35-9f95-3f3f29d7f941",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790754846010
+      },
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766423037
       }
     ],
     "4.1 Rename `002_production_integrity.sql` to `002a_production_integrity.sql`": [
@@ -85,6 +115,11 @@
         "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790696276317
+      },
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766424445
       }
     ],
     "4.2 Rename `002_production_persistence.sql` to `002b_production_persistence.sql`": [
@@ -92,6 +127,11 @@
         "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790696276500
+      },
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766424718
       }
     ],
     "5.1 Run `npm run db:migrate` with DATABASE_URL set": [
@@ -190,6 +230,20 @@
         "executionId": "5ab52e24-20da-4c35-9f95-3f3f29d7f941",
         "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
         "timestamp": 1790754846563
+      }
+    ],
+    "2. Start Docker Compose infrastructure services": [
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766422454
+      }
+    ],
+    "4. Fix migration file naming conflict (rename 002_ files)": [
+      {
+        "executionId": "6ed76311-7e84-4000-9fda-1eb7ed0f4724",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790766425161
       }
     ]
   }

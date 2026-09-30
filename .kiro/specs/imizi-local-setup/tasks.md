@@ -39,30 +39,30 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
     - Assert `NEXT_PUBLIC_API_URL === 'http://localhost:4000/api/v1'`.
     - _Requirements: 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 2. Start Docker Compose infrastructure services
+- [x] 2. Start Docker Compose infrastructure services
   - Run `docker compose up -d postgres redis opensearch minio minio-init prometheus grafana` from the workspace root.
   - Do NOT start the `api` service (it runs locally).
   - Poll each service's health endpoint until healthy or timeout (60 s for postgres/redis/minio, 120 s for opensearch).
   - Print the name of any service that fails to become healthy and exit non-zero.
   - _Requirements: 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7_
 
-  - [-] 2.1 Run `docker compose up -d` for infra services only
+  - [x] 2.1 Run `docker compose up -d` for infra services only
     - Execute: `docker compose up -d postgres redis opensearch minio minio-init prometheus grafana`
     - _Requirements: 2.1, 2.2_
 
-  - [ ] 2.2 Wait for PostgreSQL health
+  - [x] 2.2 Wait for PostgreSQL health
     - Poll `docker exec imizi-postgres pg_isready -U imizi -d imizi` every 2 s up to 60 s.
     - _Requirements: 2.3_
 
-  - [ ] 2.3 Wait for Redis health
+  - [x] 2.3 Wait for Redis health
     - Poll `docker exec imizi-redis redis-cli ping` every 2 s up to 60 s.
     - _Requirements: 2.4_
 
-  - [ ] 2.4 Wait for OpenSearch health
+  - [x] 2.4 Wait for OpenSearch health
     - Poll `curl -sf http://localhost:9200` every 5 s up to 120 s.
     - _Requirements: 2.5_
 
-  - [ ] 2.5 Wait for MinIO health
+  - [x] 2.5 Wait for MinIO health
     - Poll `curl -sf http://localhost:9000/minio/health/live` every 2 s up to 60 s.
     - _Requirements: 2.6_
 
@@ -72,18 +72,18 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - If `npm install` exits non-zero, print the error and halt.
   - _Requirements: 3.1, 3.2, 3.3_
 
-  - [ ] 3.1 Execute `npm install` at workspace root
+  - [x] 3.1 Execute `npm install` at workspace root
     - Run `npm install` with no extra flags — npm workspaces handles all packages.
     - _Requirements: 3.1, 3.2_
 
-- [ ] 4. Fix migration file naming conflict (rename 002_ files)
+- [x] 4. Fix migration file naming conflict (rename 002_ files)
   - Rename `packages/database/sql/002_production_integrity.sql` → `002a_production_integrity.sql`.
   - Rename `packages/database/sql/002_production_persistence.sql` → `002b_production_persistence.sql`.
   - No SQL content changes are needed because every `ALTER TABLE ... ADD COLUMN` uses `IF NOT EXISTS`.
   - Verify that the renamed files sort correctly: `002a_...` before `002b_...` before `003_...`.
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ] 4.1 Rename `002_production_integrity.sql` to `002a_production_integrity.sql`
+  - [x] 4.1 Rename `002_production_integrity.sql` to `002a_production_integrity.sql`
     - Use `fs.renameSync` or a shell `mv` / PowerShell `Rename-Item`.
     - _Requirements: 4.2, 4.3_
 

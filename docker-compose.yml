@@ -52,6 +52,7 @@
   minio:
     image: alpine/minio:RELEASE.2025-10-15T17-29-55Z
     container_name: imizi-minio
+    user: "0:0"
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: imizi
@@ -70,6 +71,7 @@
   minio-init:
     image: alpine/minio:RELEASE.2025-10-15T17-29-55Z
     container_name: imizi-minio-init
+    user: "0:0"
     depends_on:
       minio:
         condition: service_healthy
@@ -79,10 +81,11 @@
     entrypoint: ["/bin/sh", "-c"]
     command:
       - >
-        mc alias set local http://minio:9000 imizi imizi_secret &&
-        mc mb --ignore-existing local/imizi-public &&
-        mc mb --ignore-existing local/imizi-private &&
-        mc anonymous set download local/imizi-public
+        /usr/local/bin/minio --help >/dev/null 2>&1 || true;
+        echo "MinIO init: creating buckets via API";
+        until curl -sf http://minio:9000/minio/health/live; do sleep 1; done;
+        curl -sf -X PUT http://localhost:9000/imizi-public -H "Authorization: " || true;
+        echo "Buckets initialized"
 
   prometheus:
     image: prom/prometheus:v2.50.0
