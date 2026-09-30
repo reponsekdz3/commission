@@ -41,7 +41,7 @@ async function upsertBatch(client, level, records) {
     const placeholders = [];
     for (let i = 0; i < chunk.length; i++) {
       const base = i * 6;
-      placeholders.push("(" + [1,2,3,4,5,6].map(n => "$" + (base + n)).join(",") + ",'NISR_2022'," + "$" + (base + 6) + "::jsonb)");
+      placeholders.push("($" + (base + 1) + ",$" + (base + 2) + ",$" + (base + 3) + ",$" + (base + 4) + ",$" + (base + 5) + ",'NISR_2022',$" + (base + 6) + "::jsonb)");
       values.push(level, String(chunk[i].code), chunk[i].parentId || null, String(chunk[i].name), norm(chunk[i].name), JSON.stringify(chunk[i].metadata || {}));
     }
     await client.query(

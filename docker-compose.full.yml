@@ -1,0 +1,117 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: imizi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: imizi
+      POSTGRES_PASSWORD: imizi_dev
+      POSTGRES_DB: imizi
+      POSTGRES_INITDB_ARGS: "-c shared_preload_libraries=pg_stat_statements"
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U imizi -d imizi"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks:
+      - imizi
+
+  redis:
+    image: redis:7-alpine
+    container_name: imizi-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    networks:
+      - imizi
+
+  migrations:
+    build:
+      context: .
+      dockerfile: infra/docker/migrations.Dockerfile
+    container_name: imizi-migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://imizi:[REDACTED]@postgres:5432/imizi?schema=public
+    networks:
+      - imizi
+    profiles:
+      - init
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+    container_name: imizi-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - .env.example
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://imizi:[REDACTED]@postgres:5432/imizi?schema=public
+      REDIS_URL: redis://redis:6379
+      API_URL: http://localhost:4000
+      NEXT_PUBLIC_API_URL: http://localhost:4000/api/v1
+    ports:
+      - "4000:4000"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:4000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - imizi
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/web.Dockerfile
+    container_name: imizi-web
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      NEXT_PUBLIC_API_URL: http://api:4000/api/v1
+      NEXT_PUBLIC_APP_URL: http://localhost:3000
+    ports:
+      - "3000:3000"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:3000"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    networks:
+      - imizi
+
+volumes:
+  pgdata:
+  redisdata:
+
+networks:
+  imizi:
+    driver: bridge

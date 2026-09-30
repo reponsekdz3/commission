@@ -5,11 +5,12 @@
   "description": "Imizi — Rwanda-first real estate marketplace, booking, payments, maps, messaging, and property operations platform.",
   "packageManager": "npm@11.13.0",
   "workspaces": [
+    "packages/*",
     "apps/api",
-    "apps/web",
-    "packages/*"
+    "apps/web"
   ],
   "scripts": {
+    "build:packages": "npm run build -w @imizi/types && npm run build -w @imizi/config && npm run build -w @imizi/auth && npm run build -w @imizi/database && npm run build -w @imizi/validation && npm run build -w @imizi/domain && npm run build -w @imizi/maps && npm run build -w @imizi/payments",
     "build": "npm run build --workspaces --if-present",
     "lint": "npm run lint --workspaces --if-present",
     "typecheck": "npm run typecheck --workspaces --if-present",
