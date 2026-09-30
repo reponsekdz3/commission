@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 620" role="img" aria-labelledby="title desc">
+<title id="title">Imizi Rwanda real-estate platform</title><desc id="desc">A visual banner showing the Imizi brand, discovery, map, booking, payment, messaging and property operations.</desc>
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#07100D"/><stop offset=".55" stop-color="#0E3B2D"/><stop offset="1" stop-color="#0E9F6E"/></linearGradient>
+<linearGradient id="glow" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#34D399" stop-opacity=".9"/><stop offset="1" stop-color="#FBBF24" stop-opacity=".85"/></linearGradient>
+<filter id="shadow"><feDropShadow dx="0" dy="18" stdDeviation="20" flood-color="#000" flood-opacity=".25"/></filter>
+</defs>
+<rect width="1600" height="620" rx="42" fill="url(#bg)"/>
+<circle cx="1290" cy="90" r="180" fill="#34D399" opacity=".08"/>
+<circle cx="1450" cy="500" r="260" fill="#FBBF24" opacity=".08"/>
+<path d="M0 520 C340 430 550 640 900 490 C1180 370 1350 480 1600 350 L1600 620 L0 620Z" fill="#05100D" opacity=".45"/>
+<g transform="translate(90 80)">
+<text x="0" y="48" fill="#9FF2D0" font-family="Arial,Helvetica,sans-serif" font-size="22" font-weight="700" letter-spacing="4">RWANDA · PROPERTY · PLATFORM</text>
+<text x="0" y="126" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="78" font-weight="800">IMIZI</text>
+<text x="0" y="184" fill="#D9F8EC" font-family="Arial,Helvetica,sans-serif" font-size="32" font-weight="600">Discover. View. Book. Pay. Manage.</text>
+<text x="0" y="236" fill="#B8D8CC" font-family="Arial,Helvetica,sans-serif" font-size="20">A connected web + mobile real-estate experience built around real</text>
+<text x="0" y="268" fill="#B8D8CC" font-family="Arial,Helvetica,sans-serif" font-size="20">property, location, transaction, messaging and operations foundations.</text>
+<g transform="translate(0 320)">
+<g transform="translate(0 0)"><rect width="224" height="58" rx="16" fill="#FFFFFF" opacity=".11" stroke="#FFFFFF" stroke-opacity=".14"/><circle cx="24" cy="29" r="8" fill="#34D399"/><text x="46" y="24" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="800">SEARCH</text><text x="46" y="43" fill="#B8D8CC" font-family="Arial,Helvetica,sans-serif" font-size="12">Live inventory</text></g><g transform="translate(250 0)"><rect width="224" height="58" rx="16" fill="#FFFFFF" opacity=".11" stroke="#FFFFFF" stroke-opacity=".14"/><circle cx="24" cy="29" r="8" fill="#34D399"/><text x="46" y="24" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="800">MAP</text><text x="46" y="43" fill="#B8D8CC" font-family="Arial,Helvetica,sans-serif" font-size="12">Geospatial discovery</text></g><g transform="translate(500 0)"><rect width="224" height="58" rx="16" fill="#FFFFFF" opacity=".11" stroke="#FFFFFF" stroke-opacity=".14"/><circle cx="24" cy="29" r="8" fill="#34D399"/><text x="46" y="24" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="800">BOOK</text><text x="46" y="43" fill="#B8D8CC" font-family="Arial,Helvetica,sans-serif" font-size="12">Viewings & bookings</text></g><g transform="translate(0 78)"><rect width="224" height="58" rx="16" fill="#FFFFFF" opacity=".11" stroke="#FFFFFF" stroke-opacity=".14"/><circle cx="24" cy="29" r="8" fill="#34D399"/><text x="46" y="24" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="800">PAY</text><text x="46" y="43" fill="#B8D8CC" font-family="Arial,Helvetica,sans-serif" font-size="12">Payment flows</text></g><g transform="translate(250 78)"><rect width="224" height="58" rx="16" fill="#FFFFFF" opacity=".11" stroke="#FFFFFF" stroke-opacity=".14"/><circle cx="24" cy="29" r="8" fill="#34D399"/><text x="46" y="24" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="800">CHAT</text><text x="46" y="43" fill="#B8D8CC" font-family="Arial,Helvetica,sans-serif" font-size="12">Realtime messaging</text></g><g transform="translate(500 78)"><rect width="224" height="58" rx="16" fill="#FFFFFF" opacity=".11" stroke="#FFFFFF" stroke-opacity=".14"/><circle cx="24" cy="29" r="8" fill="#34D399"/><text x="46" y="24" fill="#FFFFFF" font-family="Arial,Helvetica,sans-serif" font-size="13" font-weight="800">MANAGE</text><text x="46" y="43" fill="#B8D8CC" font-family="Arial,Helvetica,sans-serif" font-size="12">Portfolio operations</text></g>
+</g>
+</g>
+<g transform="translate(1085 90)" filter="url(#shadow)">
+<rect width="390" height="420" rx="32" fill="#0D1A16" stroke="#6EE7B7" stroke-opacity=".22"/>
+<rect x="24" y="24" width="342" height="48" rx="14" fill="#11251E"/>
+<circle cx="48" cy="48" r="6" fill="#34D399"/>
+<rect x="68" y="41" width="160" height="14" rx="7" fill="#7FB7A3" opacity=".45"/>
+<rect x="24" y="96" width="342" height="140" rx="22" fill="#173127"/>
+<path d="M40 214 C95 160 122 196 165 145 C220 80 240 196 286 130 C318 87 338 127 354 106" fill="none" stroke="url(#glow)" stroke-width="8" stroke-linecap="round"/>
+<g transform="translate(24 260)">
+<rect width="105" height="126" rx="18" fill="#12271F"/><rect width="105" height="68" rx="18" fill="#1D3E31"/>
+<circle cx="22" cy="90" r="9" fill="#34D399"/><rect x="40" y="84" width="44" height="10" rx="5" fill="#93BFB0" opacity=".55"/>
+<rect x="0" y="144" width="105" height="8" rx="4" fill="#34D399" opacity=".45"/>
+</g>
+<g transform="translate(142 260)">
+<rect width="105" height="126" rx="18" fill="#12271F"/><rect width="105" height="68" rx="18" fill="#1D3E31"/>
+<circle cx="22" cy="90" r="9" fill="#FBBF24"/><rect x="40" y="84" width="44" height="10" rx="5" fill="#93BFB0" opacity=".55"/>
+<rect x="0" y="144" width="105" height="8" rx="4" fill="#FBBF24" opacity=".55"/>
+</g>
+<g transform="translate(260 260)">
+<rect width="105" height="126" rx="18" fill="#12271F"/><rect width="105" height="68" rx="18" fill="#1D3E31"/>
+<circle cx="22" cy="90" r="9" fill="#34D399"/><rect x="40" y="84" width="44" height="10" rx="5" fill="#93BFB0" opacity=".55"/>
+<rect x="0" y="144" width="105" height="8" rx="4" fill="#34D399" opacity=".45"/>
+</g>
+</g>
+</g>
+</svg>
