@@ -1,14 +1,177 @@
-import Link from "next/link";import{AppImage}from"../components/app-image";import{api,formatRwf}from"../lib/api";export const dynamic="force-dynamic";
-type R={items:any[]};
-export default async function Home(){let data:R={items:[]};try{data=await api<R>("/search?listingType=RENT&limit=8")}catch{}let districts:{id:string;name:string}[]=[];try{districts=await api<{id:string;name:string}[]>("/locations/rwanda?level=DISTRICT")}catch{}
-return <main>
-<section className="wrap hero"><div className="eyebrow">Rwanda-first property marketplace</div><h1>Find a place that fits your life.</h1><p className="lead">Search verified homes, land and commercial spaces. Book viewings, make offers, pay securely and manage your property from one connected platform.</p>
-<form className="searchbox heroSearch" action="/search"><input className="field" name="q" placeholder="Try “3 bedroom near Kigali CBD”" aria-label="Search properties"/><select className="field" name="listingType" defaultValue="RENT"><option value="RENT">Rent</option><option value="SALE">Buy</option><option value="SHORT_STAY">Short stay</option></select><select className="field" name="verifiedOnly" defaultValue=""><option value="">Any listing</option><option value="true">Verified only</option></select><button className="btn">Search <span aria-hidden>→</span></button></form>
-<div className="quickActions"><Link href="/map" className="quickAction"><span>⌖</span><b>Explore map</b><small>Browse by location</small></Link><Link href="/compare" className="quickAction"><span>⇄</span><b>Compare homes</b><small>Decide with confidence</small></Link><Link href="/saved-searches" className="quickAction"><span>♡</span><b>Saved searches</b><small>Get new-match alerts</small></Link><Link href="/manage" className="quickAction accent"><span>＋</span><b>List property</b><small>Reach serious seekers</small></Link></div>
-<div className="chipRow" style={{marginTop:16}}>{["Rent","Buy","Short stay","Land","Commercial"].map((x,i)=><Link href={"/search?"+(i===0?"listingType=RENT":i===1?"listingType=SALE":i===2?"listingType=SHORT_STAY":"propertyType="+encodeURIComponent(x==="Land"?"LAND":"SHOP"))} className={i===0?"chip active":"chip"} key={x}>{x}</Link>)}</div>
-<div className="heroStats"><span>✓ <strong>Verified listings</strong></span><span>⌖ <strong>Map search</strong></span><span>↗ <strong>Real booking & payments</strong></span><span>◉ <strong>RWF native</strong></span></div></section>
-<section className="wrap section"><div className="sectionLabel"><div><div className="eyebrow">Explore Rwanda</div><h2>Search by district</h2><p className="muted">Jump directly into live inventory backed by the location service.</p></div><Link href="/map" className="btn ghost">Open live map →</Link></div><div className="districtRail">{districts.slice(0,18).map(x=><Link className="districtCard" href={"/search?district="+encodeURIComponent(x.name)} key={x.id}><span>◎</span><b>{x.name}</b><small>View properties</small></Link>)}</div></section>
-<section className="wrap section"><div className="sectionHead"><div><div className="eyebrow">Live inventory</div><h2>Featured homes</h2><div className="muted">Real results returned by the backend search engine.</div></div><Link href="/search" className="btn ghost">View all listings</Link></div><div className="grid">{data.items.map((x:any)=><Link className="card" href={"/properties/"+x.property.id} key={x.listing.id}>{x.property.media?.[0]?.url?<AppImage className="cardImg" src={x.property.media[0].url} alt={x.property.title} width={640} height={420} sizes="(max-width: 768px) 100vw, 25vw"/>:<div className="cardImg mediaEmpty">Media unavailable</div>}<div className="cardBody"><span className="pill">{x.property.verificationStatus==="VERIFIED"?"Verified":"Listed"}</span><div style={{fontWeight:800,marginTop:10}}>{x.property.title}</div><div className="meta">{x.property.district} · {x.property.bedrooms??"—"} bd · {x.property.bathrooms??"—"} ba</div><div className="price">{formatRwf(x.listing.priceMinor)}{x.listing.listingType==="RENT"?"/mo":""}</div></div></Link>)}</div>{!data.items.length&&<div className="empty" style={{marginTop:20}}><h3>No live listings yet</h3><p>The live backend currently returned no published active inventory.</p><Link className="btn" href="/manage">Manage inventory</Link></div>}</section>
-<section className="wrap section"><div className="two"><div className="panel featurePanel"><div className="eyebrow">For seekers</div><h2>From discovery to keys.</h2><p className="muted">Search, compare, save, message owners, request a viewing, book and pay without losing the property context.</p><div className="featureSteps"><span>01 Discover</span><span>02 View</span><span>03 Book</span><span>04 Pay</span></div><div className="actions"><Link className="btn" href="/search">Start exploring</Link><Link className="btn ghost" href="/messages">Message owners</Link></div></div><div className="panel featurePanel owner"><div className="eyebrow">For owners</div><h2>Operate your portfolio.</h2><p className="muted">Create listings, publish when eligible, track bookings, leases, maintenance, payments and performance from the workspace.</p><div className="featureSteps"><span>01 List</span><span>02 Verify</span><span>03 Transact</span><span>04 Manage</span></div><div className="actions"><Link className="btn" href="/dashboard">Open dashboard</Link><Link className="btn ghost" href="/manage">List a property</Link></div></div></div></section>
-<section className="wrap trustPanel"><div><div className="eyebrow">One connected platform</div><h2>Discovery, transactions and operations share the same account and backend.</h2></div><div className="trustItems"><span>Search + maps</span><span>Bookings</span><span>Payments</span><span>Messaging</span><span>Portfolio analytics</span></div></section>
-<footer className="wrap footer"><strong>IMIZI</strong> · Property discovery, transactions and operations · Rwanda · <Link href="/legal">Legal & privacy</Link></footer></main>}
+import Link from "next/link";
+import { Search, MapPinned, Heart, Plus, ShieldCheck, ArrowUpRight, Building2, KeyRound, CreditCard, MessageCircle, Sparkles, ChevronRight } from "lucide-react";
+import { AppImage } from "../components/app-image";
+import { api, formatRwf } from "../lib/api";
+
+export const dynamic = "force-dynamic";
+
+type Listing = {
+  listing: { id: string; priceMinor: number; listingType: string };
+  property: {
+    id: string;
+    title: string;
+    district?: string;
+    bedrooms?: number;
+    bathrooms?: number;
+    verificationStatus?: string;
+    media?: { url: string }[];
+  };
+};
+
+type District = { id: string; name: string };
+
+export default async function Home() {
+  let data: { items: Listing[] } = { items: [] };
+  let districts: District[] = [];
+  try { data = await api<{ items: Listing[] }>("/search?listingType=RENT&limit=8"); } catch {}
+  try { districts = await api<District[]>("/locations/rwanda?level=DISTRICT"); } catch {}
+
+  const liveCount = data.items.length;
+  const featured = data.items.slice(0, 4);
+  const locationCards = districts.slice(0, 12);
+
+  return (
+    <main className="homePage">
+      <section className="homeHero">
+        <div className="heroGlow heroGlowOne" />
+        <div className="heroGlow heroGlowTwo" />
+        <div className="wrap heroGrid">
+          <div className="heroCopy">
+            <div className="eyebrow heroEyebrow"><span className="statusDot" /> Rwanda property, connected</div>
+            <h1>Find the <span>right place</span>. Then do everything from one account.</h1>
+            <p className="lead">
+              Discover homes, land and commercial property across Rwanda. Search by location, compare listings,
+              message owners, request viewings, book and pay securely.
+            </p>
+
+            <form className="heroSearchCard" action="/search">
+              <div className="heroSearchInput">
+                <Search size={19} />
+                <input name="q" placeholder="Search Kigali, house, 3 bedrooms…" aria-label="Search properties" />
+              </div>
+              <select name="listingType" defaultValue="RENT" aria-label="Listing type">
+                <option value="RENT">Rent</option>
+                <option value="SALE">Buy</option>
+                <option value="SHORT_STAY">Short stay</option>
+              </select>
+              <button className="heroSearchButton" type="submit"><Search size={18} /> Search</button>
+            </form>
+
+            <div className="heroQuickLinks">
+              <Link href="/search?listingType=RENT" className="heroQuick active">Rent</Link>
+              <Link href="/search?listingType=SALE" className="heroQuick">Buy</Link>
+              <Link href="/search?listingType=SHORT_STAY" className="heroQuick">Short stay</Link>
+              <Link href="/search?propertyType=LAND" className="heroQuick">Land</Link>
+              <Link href="/search?propertyType=SHOP" className="heroQuick">Commercial</Link>
+            </div>
+
+            <div className="heroProof">
+              <div><ShieldCheck size={16} /><span><b>Verification</b><small>Built into listings</small></span></div>
+              <div><MapPinned size={16} /><span><b>Map-first</b><small>Search by area</small></span></div>
+              <div><CreditCard size={16} /><span><b>RWF ready</b><small>Payments connected</small></span></div>
+            </div>
+          </div>
+
+          <div className="heroProductCard">
+            <div className="productChrome">
+              <div className="chromeDots"><i /><i /><i /></div>
+              <span>IMIZI / LIVE MARKET</span>
+              <span className="liveBadge"><span className="statusDot" /> Live</span>
+            </div>
+            <div className="marketVisual">
+              <div className="visualMap">
+                <div className="mapGrid" />
+                <div className="mapRoad roadA" /><div className="mapRoad roadB" /><div className="mapRoad roadC" />
+                <span className="mapPin pin1" /><span className="mapPin pin2" /><span className="mapPin pin3" /><span className="mapPin pin4" />
+                <div className="mapFloating"><MapPinned size={15} /><b>Explore Rwanda</b><small>Map + live listings</small></div>
+              </div>
+              <div className="visualSide">
+                <div className="miniStat"><small>Live results</small><strong>{liveCount || "—"}</strong><span>backend search</span></div>
+                <div className="miniStat"><small>Currency</small><strong>RWF</strong><span>Rwanda native</span></div>
+                <div className="miniAction"><Sparkles size={16} /><b>Smart discovery</b><span>Location · price · availability</span></div>
+              </div>
+            </div>
+            <div className="productFooter">
+              <span><ShieldCheck size={15} /> Verification</span>
+              <span><MessageCircle size={15} /> Messaging</span>
+              <span><CreditCard size={15} /> Payments</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="wrap capabilityStrip">
+        <Link href="/search" className="capability"><span className="capIcon"><Search size={18} /></span><span><b>Discover</b><small>Powerful filters & search</small></span><ChevronRight size={16} /></Link>
+        <Link href="/map" className="capability"><span className="capIcon"><MapPinned size={18} /></span><span><b>Explore on map</b><small>Location-aware inventory</small></span><ChevronRight size={16} /></Link>
+        <Link href="/messages" className="capability"><span className="capIcon"><MessageCircle size={18} /></span><span><b>Talk directly</b><small>Owner & agent messaging</small></span><ChevronRight size={16} /></Link>
+        <Link href="/manage" className="capability"><span className="capIcon accent"><Plus size={18} /></span><span><b>List property</b><small>Manage your portfolio</small></span><ChevronRight size={16} /></Link>
+      </section>
+
+      <section className="wrap section homeSection">
+        <div className="sectionHeadingModern">
+          <div><div className="eyebrow">Rwanda at a glance</div><h2>Start with a location.</h2><p className="muted">Jump into the real location hierarchy used by the platform.</p></div>
+          <Link href="/map" className="textLink">Open live map <ArrowUpRight size={16} /></Link>
+        </div>
+        <div className="locationGrid">
+          {locationCards.map((district, index) => (
+            <Link href={"/search?district=" + encodeURIComponent(district.name)} className="locationCard" key={district.id}>
+              <span className="locationIndex">{String(index + 1).padStart(2, "0")}</span>
+              <span><b>{district.name}</b><small>Explore listings</small></span>
+              <ArrowUpRight size={15} />
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      <section className="wrap section homeSection">
+        <div className="sectionHeadingModern">
+          <div><div className="eyebrow">Live inventory</div><h2>Homes people can act on.</h2><p className="muted">These cards are rendered from the backend search service, not hard-coded demo records.</p></div>
+          <Link href="/search" className="textLink">View all <ArrowUpRight size={16} /></Link>
+        </div>
+        {featured.length ? (
+          <div className="modernPropertyGrid">
+            {featured.map((item) => (
+              <Link className="modernPropertyCard" href={"/properties/" + item.property.id} key={item.listing.id}>
+                <div className="modernPropertyMedia">
+                  {item.property.media?.[0]?.url
+                    ? <AppImage className="cardImg" src={item.property.media[0].url} alt={item.property.title} width={720} height={480} sizes="(max-width: 900px) 50vw, 25vw" />
+                    : <div className="mediaGradient"><Building2 size={32} /><span>Property media</span></div>}
+                  <span className="propertyTypeBadge">{item.property.verificationStatus === "VERIFIED" ? "Verified" : "Published"}</span>
+                  <span className="propertySave"><Heart size={16} /></span>
+                </div>
+                <div className="modernPropertyBody">
+                  <div className="propertyLocation"><MapPinned size={13} /> {item.property.district || "Rwanda"}</div>
+                  <h3>{item.property.title}</h3>
+                  <div className="propertyMeta"><span>{item.property.bedrooms ?? "—"} beds</span><span>{item.property.bathrooms ?? "—"} baths</span><span>{item.listing.listingType === "RENT" ? "Monthly" : "For sale"}</span></div>
+                  <div className="propertyBottom"><strong>{formatRwf(item.listing.priceMinor)}</strong><ArrowUpRight size={17} /></div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <div className="empty modernEmpty"><Building2 size={30} /><h3>Inventory is ready for your first listings.</h3><p>The backend is connected, but it currently returned no published active rental inventory.</p><Link className="btn" href="/manage"><Plus size={16} /> Create a listing</Link></div>
+        )}
+      </section>
+
+      <section className="wrap section homeSection">
+        <div className="workflowHeader">
+          <div><div className="eyebrow">One connected workflow</div><h2>From search to keys.</h2></div>
+          <p className="muted">Every step is designed around the same property, user and transaction context.</p>
+        </div>
+        <div className="workflowGrid">
+          <Link href="/search" className="workflowCard"><span>01</span><Search size={21} /><h3>Discover</h3><p>Filter by listing type, price, location, amenities and availability.</p></Link>
+          <Link href="/compare" className="workflowCard"><span>02</span><Heart size={21} /><h3>Compare</h3><p>Save properties, compare options and keep your shortlist organized.</p></Link>
+          <Link href="/messages" className="workflowCard"><span>03</span><MessageCircle size={21} /><h3>Connect</h3><p>Message owners and agents and keep conversations tied to real listings.</p></Link>
+          <Link href="/bookings" className="workflowCard"><span>04</span><KeyRound size={21} /><h3>Book & pay</h3><p>Move from booking intent into connected payment and confirmation flows.</p></Link>
+        </div>
+      </section>
+
+      <section className="wrap ownerBanner">
+        <div><div className="eyebrow">For owners, landlords & agencies</div><h2>Turn property into an operating workspace.</h2><p>List, verify, publish, track bookings, leases, maintenance and payments from the same platform.</p></div>
+        <div className="ownerActions"><Link href="/manage" className="btn"><Plus size={17} /> List a property</Link><Link href="/dashboard" className="btn ghost">Open workspace <ArrowUpRight size={16} /></Link></div>
+      </section>
+
+      <footer className="wrap footer modernFooter"><div><strong>IMIZI</strong><span>Rwanda property marketplace</span></div><div><Link href="/legal">Legal & privacy</Link><Link href="/search">Discover</Link><Link href="/map">Map</Link></div></footer>
+    </main>
+  );
+}
