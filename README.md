@@ -1,193 +1,239 @@
 # Imizi
 
-Imizi is a Rwanda-first real-estate marketplace and property-operations platform implemented in this repository.
+Imizi is a Rwanda-first real-estate marketplace and property-operations platform for discovering, listing, viewing, booking, paying for, communicating about, and managing property.
 
-**Repository truth:** this README documents behavior that is represented by checked-in code and persistent data models. It deliberately does not describe planned features as working features. External provider credentials and infrastructure are required for provider-backed behavior.
+> **Repository truth rule:** this README documents behavior represented by checked-in code and data models. External provider-backed behavior is only live when its credentials, callbacks, storage, maps, notifications, and deployment infrastructure are configured. Features that are not implemented end-to-end are called out explicitly instead of being presented as working.
 
-## Stack
+## Product surface
 
-- **API:** NestJS + TypeScript, REST under `/api/v1`, authenticated Socket.IO namespace `/realtime`.
-- **Web:** Next.js 15 + React 19.
-- **Mobile:** Expo 57 + React Native 0.86 + Expo Router.
-- **Database:** PostgreSQL + PostGIS, pgcrypto, btree_gist and citext.
-- **Search:** PostgreSQL-backed search with OpenSearch indexing/fallback paths.
-- **Object storage:** S3-compatible storage using presigned uploads/downloads.
-- **Background processing:** PostgreSQL-backed durable job queue.
-- **Payments:** MTN MoMo and Flutterwave provider integrations.
-- **Notifications:** in-app notifications plus optional Expo Push, email and SMS jobs.
-- **Security:** JWT access/refresh sessions, MFA/re-authentication paths, throttling, RBAC/object-level authorization, audit records and upload malware-scanning hooks.
+Imizi connects the property journey in one account:
 
-## What is actually functional
+**Discover → Search → Map → Compare → Save → Message → View → Book → Pay → Manage**
 
-### Authentication and accounts
+### Customer experience
 
-Implemented API flows include:
+The web and mobile clients provide:
 
-- registration and login
-- access/refresh token sessions and revocation
-- MFA configuration/verification paths
-- role-based authorization
-- property/organization object-level access checks
-- profile and privacy operations
-- push-token registration and notification preferences
-- audit records
+- Rent, Buy/Sale, and Short-stay discovery
+- Property search with structured filters
+- Rwanda location-aware search
+- Map-based property discovery
+- Radius/bounds search and polygon/drawn-area search foundations
+- Saved properties and saved searches
+- Property comparison
+- Rich property detail pages
+- Gallery/media presentation
+- Video walkthrough playback
+- 360 panorama viewing
+- Verification/status indicators
+- Viewing and booking flows
+- Offers for sale listings
+- Payments and payment-intent flows
+- Realtime messaging
+- Private message attachments
+- Notifications
+- Customer/account/security settings
+- Owner/landlord portfolio operations
+- Listings and property management
+- Booking, lease and maintenance surfaces
+- Administrative/moderation/verification surfaces for authorized roles
 
-The web client uses authenticated API transport with refresh handling. Mobile stores its session credentials with Expo SecureStore.
+### Web UI
 
-### Property and listing lifecycle
+The Next.js application is organized around a responsive marketplace shell with:
 
-The backend persists:
+- sticky glass navigation
+- icon-assisted discovery/navigation
+- rich search hero
+- quick-action command cards
+- district discovery rail
+- responsive property cards
+- save / compare / share actions
+- media counts and verification cues
+- map/list split search experience
+- animated/revealed content where appropriate
+- dark/light theme support
+- command palette and keyboard-oriented navigation
+- notification and account menus
+- responsive mobile navigation
+- dashboard analytics and workspace views
+- accessible focus states and reduced-motion handling
 
-- properties and units
-- Rwanda location hierarchy and PostGIS coordinates
-- amenities and structured property features
-- rent, sale and short-stay listings
-- prices and availability
-- verification/risk state
-- favorites and saved searches
-- property view analytics
+### Mobile UI
 
-The web inventory studio creates real property/listing records and calls the backend publish flow. It does not generate fake inventory.
+The Expo application uses a native-first interaction model with:
 
-### Search and maps
+- blurred interactive tab bar
+- haptic feedback for important interactions
+- live search and marketplace home
+- quick entry points for map, saved properties, bookings and listing creation
+- native map and marker interactions
+- map/list bottom-sheet search
+- drawn search areas
+- saved searches
+- property detail and media
+- booking/payment screens
+- conversations and notifications
+- owner/management screens
+- theme switching
+- secure session persistence
 
-The search API supports filtering by:
+## Architecture
+
+The repository is a modular monolith with shared packages.
+
+| Layer | Technology |
+| --- | --- |
+| Web | Next.js 15, React 19, TypeScript |
+| Mobile | Expo 57, React Native 0.86, Expo Router |
+| API | NestJS + TypeScript |
+| Database | PostgreSQL + PostGIS |
+| Search | PostgreSQL search with OpenSearch integration/fallback |
+| Realtime | Socket.IO |
+| Cache/infra | Redis where enabled |
+| Object storage | S3-compatible storage / MinIO |
+| Payments | MTN MoMo + Flutterwave integrations |
+| Maps | Map provider abstraction; Mapbox on web where configured |
+| Background work | PostgreSQL-backed durable jobs / workers |
+| Observability | Prometheus/Grafana foundations and application telemetry |
+| CI | GitHub Actions |
+
+The production architecture intentionally keeps the domain logic in one deployable backend while using clear module boundaries for auth, property, listing, search, maps, booking, payments, messaging, notifications, verification, analytics and administration.
+
+## Domain foundations
+
+Important domain separations already represented in the repository include:
+
+- **Property** — the underlying real-world asset.
+- **Unit** — a rentable/sellable unit of a property where applicable.
+- **Listing** — the commercial offer for rent, sale or short stay.
+- **Media** — photos, video, 360 scenes and other property assets.
+- **Location** — canonical Rwanda administrative hierarchy plus coordinates.
+- **Booking** — persistent transaction state for a unit/listing.
+- **Offer** — buyer/seller negotiation state for sale flows.
+- **Payment intent / event / ledger** — transaction and accounting records.
+- **Conversation / message / attachment** — persistent communications.
+- **Verification / risk / audit** — trust and administrative controls.
+- **Lease / maintenance / notifications / analytics** — ongoing property operations.
+
+## Rwanda localization
+
+Property creation and search use canonical Rwanda administrative records:
+
+**Province → District → Sector → Cell → Village**
+
+The database stores the hierarchy rather than trusting client-entered labels. Parent/child integrity is checked when a property is written.
+
+The location APIs are shared by the web and mobile clients so the same canonical records can be used for forms, filtering and map-oriented discovery.
+
+## Search and maps
+
+The search layer supports the main marketplace dimensions:
 
 - listing type
 - property type
-- Rwanda administrative location fields
-- bedrooms/bathrooms
-- price/currency
+- district/sector and Rwanda location fields
+- bedroom/bathroom counts
+- price
 - amenities
-- geographic radius/bounding box
 - verification
 - availability
+- geographic bounds/radius
+- polygon/drawn search areas where supported by the client
 
-Map and nearby endpoints use persisted coordinates. Web and mobile property screens display real coordinates returned by the API.
+The search service is resilient to an unavailable or empty OpenSearch result set by retaining PostgreSQL/PostGIS fallback behavior. Returned property media is hydrated from persisted media records.
 
-### Bookings and viewings
+## Transactions
 
-Implemented transaction flow includes:
+### Booking flow
 
-1. listing selection
-2. availability/quote calculation
-3. persistent booking creation
-4. idempotency protection
-5. payment-intent creation
-6. payment lifecycle/webhook processing
-7. booking expiry/activation/completion background jobs
-8. viewing-slot discovery and viewing requests
+The repository models a persistent booking lifecycle around:
 
-The database has an exclusion constraint to prevent overlapping active bookings for the same unit/listing.
+**PENDING → PAYMENT_PENDING → CONFIRMED → ACTIVE → COMPLETED**
 
-### Offers and payments
+with expiry/activation/completion jobs and idempotency protections.
 
-Sale listings support:
+The database also protects against overlapping active bookings for the same constrained unit/listing combination.
 
-- buyer offers
-- seller accept/reject/counter
-- buyer withdrawal
-- ownership checks
-- persisted payment intents
-- provider references/events
+### Payments
+
+The payment layer contains provider abstractions and persistence for:
+
+- payment intents
+- provider references
+- provider events
+- confirmation/webhooks
 - refunds
-- platform ledger entries
+- ledger entries
 
-**Real payment caveat:** MTN MoMo and Flutterwave calls only become live transactions after their production credentials, callback/webhook configuration and provider-side account setup are supplied.
+> Live payment processing still requires real provider credentials, merchant configuration, secure callback/webhook configuration and staging/production verification.
 
-### Messaging and realtime
+## Messaging
 
-Messaging is persisted in PostgreSQL and is available from web and mobile.
+Messaging is persisted and available from the web/mobile surfaces.
 
-Implemented:
+Implemented foundations include:
 
-- conversation creation linked to property/booking/offer context
+- property/booking/offer conversation context
 - membership authorization
 - message history
-- send/read state
+- read state
 - authenticated Socket.IO connections
-- conversation-room authorization
-- typing events
-- realtime message delivery
-- push/in-app notification hooks for new messages
+- authorized conversation rooms
+- typing/realtime events
+- notification hooks
+- private attachments through S3-compatible storage
 
-#### Message attachments
+The repository does **not** currently claim end-to-end encrypted chat or native voice/video calling.
 
-Messages now support a real private object-storage attachment pipeline:
+## Media
 
-1. authenticated client requests a presigned upload URL
-2. file uploads directly to S3-compatible storage
-3. API verifies the uploaded object and records metadata
-4. attachment IDs are bound to the persisted message
-5. authorized conversation members receive short-lived download URLs
+Property media is designed around direct object-storage uploads instead of routing large files through the API process.
 
-Allowed attachment types are restricted to common images, video, audio, PDF and plain text. The API limits message attachments to **50 MB per file** and up to **10 attachments per message**.
+Supported concepts include:
 
-The storage path is private; attachments are not exposed as permanent public URLs.
+- photos
+- MP4 walkthrough videos
+- 360 equirectangular panoramas
+- floor-plan media at the persistence/application level
+- private message attachments
 
-The current repository does **not** claim end-to-end encrypted messaging or native voice/video calling.
+Photo/video processing can create optimized variants/posters when the required worker tools are installed.
 
-### Property media uploads
+### 360 viewer boundary
 
-Property owners/managers can upload:
+The immersive feature is a genuine 360/equirectangular panorama viewer.
 
-- JPEG/PNG/WebP photos
-- MP4 video walkthroughs
-- 360 panorama images
-- floor-plan media at the database/application level
+It is **not** a claim of:
 
-The upload flow uses presigned S3-compatible PUT requests. The API records completed media and queues background processing.
+- photogrammetry
+- LiDAR room reconstruction
+- Matterport-compatible scans
+- arbitrary 3D mesh generation
+- WebXR VR
+- automatic phone-camera room reconstruction
 
-For photos, the worker can create WebP size variants and posters.
+Those require additional capture and rendering pipelines.
 
-For MP4 video, the worker can create a 720p H.264/AAC optimized copy and a poster frame.
+## Authentication and authorization
 
-Uploaded media is passed through the configured malware-scanning hook before processing. ClamAV is optional at configuration level; deployments that require mandatory antivirus scanning must provide it.
+The backend includes foundations for:
 
-### Property walkthroughs and 360 viewing
+- registration/login
+- access/refresh sessions
+- revocation
+- MFA/re-authentication paths
+- role-based access control
+- object-level authorization
+- audit records
+- privacy/account operations
+- push-token registration
 
-The repository supports two different immersive media concepts and does not conflate them:
+Supported domain roles include administrative, verification, finance, agency, agent, property management, landlord/seller and customer-facing roles.
 
-**Walkthrough video**
-- Real uploaded MP4 video is rendered with native browser/mobile video controls.
-- The backend processes an optimized video variant when ImageMagick/FFmpeg are available in the worker environment.
+## Web routes and surfaces
 
-**360 panorama tour**
-- A listing can contain multiple `TOUR_360` scenes.
-- The web client uses a WebGL renderer that maps the uploaded equirectangular panorama onto an inside-facing sphere.
-- Users can drag to look around, change pitch/yaw, zoom the camera field of view and enter fullscreen.
-- Multiple uploaded rooms/scenes can be selected without inventing imagery.
-- Mobile provides an interactive panorama scene viewer with swipe navigation.
-
-**Important limitation:** this is a real 360/equirectangular panorama viewer, not a photogrammetry reconstruction, LiDAR mesh, Matterport-compatible scan or full WebXR VR system. A true 3D room mesh requires compatible 3D assets and an additional model-processing/rendering pipeline that is not claimed here.
-
-### Documents and verification
-
-Private property documents support:
-
-- presigned private uploads
-- metadata persistence
-- expiry dates
-- authorized downloads
-- verification decisions by authorized verification roles
-
-### Property operations
-
-The backend contains implemented flows for:
-
-- rental agreements/leases
-- maintenance requests
-- notifications
-- analytics
-- agencies and organization membership
-- moderation/reporting
-- verification queues
-- privacy export/account deletion scheduling
-- recommendations based on persisted interaction data
-
-## Web application
-
-The web application contains routes for:
+The web application includes the major marketplace and operations surfaces for:
 
 - home/discovery
 - search
@@ -195,9 +241,11 @@ The web application contains routes for:
 - property detail
 - compare
 - favorites
-- messaging
+- saved searches
+- messages
 - bookings
 - offers
+- payments
 - notifications
 - leases
 - maintenance
@@ -206,114 +254,64 @@ The web application contains routes for:
 - administration
 - legal/privacy
 
-The property detail page consumes API-returned property data, media, listings, location and transaction information. It renders uploaded walkthrough videos and `TOUR_360` scenes when those assets exist.
+Existing route structure is preserved; UI improvements are layered onto the existing foundations rather than replacing the application's domain navigation.
 
-The inventory page contains the property/listing creation flow and direct property-media upload UI.
+## Mobile routes and surfaces
 
-The messages page supports authenticated conversation history, sending and private attachment upload/download.
+The Expo application includes screens for:
 
-## Mobile application
-
-The Expo application contains:
-
-- authentication/session persistence
-- property discovery/search
+- authentication
+- tabs/home/search/saved/messages/profile
+- map
 - property details
-- maps
-- favorites/dashboard/notifications
-- booking quote/booking/payment initiation
-- viewing requests
+- add property
+- listings
+- dashboard
+- bookings
+- payment
 - offers
-- realtime-oriented messaging
-- private message attachments
-- uploaded property video playback
-- interactive 360 panorama scenes
-- push notification registration
+- leases
+- maintenance
+- notifications
+- saved searches
+- admin/operations
+- chat and private attachments
+- settings/security/account
 
-Mobile file attachments use the device document picker and the same authenticated private-storage API used by web.
+## Local development
 
-## Media and storage requirements
+### Requirements
 
-For media functionality, production infrastructure needs:
+- Node.js **20.18+**
+- npm **11+**
+- Docker Desktop with virtualization enabled
+- Git
+- Android Studio for Android native builds
+- Xcode for iOS builds on macOS
 
-- S3-compatible object storage
-- public/private buckets configured correctly
-- S3 CORS permitting the browser/mobile upload origin
-- optional CDN with correct CORS/cache behavior
-- FFmpeg and ImageMagick available to the media worker if media optimization is required
-- ClamAV if mandatory malware scanning is required
-
-The storage service signs object URLs rather than sending large files through the API process.
-
-## Required production infrastructure
-
-The application is not a hosted service merely because the source code exists. A real deployment needs:
-
-- PostgreSQL/PostGIS
-- Redis where enabled by deployment configuration
-- OpenSearch where enabled
-- S3-compatible object storage
-- CDN if desired
-- DNS/TLS
-- secret management
-- database backups and restore testing
-- monitoring/log aggregation
-- provider credentials for payments
-- map provider credentials
-- Expo/EAS credentials for mobile distribution
-- email/SMS provider configuration if those channels are required
-
-Provider credentials must not be committed to Git.
-
-## Environment variables
-
-The API configuration reads values including:
-
-- `DATABASE_URL`
-- `REDIS_URL`
-- `OPENSEARCH_URL`
-- `JWT_ACCESS_SECRET`
-- `JWT_REFRESH_SECRET`
-- `S3_ENDPOINT`
-- `S3_REGION`
-- `S3_BUCKET_PUBLIC`
-- `S3_BUCKET_PRIVATE`
-- `S3_ACCESS_KEY`
-- `S3_SECRET_KEY`
-- `CDN_BASE_URL`
-- `MAX_MEDIA_BYTES`
-- `CLAMAV_URL`
-- `MTN_MOMO_CALLBACK_SECRET`
-- payment-provider credentials used by the provider integrations
-- notification/email/SMS credentials used by the worker
-
-Production JWT secrets must be at least 32 characters.
-
-## Database migrations
-
-The SQL migration set includes the base schema plus production integrity/persistence/workflow/hardening migrations and the messaging/media attachment migration.
-
-Run:
-
-```bash
-npm run db:migrate
-npm run db:seed
-npm run db:smoke
-```
-
-## Development
-
-Requirements:
-
-- Node.js 20.18+
-- npm 11+
-- Docker for the local infrastructure used by CI/development
-
-Install:
+### Install
 
 ```bash
 npm install
 ```
+
+### Start local infrastructure
+
+The Compose stack provides Postgres/PostGIS, Redis, OpenSearch, MinIO, migration support, API and web foundations.
+
+```bash
+docker compose up -d --build
+```
+
+Database migrations are executed by the Compose migration service before the API starts.
+
+For explicit seed data:
+
+```bash
+docker compose --profile seed up
+```
+
+### Run clients separately
 
 API:
 
@@ -333,7 +331,7 @@ Mobile:
 npm --prefix apps/mobile start
 ```
 
-Checks:
+Useful checks:
 
 ```bash
 npm run typecheck
@@ -344,52 +342,141 @@ npm run mobile:doctor
 npm run db:smoke
 ```
 
-## CI and verification boundary
+## Important local endpoints
 
-GitHub Actions checks API typechecking/tests/build, database migration/seed/smoke behavior, API health/readiness/search/auth smoke paths, web typechecking/build, mobile TypeScript/Expo configuration and dependency security.
+When using the included Compose defaults:
 
-CodeQL and Dependabot configuration are also checked in.
+| Service | Address |
+| --- | --- |
+| Web | http://localhost:3000 |
+| API | http://localhost:4000 |
+| MinIO API | http://localhost:9000 |
+| MinIO console | http://localhost:9001 |
+| OpenSearch | http://localhost:9200 |
+| Prometheus | http://localhost:9090 |
+| Grafana | http://localhost:3001 |
 
-CI is evidence about the checked-in code at a particular commit; it is not evidence that external payment accounts, S3 buckets, DNS, mobile certificates or production secrets have been configured.
+These values are development defaults, not production secrets.
 
-Before a public launch, run a staging end-to-end test covering:
+## Environment configuration
+
+Provider and infrastructure configuration is environment-driven.
+
+Typical API variables include:
+
+- `DATABASE_URL`
+- `REDIS_URL`
+- `OPENSEARCH_URL`
+- `JWT_ACCESS_SECRET`
+- `JWT_REFRESH_SECRET`
+- `S3_ENDPOINT`
+- `S3_REGION`
+- `S3_BUCKET_PUBLIC`
+- `S3_BUCKET_PRIVATE`
+- `S3_ACCESS_KEY`
+- `S3_SECRET_KEY`
+- `CDN_BASE_URL`
+- `MAX_MEDIA_BYTES`
+- `CLAMAV_URL`
+- payment provider credentials/callback secrets
+- email/SMS provider credentials
+- map provider credentials
+
+Production secrets must never be committed to Git.
+
+## CI and release verification
+
+GitHub Actions configuration covers the checked-in code quality and build surface, including API build/test work, database-related verification, web validation, mobile TypeScript/Expo checks and dependency/security checks where configured.
+
+The repository also contains production hardening around:
+
+- reliable migrations in Compose
+- reliable MinIO bucket initialization
+- API health checking
+- web health checking
+- strict CI test failures
+- PostGIS-capable CI test database
+- resilient search fallback
+- persisted media hydration on search results
+
+A green CI run proves the checked-in code passed that workflow. It does not prove that external payment accounts, DNS, TLS, maps, push certificates, S3/CDN, SMS/email providers or production infrastructure are configured correctly.
+
+## Production launch checklist
+
+Before public launch, verify in a staging environment:
 
 - real account registration/login
-- real property media upload
-- real 360 panorama upload
-- real walkthrough video playback
-- message attachment upload/download between two accounts
-- booking and payment callback
-- notification delivery
-- backup/restore
-- mobile Android/iOS builds
+- access/refresh rotation and revocation
+- Rwanda location creation at every supported level
+- property/listing creation and publishing
+- real media upload/download
+- image transformation and video processing
+- 360 panorama upload and viewing
+- map provider configuration
+- search fallback and map filtering
+- two-account messaging
+- message attachment upload/download
+- booking lifecycle
+- real payment provider sandbox transactions
+- webhook signature/idempotency handling
+- refunds
+- notifications
+- backups and restore drills
+- Android build/install
+- iOS build/install
+- browser E2E tests
+- load tests against staging
+- monitoring/alerting
+- privacy/legal review
 
-## Deliberate non-claims
+## Current quality boundary
 
-The repository does **not** currently claim:
+The codebase should not be described as “production verified” simply because it builds.
 
-- end-to-end encrypted chat
-- native voice/video calling
-- photogrammetry/LiDAR 3D reconstruction
-- WebXR/VR support
-- automatic property scanning from a phone camera
-- fake/demo inventory as real marketplace inventory
-- live payment processing without configured provider accounts
-- live maps without a configured map provider token
+The correct distinction is:
 
-Those are separate engineering projects and should only be added to this README after their complete backend, client and infrastructure paths are implemented and tested.
+**Implemented in code**  
+A feature has client, API/domain and persistence foundations checked into the repository.
 
-## Repository truth rule
+**Provider-ready**  
+The integration exists but requires external credentials/configuration.
 
-If a feature is not backed by an API, persistent model, real client wiring, background processing where required, or an explicitly configured external provider, it should not be described as fully functional here.
+**Environment-verified**  
+The feature has been executed against a real configured environment and validated there.
 
+**Production-verified**  
+The complete release has passed deployment, security, functional, backup/restore, device/browser and operational checks in the target production-like environment.
 
-## Rwanda administrative location integrity
+This README intentionally uses the first two categories unless stronger evidence exists.
 
-Property creation for Rwanda uses a canonical administrative hierarchy stored in PostgreSQL and exposed by the public location API:
+## Recent hardening and UI work
 
-**Province → District → Sector → Cell → Village (optional at listing time).**
+The recent repository work strengthened both reliability and user experience without removing the existing application structure.
 
-The database seed synchronizes Rwanda administrative boundary data from the Rwanda government GIS service using NISR 2022 boundary data, including the full national hierarchy rather than a hand-written shortlist. New Rwanda properties must select canonical Province, District, Sector and Cell IDs; the API verifies every parent-child relationship before inserting the property. Names are resolved from canonical records instead of trusting client-supplied labels. Village is also available when the exact village is known.
+### Backend/platform hardening
 
-This prevents invalid combinations such as a sector belonging to one district being submitted under another district, and makes the same hierarchy available to web and mobile clients through the locations API.
+- search fallback no longer treats an empty OpenSearch response as proof that the marketplace is empty
+- search result media is hydrated from persisted property media
+- CI uses PostGIS for database-backed tests
+- CI no longer masks test failures
+- Compose performs database migration before API startup
+- MinIO bucket initialization is idempotent
+- web production container is included in the Compose environment
+- API and web healthchecks are present
+
+### Web/mobile experience
+
+- richer marketplace home/search presentation
+- responsive navigation and iconography
+- property save/compare/share interactions
+- media-count and verification cues
+- district discovery
+- map/list interaction foundations
+- native mobile haptics
+- mobile quick actions for common property journeys
+- accessible/reduced-motion foundations
+- dark/light appearance support
+
+## License
+
+See the repository license and legal documentation for the current distribution terms.
