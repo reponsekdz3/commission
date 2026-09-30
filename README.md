@@ -1,9 +1,92 @@
-# Imizi
+<div align='center'>
 
-Imizi is a Rwanda-first real-estate marketplace and property-operations platform for discovering, listing, viewing, booking, paying for, communicating about, and managing property.
+# IMIZI
 
-> **Repository truth rule:** this README documents behavior represented by checked-in code and data models. External provider-backed behavior is only live when its credentials, callbacks, storage, maps, notifications, and deployment infrastructure are configured. Features that are not implemented end-to-end are called out explicitly instead of being presented as working.
+### Rwanda Real-Estate Marketplace & Property Operations Platform
 
+**Discover. Locate. Compare. Message. View. Book. Pay. Manage.**
+
+<p>
+  <a href='https://github.com/reponsekdz3/commission/actions/workflows/ci.yml'><img src='https://github.com/reponsekdz3/commission/actions/workflows/ci.yml/badge.svg' alt='CI'></a>
+  <a href='https://github.com/reponsekdz3/commission/actions/workflows/codeql.yml'><img src='https://github.com/reponsekdz3/commission/actions/workflows/codeql.yml/badge.svg' alt='CodeQL'></a>
+  <img src='https://img.shields.io/badge/Next.js-15-black?logo=next.js' alt='Next.js 15'>
+  <img src='https://img.shields.io/badge/Expo-57-000020?logo=expo' alt='Expo 57'>
+  <img src='https://img.shields.io/badge/PostgreSQL-PostGIS-336791?logo=postgresql' alt='PostgreSQL PostGIS'>
+  <img src='https://img.shields.io/badge/API-NestJS-E0234E?logo=nestjs' alt='NestJS'>
+</p>
+
+<p><img src='docs/assets/imizi-hero.svg' alt='Imizi product overview' width='100%'></p>
+
+<p><strong>A connected web + mobile property platform built around real property records, canonical Rwanda locations, geospatial discovery, transactions, messaging, media and property operations.</strong></p>
+
+</div>
+
+---
+
+## Product truth at a glance
+
+| Capability | Backend | Web | Mobile | Persistent data | External setup |
+|---|:---:|:---:|:---:|:---:|---|
+| Authentication + sessions | ✅ | ✅ | ✅ | ✅ | deployment secrets |
+| Rwanda Province → Village hierarchy | ✅ | ✅ | ✅ | ✅ | location seed/sync |
+| Property / unit / listing model | ✅ | ✅ | ✅ | ✅ | — |
+| Search + filters | ✅ | ✅ | ✅ | ✅ | — |
+| PostGIS geographic search | ✅ | ✅ | ✅ | ✅ | PostGIS |
+| OpenSearch + PostgreSQL fallback | ✅ | ✅ | ✅ | ✅ | OpenSearch when enabled |
+| Maps + geographic discovery | ✅ | ✅ | ✅ | ✅ | map credentials where required |
+| Favorites + saved searches | ✅ | ✅ | ✅ | ✅ | authenticated user |
+| Compare | ✅ | ✅ | ✅ | ✅ | — |
+| Photos / video / 360 media | ✅ | ✅ | ✅ | ✅ | S3-compatible storage |
+| Viewing + booking lifecycle | ✅ | ✅ | ✅ | ✅ | payment config for paid flows |
+| Offers | ✅ | ✅ | ✅ | ✅ | — |
+| Payments + webhooks + ledger | ✅ | ✅ | ✅ | ✅ | MTN MoMo / Flutterwave setup |
+| Realtime messaging | ✅ | ✅ | ✅ | ✅ | websocket deployment |
+| Private message attachments | ✅ | ✅ | ✅ | ✅ | object storage |
+| Notifications | ✅ | ✅ | ✅ | ✅ | push/email/SMS providers for delivery |
+| Leases + maintenance | ✅ | ✅ | ✅ | ✅ | — |
+| Verification + moderation + audit | ✅ | ✅ | ✅ | ✅ | authorized operations users |
+
+**Legend:** ✅ means the capability has checked-in client/API/domain/persistence wiring. External setup is separated from implementation so the README never confuses integration code with live provider configuration.
+
+## Connected product journey
+
+<p><img src='docs/assets/imizi-platform-journey.svg' alt='Imizi connected product journey' width='100%'></p>
+
+**One property context follows the customer from discovery through transaction and ongoing operations.**
+
+### Customer journey
+
+**Discover → Search → Locate → Compare → Save → Message → View → Book → Pay → Manage**
+
+### Owner journey
+
+**Create property → Choose Rwanda location → Add media → Publish → Receive leads → Handle viewings/bookings → Manage payments → Run operations**
+
+## Product experience promises
+
+- **Real data first:** marketplace cards, maps, saved items, bookings, messages and management screens use the existing backend/data layer rather than demo-only state.
+- **Rwanda native:** canonical Province → District → Sector → Cell → Village location records are shared across clients.
+- **Transaction aware:** property context is preserved as users move from discovery into viewing, booking, payment and operations.
+- **Media rich:** image, video and 360 content are represented through the actual property-media pipeline.
+- **Interactive:** map/list search, save, compare, share, bottom sheets, haptics, realtime messaging and responsive workspace actions are part of the product surface.
+- **Honest boundaries:** provider credentials, device validation and production infrastructure are explicitly documented instead of being presented as already verified.
+
+## Visual product documentation
+
+These visuals are generated from repository product concepts, not fabricated customer screenshots. Real screenshots should only be added after capture from the running web/mobile builds.
+
+## What was upgraded in the latest UI pass
+
+- Web marketplace hero and richer discovery entry points
+- District discovery rail tied to the location API
+- Property cards with real save / compare / share interactions
+- Verification, media-count and location cues
+- Responsive navigation and marketplace shell polish
+- Mobile quick actions for map, saved properties, bookings and property listing
+- Mobile live-backend status, improved empty states and haptic interaction
+- Dark/light and reduced-motion foundations preserved
+
+---
 ## Product surface
 
 Imizi connects the property journey in one account:
