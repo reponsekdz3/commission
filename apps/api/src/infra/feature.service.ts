@@ -500,7 +500,7 @@ export class FeatureService {
     return Promise.all(rows.rows.map(async(x)=>({listing:await this.db.getListing(x.id),property:await this.db.getProperty(x.property_id)})));
   }
 
-  async addMedia(propertyId:string,kind:string,key:string){return this.db.addMedia(propertyId,kind,key);}\n
+  async addMedia(propertyId:string,kind:string,key:string){return this.db.addMedia(propertyId,kind,key);}
   async signLease(userId:string,leaseId:string){
     const access=await this.db.query(
       "SELECT b.tenant_id,p.owner_id FROM rental_agreements ra JOIN bookings b ON b.id=ra.booking_id JOIN property_listings pl ON pl.id=b.listing_id JOIN properties p ON p.id=pl.property_id WHERE ra.id=$1",
@@ -526,26 +526,28 @@ export class FeatureService {
     if(!lease)return undefined;
     const esc=(value:unknown)=>String(value??"").replace(/\\/g,"\\\\").replace(/\(/g,"\\(").replace(/\)/g,"\\)");
     const lines=["IMIZI RENTAL AGREEMENT","Lease ID: "+leaseId,"",...Object.entries(lease).slice(0,20).map(([k,v])=>k+": "+(typeof v==="object"?JSON.stringify(v):String(v??"")))];
-    const stream=lines.map((line,i)=>"BT /F1 "+(i===0?18:10)+" Tf 48 "+(760-i*18)+" Td ("+esc(line).slice(0,180)+") Tj ET").join("\n");
+    const stream=lines.map((line,i)=>"BT /F1 "+(i===0?18:10)+" Tf 48 "+(760-i*18)+" Td ("+esc(line).slice(0,180)+") Tj ET").join("");
     const objects=[
       "<< /Type /Catalog /Pages 2 0 R >>",
       "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
       "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>",
       "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-      "<< /Length "+Buffer.byteLength(stream,"utf8")+" >>\nstream\n"+stream+"\nendstream",
+      "<< /Length "+Buffer.byteLength(stream,"utf8")+" >>stream"+stream+"endstream",
     ];
-    let pdf="%PDF-1.4\n";
+    let pdf="%PDF-1.4";
     const offsets=[0];
     for(let i=0;i<objects.length;i++){
       offsets.push(Buffer.byteLength(pdf,"utf8"));
-      pdf+=(i+1)+" 0 obj\n"+objects[i]+"\nendobj\n";
+      pdf+=(i+1)+" 0 obj"+objects[i]+"endobj";
     }
     const xref=Buffer.byteLength(pdf,"utf8");
-    pdf+="xref\n0 "+(objects.length+1)+"\n0000000000 65535 f \n";
-    for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,"0")+" 00000 n \n";
-    pdf+="trailer\n<< /Size "+(objects.length+1)+" /Root 1 0 R >>\nstartxref\n"+xref+"\n%%EOF";
+    pdf+="xref0 "+(objects.length+1)+"0000000000 65535 f ";
+    for(let i=1;i<offsets.length;i++)pdf+=String(offsets[i]).padStart(10,"0")+" 00000 n ";
+    pdf+="trailer<< /Size "+(objects.length+1)+" /Root 1 0 R >>startxref"+xref+"%%EOF";
     return Buffer.from(pdf,"utf8");
   }
 }
+
+
 
 

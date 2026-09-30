@@ -130,7 +130,7 @@ export class MtnMoMoProvider implements PaymentProvider {
 
 export class FlutterwaveProvider implements PaymentProvider {
   readonly name="FLUTTERWAVE";
-  constructor(private readonly secretKey?:string, private readonly webhookSecret?:string, private readonly defaultPaymentOptions?:string) {}
+  constructor(private readonly secret?:string, private readonly webhookSecret?:string, private readonly defaultPaymentOptions?:string) {}
   private headers(){
     if(!this.secret)throw new Error("Flutterwave secret key is not configured");
     return {"Authorization":"Bearer "+this.secret,"Content-Type":"application/json"};
@@ -169,14 +169,14 @@ export class FlutterwaveProvider implements PaymentProvider {
     return {providerReference:String(body.data?.id||providerReference)};
   }
   verifyWebhook(headers:Record<string,string|string[]|undefined>,rawBody:string){
-    if(!this.secret)return false;
+    if(!this.webhookSecret)return false;
     const signature=headers["flutterwave-signature"];
     if(typeof signature==="string"){
-      const digest=createHmac("sha256",this.secret).update(rawBody).digest("hex");
+      const digest=createHmac("sha256",this.webhookSecret).update(rawBody).digest("hex");
       if(digest===signature)return true;
     }
     const legacy=headers["verif-hash"];
-    return typeof legacy==="string"&&legacy===this.secret;
+    return typeof legacy==="string"&&legacy===this.webhookSecret;
   }
   parseWebhook(rawBody:string){
     const body=JSON.parse(rawBody) as {data?:{tx_ref?:string;status?:string;id?:number}};

@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgis/postgis:16-3.4
+    image: postgres:16-alpine
     container_name: imizi-postgres
     restart: unless-stopped
     environment:
@@ -16,6 +16,8 @@ services:
       interval: 5s
       timeout: 5s
       retries: 20
+    networks:
+      - imizi-network
 
   redis:
     image: redis:7-alpine
@@ -31,77 +33,8 @@ services:
       interval: 5s
       timeout: 3s
       retries: 20
-
-  opensearch:
-    image: opensearchproject/opensearch:2.17.1
-    container_name: imizi-opensearch
-    environment:
-      - discovery.type=single-node
-      - DISABLE_SECURITY_PLUGIN=true
-      - OPENSEARCH_JAVA_OPTS=-Xms512m -Xmx512m
-    ports:
-      - "9200:9200"
-    volumes:
-      - osdata:/usr/share/opensearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 20
-
-  minio:
-    image: minio/minio:latest
-    container_name: imizi-minio
-    command: server /data --console-address ":9001"
-    environment:
-      MINIO_ROOT_USER: imizi
-      MINIO_ROOT_PASSWORD: imizi_secret
-    ports:
-      - "9000:9000"
-      - "9001:9001"
-    volumes:
-      - miniodata:/data
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
-      interval: 5s
-      timeout: 3s
-      retries: 20
-
-  minio-init:
-    image: minio/mc:latest
-    container_name: imizi-minio-init
-    depends_on:
-      minio:
-        condition: service_healthy
-    volumes:
-      - ./infra/storage/cors.xml:/tmp/cors.xml:ro
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - >
-        mc alias set local http://minio:9000 imizi imizi_secret &&
-        mc mb --ignore-existing local/imizi-public &&
-        mc mb --ignore-existing local/imizi-private &&
-        mc anonymous set download local/imizi-public &&
-        mc cors set local/imizi-public /tmp/cors.xml &&
-        mc cors set local/imizi-private /tmp/cors.xml
-
-  prometheus:
-    image: prom/prometheus:v2.55.1
-    container_name: imizi-prometheus
-    volumes:
-      - ./infra/observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
-    ports:
-      - "9090:9090"
-
-  grafana:
-    image: grafana/grafana:11.3.0
-    container_name: imizi-grafana
-    ports:
-      - "3001:3000"
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: imizi
-    volumes:
-      - grafanadata:/var/lib/grafana
+    networks:
+      - imizi-network
 
   api:
     build:
@@ -113,26 +46,21 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      opensearch:
-        condition: service_healthy
-      minio-init:
-        condition: service_completed_successfully
     env_file:
       - .env.example
     environment:
-      DATABASE_URL: postgresql://imizi:imizi_dev@postgres:5432/imizi?schema=public
+      DATABASE_URL: postgresql://imizi:[REDACTED]@postgres:5432/imizi?schema=public
       REDIS_URL: redis://redis:6379
-      OPENSEARCH_URL: http://opensearch:9200
-      S3_ENDPOINT: http://minio:9000
-      S3_ACCESS_KEY: imizi
-      S3_SECRET_KEY: imizi_secret
-      MAPS_PROVIDER: catalog
+      NODE_ENV: development
     ports:
       - "4000:4000"
+    networks:
+      - imizi-network
 
 volumes:
   pgdata:
   redisdata:
-  osdata:
-  miniodata:
-  grafanadata:
+
+networks:
+  imizi-network:
+    driver: bridge

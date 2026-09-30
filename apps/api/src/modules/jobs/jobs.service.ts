@@ -121,7 +121,7 @@ export class JobsService implements OnModuleInit {
               limit:10,
             });
             const cutoff=row.last_notified_at?new Date(row.last_notified_at).getTime():0;
-            const fresh=(result.items||[]).filter((x:any)=>new Date(x.listing?.createdAt||x.property?.createdAt||0).getTime()>cutoff);
+            const fresh=(result ||[]).filter((x:any)=>new Date(x.listing?.createdAt||x.property?.createdAt||0).getTime()>cutoff);
             if(fresh.length){
               const first=fresh[0];
               const title=String(first.property?.title||"New property match");
@@ -263,3 +263,4 @@ export class JobsService implements OnModuleInit {
     }
   }
 }
+

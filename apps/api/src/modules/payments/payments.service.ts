@@ -86,8 +86,12 @@ export class PaymentsService {
     if(intent.status!=="SUCCEEDED" && intent.status!=="PARTIALLY_REFUNDED")throw new BadRequestException("Only captured payments can be refunded");
     if(amountMinor>intent.amountMinor)throw new BadRequestException("Refund exceeds payment amount");
     const provider=this.gateway.resolve(intent.provider);
-    if(!provider.refund || !intent.providerReference)throw new BadRequestException("This provider does not support automated refunds");
-    const external=await provider.refund(intent.providerReference,amountMinor,intent.currency,reason);
-    return this.db.refundPayment(intentId,amountMinor,reason,external.providerReference);
+    if(!intent.providerReference)throw new BadRequestException("This provider does not support automated refunds");
+    if(!provider.refund)throw new BadRequestException("This provider does not support automated refunds");
+    const external=await provider.refund!(intent.providerReference,amountMinor,intent.currency,reason);
+    return this.db.refundPayment(intentId,amountMinor,reason);
   }
 }
+
+
+
