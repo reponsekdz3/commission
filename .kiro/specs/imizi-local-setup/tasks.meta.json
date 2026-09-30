@@ -1,0 +1,191 @@
+{
+  "pbtResults": {},
+  "executionHistory": {
+    "1.1 Write the env file using Node crypto for JWT secrets": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696272825
+      },
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696295282
+      },
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696438917
+      }
+    ],
+    "2.1 Run `docker compose up -d` for infra services only": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696274069
+      },
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696444050
+      }
+    ],
+    "2.2 Wait for PostgreSQL health": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696274331
+      }
+    ],
+    "2.3 Wait for Redis health": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696274736
+      }
+    ],
+    "2.4 Wait for OpenSearch health": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696275292
+      }
+    ],
+    "2.5 Wait for MinIO health": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696275596
+      }
+    ],
+    "3.1 Execute `npm install` at workspace root": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696276124
+      },
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696444825
+      },
+      {
+        "executionId": "5ab52e24-20da-4c35-9f95-3f3f29d7f941",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790754846010
+      }
+    ],
+    "4.1 Rename `002_production_integrity.sql` to `002a_production_integrity.sql`": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696276317
+      }
+    ],
+    "4.2 Rename `002_production_persistence.sql` to `002b_production_persistence.sql`": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696276500
+      }
+    ],
+    "5.1 Run `npm run db:migrate` with DATABASE_URL set": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696276749
+      }
+    ],
+    "6.1 Run `npm run db:seed` with DATABASE_URL and SEED_PASSWORD set": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696277260
+      }
+    ],
+    "7.1 Run `npm run db:smoke` and verify output": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696277477
+      }
+    ],
+    "8.1 Add `engine` field to `HealthController.snapshot()`": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696277765
+      }
+    ],
+    "9.1 Add `propertyType` select control to `PropertyFilters`": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696278233
+      }
+    ],
+    "9.2 Add `district` select control to `PropertyFilters`": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696278545
+      }
+    ],
+    "10.1 Write `PROPERTY_TYPE_LABELS` map and `formatPropertyType` helper": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696278866
+      }
+    ],
+    "11.1 Sort media by sort_order and apply formatPropertyType label": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696279398
+      }
+    ],
+    "12.1 Audit and fix `media.url` mapping in the search endpoint database query": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696279747
+      }
+    ],
+    "13.1 Start `npm run dev:api` and verify health endpoint": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696280414
+      }
+    ],
+    "13.2 Start `npm run dev:web` and verify homepage response": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696280706
+      }
+    ],
+    "14.1 Verify API search endpoint returns results with engine field": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696281257
+      }
+    ],
+    "1. Create the `.env` file from `.env.example`": [
+      {
+        "executionId": "fc1ec071-a0d4-4477-92cf-4d6801757416",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790696439160
+      }
+    ],
+    "3. Install npm workspace dependencies": [
+      {
+        "executionId": "5ab52e24-20da-4c35-9f95-3f3f29d7f941",
+        "chatSessionId": "5bfaa7b6-6067-4c97-9e27-5437001335fc",
+        "timestamp": 1790754846563
+      }
+    ]
+  }
+}
