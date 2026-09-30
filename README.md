@@ -17,6 +17,12 @@
 
 <p><img src='docs/assets/imizi-hero.svg' alt='Imizi product overview' width='100%'></p>
 
+## App showcase — Web + Mobile
+
+<p><img src='docs/assets/imizi-app-showcase.svg' alt='Imizi web and mobile app showcase' width='100%'></p>
+
+> The showcase is a repository-native product visual built from the current UI surface. It is intentionally labeled as a concept showcase rather than a production screenshot.
+
 <p><strong>A connected web + mobile property platform built around real property records, canonical Rwanda locations, geospatial discovery, transactions, messaging, media and property operations.</strong></p>
 
 </div>
