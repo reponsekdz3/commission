@@ -50,19 +50,19 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
     - Execute: `docker compose up -d postgres redis opensearch minio minio-init prometheus grafana`
     - _Requirements: 2.1, 2.2_
 
-  - [~] 2.2 Wait for PostgreSQL health
+  - [ ] 2.2 Wait for PostgreSQL health
     - Poll `docker exec imizi-postgres pg_isready -U imizi -d imizi` every 2 s up to 60 s.
     - _Requirements: 2.3_
 
-  - [~] 2.3 Wait for Redis health
+  - [ ] 2.3 Wait for Redis health
     - Poll `docker exec imizi-redis redis-cli ping` every 2 s up to 60 s.
     - _Requirements: 2.4_
 
-  - [~] 2.4 Wait for OpenSearch health
+  - [ ] 2.4 Wait for OpenSearch health
     - Poll `curl -sf http://localhost:9200` every 5 s up to 120 s.
     - _Requirements: 2.5_
 
-  - [~] 2.5 Wait for MinIO health
+  - [ ] 2.5 Wait for MinIO health
     - Poll `curl -sf http://localhost:9000/minio/health/live` every 2 s up to 60 s.
     - _Requirements: 2.6_
 
@@ -72,7 +72,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - If `npm install` exits non-zero, print the error and halt.
   - _Requirements: 3.1, 3.2, 3.3_
 
-  - [x] 3.1 Execute `npm install` at workspace root
+  - [ ] 3.1 Execute `npm install` at workspace root
     - Run `npm install` with no extra flags — npm workspaces handles all packages.
     - _Requirements: 3.1, 3.2_
 
@@ -83,11 +83,11 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Verify that the renamed files sort correctly: `002a_...` before `002b_...` before `003_...`.
   - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [~] 4.1 Rename `002_production_integrity.sql` to `002a_production_integrity.sql`
+  - [ ] 4.1 Rename `002_production_integrity.sql` to `002a_production_integrity.sql`
     - Use `fs.renameSync` or a shell `mv` / PowerShell `Rename-Item`.
     - _Requirements: 4.2, 4.3_
 
-  - [~] 4.2 Rename `002_production_persistence.sql` to `002b_production_persistence.sql`
+  - [ ] 4.2 Rename `002_production_persistence.sql` to `002b_production_persistence.sql`
     - Use `fs.renameSync` or a shell `mv` / PowerShell `Rename-Item`.
     - _Requirements: 4.2, 4.4_
 
@@ -113,7 +113,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Verify the command exits with code 0 and prints `"Database migrations complete"`.
   - _Requirements: 5.1, 5.2, 5.3, 5.4_
 
-  - [~] 5.1 Run `npm run db:migrate` with DATABASE_URL set
+  - [ ] 5.1 Run `npm run db:migrate` with DATABASE_URL set
     - Execute via shell with the `.env` variables sourced.
     - _Requirements: 5.1, 5.2, 5.3_
 
@@ -122,7 +122,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Verify the command exits with code 0 and prints `"Seeded Imizi PostgreSQL database"`.
   - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5, 6.6_
 
-  - [~] 6.1 Run `npm run db:seed` with DATABASE_URL and SEED_PASSWORD set
+  - [ ] 6.1 Run `npm run db:seed` with DATABASE_URL and SEED_PASSWORD set
     - Source `.env` before executing. `SEED_PASSWORD` must be `ImiziDev2024Seed!` (set in task 1.1).
     - _Requirements: 6.1, 6.2, 6.3, 6.4, 6.5_
 
@@ -148,7 +148,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 7.1, 7.2, 7.3_
 
-  - [~] 7.1 Run `npm run db:smoke` and verify output
+  - [ ] 7.1 Run `npm run db:smoke` and verify output
     - Execute the smoke script; parse stdout JSON to confirm all counts meet minimums.
     - _Requirements: 7.1, 7.2_
 
@@ -159,7 +159,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Rebuild the API with `npm run typecheck -w @imizi/api` to verify no type errors.
   - _Requirements: 12.1, 12.2, 12.3, 12.4, 12.5, 12.6, 12.7, 12.8_
 
-  - [~] 8.1 Add `engine` field to `HealthController.snapshot()`
+  - [ ] 8.1 Add `engine` field to `HealthController.snapshot()`
     - Edit `apps/api/src/modules/health/health.controller.ts`, inserting `engine` into the return object of the `snapshot()` method.
     - _Requirements: 12.8_
 
@@ -178,11 +178,11 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Update the `clear()` function to also delete `propertyType` and `district` from the URL params.
   - _Requirements: 10.1, 10.2, 10.3, 10.4, 10.5_
 
-  - [~] 9.1 Add `propertyType` select control to `PropertyFilters`
+  - [ ] 9.1 Add `propertyType` select control to `PropertyFilters`
     - Add state, JSX select element with enum options, and `apply()` call on change.
     - _Requirements: 10.1_
 
-  - [~] 9.2 Add `district` select control to `PropertyFilters`
+  - [ ] 9.2 Add `district` select control to `PropertyFilters`
     - Add state, `useEffect` to fetch districts from `/locations/rwanda?level=DISTRICT`, and `apply()` call on change.
     - _Requirements: 10.1_
 
@@ -219,7 +219,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Export a `formatPropertyType(type: string): string` helper that looks up the map and falls back to the raw value.
   - _Requirements: 11.1_
 
-  - [~] 10.1 Write `PROPERTY_TYPE_LABELS` map and `formatPropertyType` helper
+  - [ ] 10.1 Write `PROPERTY_TYPE_LABELS` map and `formatPropertyType` helper
     - Create `apps/web/lib/format.ts` with the exported map and helper function.
     - _Requirements: 11.1_
 
@@ -233,7 +233,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Run `npm run typecheck -w @imizi/web` to verify no type errors.
   - _Requirements: 11.1, 11.2, 11.3, 11.4, 11.5, 11.6, 11.7, 11.8_
 
-  - [~] 11.1 Sort media by sort_order and apply formatPropertyType label
+  - [ ] 11.1 Sort media by sort_order and apply formatPropertyType label
     - Add `media.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))` before the `filter()` call.
     - Replace raw `p.propertyType` with `formatPropertyType(p.propertyType ?? "")` in the pill span.
     - _Requirements: 11.1, 11.2_
@@ -250,7 +250,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Run `npm run typecheck -w @imizi/web` to verify no type errors.
   - _Requirements: 14.1, 14.2, 14.3, 14.4, 14.5, 14.6_
 
-  - [~] 12.1 Audit and fix `media.url` mapping in the search endpoint database query
+  - [ ] 12.1 Audit and fix `media.url` mapping in the search endpoint database query
     - Read `packages/database/src/index.ts` `searchListings` method.
     - Confirm the `property_media` join includes `storage_key AS url` (or `url` directly).
     - If missing, add the alias so `media[0].url` is populated in search results.
@@ -264,12 +264,12 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Wait up to 60 s for `GET http://localhost:3000` to return HTTP 200.
   - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 9.1, 9.2, 9.3_
 
-  - [~] 13.1 Start `npm run dev:api` and verify health endpoint
+  - [ ] 13.1 Start `npm run dev:api` and verify health endpoint
     - Start the API process (background). Poll `http://localhost:4000/health` every 2 s.
     - Assert `status === "ok"`, `database === true`, `redis === true`.
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5_
 
-  - [~] 13.2 Start `npm run dev:web` and verify homepage response
+  - [ ] 13.2 Start `npm run dev:web` and verify homepage response
     - Start the Web process (background). Poll `http://localhost:3000` every 3 s up to 60 s.
     - Assert HTTP 200 response.
     - _Requirements: 9.1, 9.2_
@@ -282,7 +282,7 @@ All tasks are written for TypeScript / Node 24 on the monorepo at
   - Ensure all tests pass, ask the user if questions arise.
   - _Requirements: 8.3, 8.6, 9.3, 13.2, 13.4_
 
-  - [~] 14.1 Verify API search endpoint returns results with engine field
+  - [ ] 14.1 Verify API search endpoint returns results with engine field
     - Call `GET /api/v1/search?listingType=RENT&limit=5`; assert `items.length >= 1` and `engine` is present.
     - _Requirements: 13.4, 12.8_
 

@@ -2,8 +2,10 @@
   "name":"@imizi/database",
   "version":"1.0.0",
   "private":true,
-  "main":"./src/index.ts",
+  "main":"./dist/index.js",
+  "types":"./dist/index.d.ts",
   "scripts":{
+    "build":"tsc -p tsconfig.json",
     "migrate":"node ./src/migrate.cjs",
     "seed":"node ./src/seed.cjs",
     "locations:sync":"node ./src/sync-locations.cjs",

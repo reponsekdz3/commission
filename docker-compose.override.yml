@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  postgres:
+    environment:
+      POSTGRES_INITDB_ARGS: "-c shared_preload_libraries=pg_stat_statements"
+
+  api:
+    build:
+      context: .
+      dockerfile: infra/docker/api.Dockerfile
+      args:
+        NODE_ENV: development
+    environment:
+      NODE_ENV: development
+      DEBUG: imizi:*
+    volumes:
+      - ./apps/api/src:/app/apps/api/src
+      - ./packages:/app/packages
+    restart: on-failure
