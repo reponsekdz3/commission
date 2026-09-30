@@ -13,9 +13,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   constructor() {
     const config = loadConfig();
-    if (!config.databaseUrl) throw new Error("DATABASE_URL is required");
+    // Local developer experience: when NODE_ENV is development and Docker Compose is running,
+    // use the repository default PostgreSQL port automatically. Production still requires an explicit DATABASE_URL.
+    const databaseUrl = config.databaseUrl ?? (config.env === "development" ? "postgresql://imizi:imizi_dev@127.0.0.1:5433/imizi" : undefined);
+    if (!databaseUrl) throw new Error("DATABASE_URL is required outside development");
     this.pool = new Pool({
-      connectionString: config.databaseUrl,
+      connectionString: databaseUrl,
       max: Number(process.env.DB_POOL_MAX ?? 20),
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
