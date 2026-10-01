@@ -146,11 +146,11 @@ async function main() {
       let listingId;
       if (existingListing.rows[0]) {
         listingId=existingListing.rows[0].id;
-        await client.query("UPDATE property_listings SET unit_id=$2,status='ACTIVE',available_from=now(),updated_at=now() WHERE id=$1",[listingId,unitId]);
+        await client.query("UPDATE property_listings SET unit_id=$2,status='ACTIVE',updated_at=now() WHERE id=$1",[listingId,unitId]);
         await client.query("UPDATE property_prices SET amount_minor=$2,effective_to=NULL WHERE listing_id=$1 AND effective_to IS NULL",[listingId,p.price]);
       } else {
         const listing = await client.query(
-          "INSERT INTO property_listings(id,property_id,unit_id,listing_type,status,available_from) VALUES(gen_random_uuid(),$1,$2,$3,'ACTIVE',now()) RETURNING id",
+          "INSERT INTO property_listings(id,property_id,unit_id,listing_type,status) VALUES(gen_random_uuid(),$1,$2,$3,'ACTIVE') RETURNING id",
           [p.id,unitId,p.listing],
         );
         listingId=listing.rows[0].id;
