@@ -60,8 +60,6 @@ async function main() {
       "('55555555-5555-5555-5555-555555555555','44444444-4444-4444-4444-444444444444','AGENCY_ADMIN') " +
       "ON CONFLICT DO NOTHING",
     );
-    await client.query("UPDATE users SET organization_id='55555555-5555-5555-5555-555555555555' WHERE id='44444444-4444-4444-4444-444444444444'");
-
     const properties = [
       {
         id:"aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", title:"Modern House in Kigali",
