@@ -18,7 +18,7 @@ export default function TabsLayout() {
    tabBarBackground:()=> <BlurView intensity={80} tint={c.bg==="#07100D"?"dark":"light"} style={[StyleSheet.absoluteFill,{backgroundColor:c.glass,borderTopWidth:StyleSheet.hairlineWidth,borderTopColor:c.border}]} />,
    tabBarButton:({children,onPress,accessibilityState})=>{
      const focused=!!accessibilityState?.selected;
-     return <Pressable accessibilityRole="tab" onPress={()=>{selection();onPress?.()}} style={s.button}>{children}</Pressable>;
+     return <Pressable accessibilityRole="tab" onPress={(event)=>{selection();onPress?.(event)}} style={s.button}>{children}</Pressable>;
    },
  }}>
    {Object.entries(defs).map(([name,d])=><Tabs.Screen key={name} name={name} options={{title:d[0],tabBarIcon:({focused})=><View style={s.item}><Ionicons name={(focused?d[2]:d[1]) as keyof typeof Ionicons.glyphMap} size={24} color={focused?c.primary:c.muted}/><Text style={{fontSize:11,fontWeight:"700",fontFamily:fonts.sansBold,color:focused?c.primary:c.muted}}>{d[0]}</Text>{focused&&<View style={[s.dot,{backgroundColor:c.primary}]}/>}</View>}} />)}
