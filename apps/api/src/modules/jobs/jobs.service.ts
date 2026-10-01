@@ -12,14 +12,27 @@ import { MalwareScanner } from "../../infra/malware.service";
 
 @Injectable()
 export class JobsService implements OnModuleInit {
-  private readonly log=new Logger(JobsService.name);
-  private readonly exec=promisify(execFile);
-  constructor(private readonly db:DatabaseService,private readonly deps:Dependencies,private readonly storage:StorageService,private readonly malware:MalwareScanner){}
-  onModuleInit(){
-  setInterval(()=>void this.drain(),5000).unref();
-  void this.db.enqueueJob("saved-search.match",{},5).catch(()=>undefined);
-  void this.drain();
-}
+  private readonly log = new Logger(JobsService.name);
+  private readonly exec = promisify(execFile);
+  constructor(private readonly db: DatabaseService, private readonly deps: Dependencies, private readonly storage: StorageService, private readonly malware: MalwareScanner) {}
+  async onModuleInit() {
+    setInterval(() => void this.drain(), 5000).unref();
+    // Wait for database to be ready
+    await this.waitForDatabase();
+    void this.db.enqueueJob("saved-search.match", {}, 5).catch(() => undefined);
+    void this.drain();
+  }
+  private async waitForDatabase(): Promise<void> {
+    for (let i = 0; i < 30; i++) {
+      try {
+        await this.db.query("SELECT 1");
+        return;
+      } catch {
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+    }
+    this.log.warn("Database not ready after 30s, jobs may not start correctly");
+  }
   async drain(){
     if(!this.deps.databaseOk)return;
     const jobs=await this.db.transaction(async(client)=>{

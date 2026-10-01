@@ -21,14 +21,28 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       connectionString: databaseUrl,
       max: Number(process.env.DB_POOL_MAX ?? 20),
       idleTimeoutMillis: 30000,
-      connectionTimeoutMillis: 5000,
+      connectionTimeoutMillis: 10000,
       maxUses: 5000,
     });
   }
 
   async onModuleInit() {
-    await this.pool.query("SELECT 1");
-    this.logger.log("PostgreSQL connected");
+    let retries = 10;
+    while (retries > 0) {
+      try {
+        await this.pool.query("SELECT 1");
+        this.logger.log("PostgreSQL connected");
+        return;
+      } catch (error) {
+        retries--;
+        if (retries === 0) {
+          this.logger.error("Failed to connect to PostgreSQL after retries");
+          throw error;
+        }
+        this.logger.warn(`PostgreSQL connection failed, retrying in 2s... (${retries} retries left)`);
+        await new Promise((r) => setTimeout(r, 2000));
+      }
+    }
   }
 
   async onModuleDestroy() {

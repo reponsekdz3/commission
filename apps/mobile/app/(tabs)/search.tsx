@@ -1,61 +1,327 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { useMemo, useRef, useState } from "react";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Alert, Pressable, StyleSheet, Text, View, StatusBar,
+} from "react-native";
 import { useQuery } from "@tanstack/react-query";
 import BottomSheet, { BottomSheetFlatList } from "@gorhom/bottom-sheet";
-import MapView, { Marker, Polygon, Region } from "react-native-maps";
+import MapView, { Callout, Marker, Polygon, Region } from "react-native-maps";
+import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { api, SearchItem } from "../../src/lib/api";
 import { PropertyCard } from "../../src/components/PropertyCard";
 import { Button, Chip, Field, OfflineBanner } from "../../src/components/ui";
 import { useTheme } from "../../src/stores/theme";
-import { fonts, spacing } from "../../src/theme";
+import { fonts, radius, spacing, typography } from "../../src/theme";
 import { selection } from "../../src/lib/haptics";
 import { isSignedIn } from "../../src/lib/session";
 
+const LISTING_TYPES = [
+  { key: "RENT", label: "Rent" },
+  { key: "SALE", label: "Buy" },
+  { key: "SHORT_STAY", label: "Stay" },
+] as const;
+
 export default function Search() {
-  const c = useTheme((s) => s.palette);
+  const c = useTheme(s => s.palette);
+  const insets = useSafeAreaInsets();
   const p = useLocalSearchParams<{ q?: string; listingType?: string }>();
+
   const [q, setQ] = useState(String(p.q || ""));
   const [type, setType] = useState(String(p.listingType || "RENT"));
   const [district, setDistrict] = useState("");
   const [min, setMin] = useState("");
   const [max, setMax] = useState("");
   const [verified, setVerified] = useState(false);
-  const [region, setRegion] = useState<Region>({ latitude: -1.9441, longitude: 30.0619, latitudeDelta: 0.12, longitudeDelta: 0.12 });
+  const [region, setRegion] = useState<Region>({
+    latitude: -1.9441, longitude: 30.0619,
+    latitudeDelta: 0.12, longitudeDelta: 0.12,
+  });
   const [selected, setSelected] = useState<SearchItem | null>(null);
   const [drawing, setDrawing] = useState(false);
-  const [points, setPoints] = useState<{ latitude:number; longitude:number }[]>([]);
+  const [points, setPoints] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [showFilters, setShowFilters] = useState(false);
   const sheet = useRef<BottomSheet>(null);
+
   const params = useMemo(() => {
     const x = new URLSearchParams({ listingType: type, limit: "60" });
-    if (q) x.set("q", q); if (district) x.set("district", district);
-    if (min) x.set("minPriceMinor", String(Number(min))); if (max) x.set("maxPriceMinor", String(Number(max)));
+    if (q) x.set("q", q);
+    if (district) x.set("district", district);
+    if (min) x.set("minPriceMinor", String(Number(min) * 1000));
+    if (max) x.set("maxPriceMinor", String(Number(max) * 1000));
     if (verified) x.set("verifiedOnly", "true");
-    if (points.length >= 3) x.set("polygon", JSON.stringify(points.map(v=>({lat:v.latitude,lng:v.longitude}))));
-    x.set("lat", String(region.latitude)); x.set("lng", String(region.longitude)); x.set("radiusKm", String(Math.max(5, Math.ceil(Math.max(region.latitudeDelta, region.longitudeDelta) * 111 / 2))));
+    if (points.length >= 3) x.set("polygon", JSON.stringify(points.map(v => ({ lat: v.latitude, lng: v.longitude }))));
+    x.set("lat", String(region.latitude));
+    x.set("lng", String(region.longitude));
+    x.set("radiusKm", String(Math.max(5, Math.ceil(Math.max(region.latitudeDelta, region.longitudeDelta) * 111 / 2))));
     return x.toString();
-  }, [type,q,district,min,max,verified,points,region.latitude,region.longitude,region.latitudeDelta,region.longitudeDelta]);
-  const query = useQuery({ queryKey: ["search", params], queryFn: () => api<{items:SearchItem[]}>("/search?" + params) });
+  }, [type, q, district, min, max, verified, points, region.latitude, region.longitude, region.latitudeDelta, region.longitudeDelta]);
+
+  const query = useQuery({
+    queryKey: ["search", params],
+    queryFn: () => api<{ items: SearchItem[]; engine?: string }>("/search?" + params),
+    staleTime: 30_000,
+  });
   const items = query.data?.items ?? [];
-  const visible = items;
-  const addPoint = (e:any) => { if (drawing) { selection(); setPoints(v => [...v, e.nativeEvent.coordinate]); } };
-  const centerOnItem = (item:SearchItem) => { setSelected(item); sheet.current?.snapToIndex(1); setRegion(r => ({...r, latitude:item.property.latitude, longitude:item.property.longitude})); selection(); };
-  return <View style={[s.root,{backgroundColor:c.bg}]}>
-    <MapView style={s.map} region={region} onRegionChangeComplete={setRegion} onPress={addPoint} showsUserLocation={false}>
-      {visible.map(item => <Marker key={item.listing.id} coordinate={{latitude:item.property.latitude,longitude:item.property.longitude}} title={item.property.title} description={item.property.district} onPress={()=>centerOnItem(item)} />)}
-      {points.length>1 && <Polygon coordinates={points} fillColor={c.primarySoft} strokeColor={c.primary} strokeWidth={2} />}
-    </MapView>
-    <View style={[s.top,{backgroundColor:c.glass,borderColor:c.border}]}>
-      <Field value={q} onChangeText={setQ} onSubmitEditing={()=>query.refetch()} placeholder="Search Kigali, district, bedrooms…" style={s.search}/>
-      <View style={s.row}>{["RENT","SALE","SHORT_STAY"].map(x=><Chip key={x} label={x==="SHORT_STAY"?"STAY":x} active={type===x} onPress={()=>{selection();setType(x)}} />)}</View>
-      <View style={s.row}><Field value={district} onChangeText={setDistrict} placeholder="District" style={s.small}/><Button title={drawing?"Finish area":"Draw area"} size="sm" variant={drawing?"accent":"primary"} onPress={()=>{selection();setDrawing(v=>!v)}} /></View>
-      {drawing && <Text style={[s.hint,{color:c.text}]}>Tap the map to add boundary points. Turn off Draw area when finished.</Text>}
-      {points.length>0 && <Pressable onPress={()=>{selection();setPoints([])}}><Text style={[s.clear,{color:c.primary}]}>Clear drawn area</Text></Pressable>}
-      <Pressable onPress={async()=>{if(!(await isSignedIn())){router.push("/login");return;}try{await api("/saved-searches",{method:"POST",body:JSON.stringify({name:q||("Map "+type+" search"),criteria:Object.fromEntries(new URLSearchParams(params))})},true);Alert.alert("Search saved","You will keep this search on your account.");}catch(e){Alert.alert("Save search",e instanceof Error?e.message:"Unable to save search")}}}><Text style={[s.saveSearch,{color:c.primary}]}>☆ Save this search</Text></Pressable>
+
+  const addPoint = useCallback((e: any) => {
+    if (drawing) { selection(); setPoints(v => [...v, e.nativeEvent.coordinate]); }
+  }, [drawing]);
+
+  const centerOnItem = useCallback((item: SearchItem) => {
+    setSelected(item);
+    sheet.current?.snapToIndex(1);
+    setRegion(r => ({ ...r, latitude: item.property.latitude, longitude: item.property.longitude }));
+    selection();
+  }, []);
+
+  const clearFilters = () => {
+    setDistrict(""); setMin(""); setMax(""); setVerified(false);
+    selection();
+  };
+
+  const hasFilters = !!(district || min || max || verified);
+
+  const formatPrice = (minor: number) => {
+    if (minor >= 1_000_000) return (minor / 1_000_000).toFixed(1) + "M";
+    if (minor >= 1_000) return Math.round(minor / 1_000) + "k";
+    return String(minor);
+  };
+
+  const ListHeader = (
+    <View>
+      <View style={[styles.resultsHeader, { backgroundColor: c.surface }]}>
+        <Text style={[styles.countText, { color: c.text, fontFamily: fonts.sansBold }]}>
+          {query.isFetching ? "Searching…" : `${items.length} ${items.length === 1 ? "property" : "properties"}`}
+        </Text>
+        {query.data?.engine && (
+          <View style={[styles.engineBadge, { backgroundColor: c.primarySoft }]}>
+            <Text style={[styles.engineText, { color: c.primary, fontFamily: fonts.mono }]}>
+              {query.data.engine === "opensearch" ? "⚡ OpenSearch" : "🐘 PostGIS"}
+            </Text>
+          </View>
+        )}
+      </View>
+      <OfflineBanner visible={query.isError && items.length > 0} />
     </View>
-    <View style={s.fab}><Button title="Search here" size="sm" variant="accent" onPress={()=>{selection();void query.refetch()}} /></View><BottomSheet ref={sheet} index={1} snapPoints={["12%","45%","90%"]} enablePanDownToClose={false} backgroundStyle={{backgroundColor:c.surface}} handleIndicatorStyle={{backgroundColor:c.border}}>
-      <BottomSheetFlatList data={visible} refreshing={query.isRefetching} onRefresh={()=>void query.refetch()} keyExtractor={(x:SearchItem)=>x.listing.id} contentContainerStyle={{padding:spacing.lg,paddingBottom:120}} ListHeaderComponent={<View><Text style={[s.count,{color:c.text,fontFamily:fonts.sansBold}]}>{query.isFetching?"Updating…":visible.length+" properties"}</Text><OfflineBanner visible={query.isError && visible.length>0}/></View>} renderItem={({item}:{item:SearchItem})=><PropertyCard item={item} onPress={()=>router.push("/property/"+item.property.id)} />} ListEmptyComponent={<Text style={[s.hint,{color:c.muted}]}>No matching live listings.</Text>} />
-    </BottomSheet>
-  </View>;
+  );
+
+  return (
+    <View style={[styles.root, { backgroundColor: c.bg }]}>
+      <StatusBar barStyle={c.statusBar === "#07100D" ? "light-content" : "dark-content"} backgroundColor="transparent" translucent />
+
+      {/* Map */}
+      <MapView
+        style={styles.map}
+        region={region}
+        onRegionChangeComplete={setRegion}
+        onPress={addPoint}
+        showsUserLocation
+        showsCompass={false}
+      >
+        {items.map(item => (
+          <Marker
+            key={item.listing.id}
+            coordinate={{ latitude: item.property.latitude, longitude: item.property.longitude }}
+            onPress={() => centerOnItem(item)}
+          >
+            <View style={[
+              styles.markerBubble,
+              {
+                backgroundColor: selected?.listing.id === item.listing.id ? c.primary : c.surface,
+                borderColor: selected?.listing.id === item.listing.id ? c.primary : c.border,
+              }
+            ]}>
+              <Text style={[
+                styles.markerText,
+                { color: selected?.listing.id === item.listing.id ? c.primaryFg : c.text, fontFamily: fonts.sansBold },
+              ]}>
+                {formatPrice(item.listing.priceMinor)}
+              </Text>
+            </View>
+            <Callout tooltip>
+              <View style={[styles.callout, { backgroundColor: c.surface, borderColor: c.border }]}>
+                <Text style={[styles.calloutTitle, { color: c.text, fontFamily: fonts.sansBold }]} numberOfLines={1}>{item.property.title}</Text>
+                <Text style={[styles.calloutSub, { color: c.muted, fontFamily: fonts.sans }]}>{item.property.district}</Text>
+              </View>
+            </Callout>
+          </Marker>
+        ))}
+        {points.length > 1 && (
+          <Polygon
+            coordinates={points}
+            fillColor={c.primarySoft}
+            strokeColor={c.primary}
+            strokeWidth={2}
+          />
+        )}
+      </MapView>
+
+      {/* Top controls overlay */}
+      <View style={[styles.topOverlay, { backgroundColor: c.glass, borderColor: c.border, top: insets.top + 8 }]}>
+        {/* Search row */}
+        <View style={styles.searchRow}>
+          <Field
+            value={q}
+            onChangeText={setQ}
+            onSubmitEditing={() => { selection(); query.refetch(); }}
+            placeholder="Search district, type, bedrooms…"
+            returnKeyType="search"
+            style={styles.searchField}
+          />
+          <Pressable
+            style={[styles.filterBtn, { backgroundColor: hasFilters ? c.primary : c.surface2, borderColor: c.border }]}
+            onPress={() => { selection(); setShowFilters(v => !v); }}
+          >
+            <Ionicons name="options-outline" size={20} color={hasFilters ? c.primaryFg : c.text} />
+          </Pressable>
+        </View>
+
+        {/* Type chips */}
+        <View style={styles.chipRow}>
+          {LISTING_TYPES.map(t => (
+            <Chip key={t.key} label={t.label} active={type === t.key} onPress={() => { selection(); setType(t.key); }} />
+          ))}
+          <Chip
+            label={drawing ? "Stop" : "Draw area"}
+            active={drawing}
+            onPress={() => { selection(); setDrawing(v => !v); if (drawing) setPoints([]); }}
+          />
+          {points.length > 0 && (
+            <Pressable onPress={() => { selection(); setPoints([]); }}>
+              <Text style={[styles.clearText, { color: c.primary, fontFamily: fonts.sansBold }]}>Clear area</Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Expanded filters */}
+        {showFilters && (
+          <View style={[styles.filterPanel, { borderTopColor: c.border }]}>
+            <View style={styles.filterRow}>
+              <Field value={district} onChangeText={setDistrict} placeholder="District" style={styles.halfField} />
+              <Field value={min} onChangeText={setMin} placeholder="Min price (000)" keyboardType="numeric" style={styles.halfField} />
+              <Field value={max} onChangeText={setMax} placeholder="Max price (000)" keyboardType="numeric" style={styles.halfField} />
+            </View>
+            <View style={styles.filterActions}>
+              <Chip label={verified ? "✓ Verified" : "Verified only"} active={verified} onPress={() => { selection(); setVerified(v => !v); }} />
+              {hasFilters && <Pressable onPress={clearFilters}><Text style={[styles.clearText, { color: c.danger, fontFamily: fonts.sansBold }]}>Clear filters</Text></Pressable>}
+              <Pressable
+                onPress={async () => {
+                  if (!(await isSignedIn())) { router.push("/login"); return; }
+                  try {
+                    await api("/saved-searches", { method: "POST", body: JSON.stringify({ name: q || ("Search " + type), criteria: Object.fromEntries(new URLSearchParams(params)) }) }, true);
+                    Alert.alert("Search saved", "You will be notified when new matching properties are listed.");
+                  } catch (e) {
+                    Alert.alert("Save search", e instanceof Error ? e.message : "Unable to save search");
+                  }
+                }}
+              >
+                <Text style={[styles.saveText, { color: c.primary, fontFamily: fonts.sansBold }]}>☆ Save search</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {drawing && (
+          <Text style={[styles.drawHint, { color: c.muted, fontFamily: fonts.sans }]}>
+            Tap the map to draw a search boundary. Tap &quot;Stop&quot; when done.
+          </Text>
+        )}
+      </View>
+
+      {/* FAB - search here */}
+      <Pressable
+        style={[styles.fab, { backgroundColor: c.primary, bottom: 175 + insets.bottom }]}
+        onPress={() => { selection(); query.refetch(); }}
+      >
+        {query.isFetching
+          ? <Ionicons name="reload" size={20} color={c.primaryFg} />
+          : (
+            <>
+              <Ionicons name="search" size={16} color={c.primaryFg} />
+              <Text style={[styles.fabText, { color: c.primaryFg, fontFamily: fonts.sansBold }]}>Search here</Text>
+            </>
+          )
+        }
+      </Pressable>
+
+      {/* Bottom sheet */}
+      <BottomSheet
+        ref={sheet}
+        index={1}
+        snapPoints={["12%", "45%", "90%"]}
+        enablePanDownToClose={false}
+        backgroundStyle={{ backgroundColor: c.surface }}
+        handleIndicatorStyle={{ backgroundColor: c.border }}
+      >
+        <BottomSheetFlatList
+          data={items}
+          refreshing={query.isRefetching}
+          onRefresh={() => { selection(); void query.refetch(); }}
+          keyExtractor={(x: SearchItem) => x.listing.id}
+          contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 + insets.bottom }}
+          ListHeaderComponent={ListHeader}
+          renderItem={({ item }: { item: SearchItem }) => (
+            <PropertyCard
+              item={item}
+              onPress={() => { selection(); router.push("/property/" + item.property.id); }}
+            />
+          )}
+          ListEmptyComponent={
+            !query.isFetching ? (
+              <View style={styles.emptyState}>
+                <Ionicons name="search-outline" size={36} color={c.subtle} style={{ marginBottom: 12 }} />
+                <Text style={[styles.emptyTitle, { color: c.text, fontFamily: fonts.displayStrong }]}>No matches found</Text>
+                <Text style={[styles.emptySub, { color: c.muted, fontFamily: fonts.sans }]}>
+                  Adjust your filters or move the map to a different area.
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+      </BottomSheet>
+    </View>
+  );
 }
-const s=StyleSheet.create({root:{flex:1},map:{...StyleSheet.absoluteFillObject},top:{position:"absolute",top:55,left:12,right:12,padding:10,borderWidth:1,borderRadius:18},search:{marginBottom:2},row:{flexDirection:"row",gap:8,alignItems:"center",marginTop:6,flexWrap:"wrap"},small:{flex:1,minWidth:120},hint:{fontSize:12,lineHeight:18,marginTop:7},clear:{fontWeight:"800",marginTop:7},saveSearch:{fontWeight:"900",marginTop:9},fab:{position:"absolute",right:16,bottom:155,zIndex:20},count:{fontSize:17,marginBottom:10}});
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  map: { ...StyleSheet.absoluteFillObject },
+  topOverlay: {
+    position: "absolute", left: 12, right: 12,
+    borderWidth: 1, borderRadius: radius.xl, padding: 10,
+    shadowColor: "#000", shadowOpacity: 0.12, shadowRadius: 16, shadowOffset: { width: 0, height: 4 }, elevation: 6,
+  },
+  searchRow: { flexDirection: "row", gap: 8, alignItems: "center", marginBottom: 8 },
+  searchField: { flex: 1 },
+  filterBtn: { width: 44, height: 44, borderRadius: radius.md, alignItems: "center", justifyContent: "center", borderWidth: 1 },
+  chipRow: { flexDirection: "row", gap: 7, flexWrap: "wrap", alignItems: "center" },
+  filterPanel: { borderTopWidth: 1, marginTop: 10, paddingTop: 10, gap: 8 },
+  filterRow: { flexDirection: "row", gap: 7, flexWrap: "wrap" },
+  halfField: { minWidth: 100, flex: 1 },
+  filterActions: { flexDirection: "row", gap: 10, alignItems: "center", flexWrap: "wrap" },
+  clearText: { fontSize: 13 },
+  saveText: { fontSize: 13 },
+  drawHint: { fontSize: 12, lineHeight: 17, marginTop: 7 },
+  markerBubble: {
+    borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 4,
+    shadowColor: "#000", shadowOpacity: 0.15, shadowRadius: 4, shadowOffset: { width: 0, height: 2 }, elevation: 3,
+  },
+  markerText: { fontSize: 12 },
+  callout: { borderWidth: 1, borderRadius: radius.md, padding: 10, minWidth: 160 },
+  calloutTitle: { fontSize: 13 },
+  calloutSub: { fontSize: 11, marginTop: 3 },
+  fab: {
+    position: "absolute", right: 16, flexDirection: "row", alignItems: "center", gap: 6,
+    paddingHorizontal: 16, paddingVertical: 10, borderRadius: radius.pill,
+    shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 8,
+  },
+  fabText: { fontSize: 13 },
+  resultsHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 4, marginBottom: 12 },
+  countText: { fontSize: typography.callout },
+  engineBadge: { borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 4 },
+  engineText: { fontSize: 11 },
+  emptyState: { alignItems: "center", paddingVertical: 32 },
+  emptyTitle: { fontSize: 20, letterSpacing: -0.4, marginBottom: 8 },
+  emptySub: { textAlign: "center", fontSize: 14, lineHeight: 21, paddingHorizontal: 20 },
+});
