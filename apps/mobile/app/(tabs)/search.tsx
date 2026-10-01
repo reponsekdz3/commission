@@ -58,4 +58,4 @@ export default function Search() {
     </BottomSheet>
   </View>;
 }
-const s=StyleSheet.create({root:{flex:1},map:{...StyleSheet.absoluteFillObject},top:{position:"absolute",top:55,left:12,right:12,padding:10,borderWidth:1,borderRadius:18},search:{marginBottom:2},row:{flexDirection:"row",gap:8,alignItems:"center",marginTop:6,flexWrap:"wrap"},small:{flex:1,minWidth:120},hint:{fontSize:12,lineHeight:18,marginTop:7},clear:{fontWeight:"800",marginTop:7},saveSearch:{fontWeight:"900",marginTop:9},fab:{position:"absolute",right:16,bottom:155,zIndex:20},count:{fontSize:17,marginBottom:10}});
+const s=StyleSheet.create({root:{flex:1},map:{position:"absolute",top:0,left:0,right:0,bottom:0},top:{position:"absolute",top:55,left:12,right:12,padding:10,borderWidth:1,borderRadius:18},search:{marginBottom:2},row:{flexDirection:"row",gap:8,alignItems:"center",marginTop:6,flexWrap:"wrap"},small:{flex:1,minWidth:120},hint:{fontSize:12,lineHeight:18,marginTop:7},clear:{fontWeight:"800",marginTop:7},saveSearch:{fontWeight:"900",marginTop:9},fab:{position:"absolute",right:16,bottom:155,zIndex:20},count:{fontSize:17,marginBottom:10}});
