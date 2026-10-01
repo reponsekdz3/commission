@@ -1,5 +1,5 @@
 const { Client } = require("pg");
-const { syncRwandaLocations } = require("./locations.cjs");
+const { syncRwandaLocations, seedLocalRwandaHierarchy } = require("./locations.cjs");
 
 async function main() {
   const url = process.env.DATABASE_URL;
@@ -12,8 +12,22 @@ async function main() {
 
   try {
     await client.query("BEGIN");
-    const locationCounts = await syncRwandaLocations(client);
-    console.log("Synced Rwanda administrative hierarchy", locationCounts);
+    const locationSource = String(process.env.RWANDA_LOCATION_SOURCE || "auto").toLowerCase();
+    let locationCounts;
+    if (locationSource === "fallback") {
+      locationCounts = await seedLocalRwandaHierarchy(client);
+      console.log("Seeded deterministic Rwanda development location fallback", locationCounts);
+    } else {
+      try {
+        locationCounts = await syncRwandaLocations(client);
+        console.log("Synced Rwanda administrative hierarchy from configured official GIS source", locationCounts);
+      } catch (error) {
+        if (locationSource === "remote") throw error;
+        console.warn("Remote Rwanda administrative sync unavailable; using deterministic development fallback.", error instanceof Error ? error.message : error);
+        locationCounts = await seedLocalRwandaHierarchy(client);
+        console.log("Seeded deterministic Rwanda development location fallback", locationCounts);
+      }
+    }
 
     await client.query(
       "INSERT INTO users(id,email,phone,password_hash,full_name,locale,mfa_enabled) VALUES " +
