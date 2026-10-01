@@ -1,4 +1,5 @@
 import { router } from "expo-router";
+import * as Location from "expo-location";
 import { useEffect, useState } from "react";
 import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { api } from "../src/lib/api";
