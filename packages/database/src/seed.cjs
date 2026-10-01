@@ -109,11 +109,18 @@ async function main() {
 
     for (const p of properties) {
       await client.query(
-        "INSERT INTO properties(id,owner_id,organization_id,title,description,property_type,status,country_code,verification_status,risk_level,risk_score,bedrooms,bathrooms,parking,area_value,area_unit,published_at) " +
-        "VALUES($1,'11111111-1111-1111-1111-111111111111',$2,$3,$4,$5,'PUBLISHED','RW',$6,'LOW',4,$7,$8,$9,$10,'SQM',now()) " +
+        "INSERT INTO properties(id,owner_id,organization_id,title,description,property_type,status,country_code,verification_status,risk_level,risk_score,published_at) " +
+        "VALUES($1,'11111111-1111-1111-1111-111111111111',$2,$3,$4,$5,'PUBLISHED','RW',$6,'LOW',4,now()) " +
         "ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description,updated_at=now(),status='PUBLISHED'",
-        [p.id,p.id==="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" ? "55555555-5555-5555-5555-555555555555" : null,p.title,p.description,p.type,p.id==="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee" ? "UNVERIFIED" : "VERIFIED",p.bedrooms ?? null,p.bathrooms ?? null,p.parking ?? null,p.area ?? null],
+        [p.id,p.id==="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" ? "55555555-5555-5555-5555-555555555555" : null,p.title,p.description,p.type,p.id==="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee" ? "UNVERIFIED" : "VERIFIED"],
       );
+
+      const unitResult = await client.query(
+        "INSERT INTO property_units(property_id,label,bedrooms,bathrooms,parking,area_value,area_unit,status) VALUES($1,'UNIT-1',$2,$3,$4,$5,'SQM','AVAILABLE') " +
+        "ON CONFLICT(property_id,label) DO UPDATE SET bedrooms=EXCLUDED.bedrooms,bathrooms=EXCLUDED.bathrooms,parking=EXCLUDED.parking,area_value=EXCLUDED.area_value,status='AVAILABLE' RETURNING id",
+        [p.id,p.bedrooms ?? null,p.bathrooms ?? null,p.parking ?? null,p.area ?? null],
+      );
+      const unitId = unitResult.rows[0].id;
 
       await client.query(
         "INSERT INTO property_locations(property_id,country_code,province,district,sector,geom) VALUES($1,'RW',$2,$3,$4,ST_SetSRID(ST_MakePoint($5,$6),4326)::geography) " +
@@ -139,12 +146,12 @@ async function main() {
       let listingId;
       if (existingListing.rows[0]) {
         listingId=existingListing.rows[0].id;
-        await client.query("UPDATE property_listings SET status='ACTIVE',available_from=now(),updated_at=now() WHERE id=$1",[listingId]);
+        await client.query("UPDATE property_listings SET unit_id=$2,status='ACTIVE',available_from=now(),updated_at=now() WHERE id=$1",[listingId,unitId]);
         await client.query("UPDATE property_prices SET amount_minor=$2,effective_to=NULL WHERE listing_id=$1 AND effective_to IS NULL",[listingId,p.price]);
       } else {
         const listing = await client.query(
-          "INSERT INTO property_listings(id,property_id,listing_type,status,available_from) VALUES(gen_random_uuid(),$1,$2,'ACTIVE',now()) RETURNING id",
-          [p.id,p.listing],
+          "INSERT INTO property_listings(id,property_id,unit_id,listing_type,status,available_from) VALUES(gen_random_uuid(),$1,$2,$3,'ACTIVE',now()) RETURNING id",
+          [p.id,unitId,p.listing],
         );
         listingId=listing.rows[0].id;
         await client.query(
