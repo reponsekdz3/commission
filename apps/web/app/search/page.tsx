@@ -10,21 +10,21 @@ import { PropertyCardSkeleton } from "../../components/ui";
 import { SavedSearchChip } from "../../components/saved-search-chip";
 import { EmptyState } from "../../components/empty-state";
 import { trackEvent } from "../../lib/analytics";
-
-export const dynamic = "force-dynamic";
+import { Map, SlidersHorizontal, LayoutGrid } from "lucide-react";
 
 function SearchContent() {
-  const params = useSearchParams(),
-    router = useRouter(),
-    pathname = usePathname();
-  const q = params.toString();
+  const params   = useSearchParams();
+  const router   = useRouter();
+  const pathname = usePathname();
+  const q        = params.toString();
+
   const { data, isLoading, isError, error } = useProperties(q);
-  const items = useMemo(() => data?.items ?? [], [data]);
-  const listRef = useRef<HTMLDivElement>(null);
-  const [activeId, setActiveId] = useState<string>();
-  useEffect(() => {
-    trackEvent("search", { query: q });
-  }, [q]);
+  const items    = useMemo(() => data?.items ?? [], [data]);
+  const listRef  = useRef<HTMLDivElement>(null);
+  const [activeId, setActiveId]   = useState<string>();
+  const [showFilters, setFilters] = useState(false);
+
+  useEffect(() => { trackEvent("search", { query: q }); }, [q]);
 
   const onBoundsChange = useCallback(
     (b: { north: number; south: number; east: number; west: number }) => {
@@ -34,6 +34,7 @@ function SearchContent() {
     },
     [params, pathname, router]
   );
+
   const scrollToProperty = useCallback((id: string) => {
     setActiveId(id);
     listRef.current
@@ -46,9 +47,9 @@ function SearchContent() {
     if (!root || !items.length) return;
     const nodes = [...root.querySelectorAll<HTMLElement>("[data-property-id]")];
     const observer = new IntersectionObserver(
-      (entries) => {
+      entries => {
         const visible = entries
-          .filter((x) => x.isIntersecting)
+          .filter(x => x.isIntersecting)
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
         if (visible) {
           const id = (visible.target as HTMLElement).dataset.propertyId;
@@ -57,66 +58,101 @@ function SearchContent() {
       },
       { root, rootMargin: "-45% 0px -45%", threshold: [0, 0.25, 0.5, 0.75, 1] }
     );
-    nodes.forEach((node) => observer.observe(node));
+    nodes.forEach(node => observer.observe(node));
     return () => observer.disconnect();
   }, [items]);
 
+  const currentType = params.get("listingType");
+
   return (
     <main className="searchSplit">
+      {/* ── List side ── */}
       <section className="searchList" ref={listRef}>
-        <div className="mb-4 flex items-end justify-between gap-4">
+        {/* Header */}
+        <div className="search-list-head">
           <div>
-            <div className="eyebrow">Discovery engine</div>
-            <h1 className="text-4xl font-extrabold md:text-5xl">Find your next property.</h1>
-            <p className="muted max-w-2xl">
-              Live Rwanda inventory with backend search, map context and verified listings.
+            <div className="eyebrow mb-1">Discovery engine</div>
+            <h1 className="search-title">Find your next property.</h1>
+            <p className="search-sub">
+              Live Rwanda inventory — verified listings with maps and real-time availability.
             </p>
           </div>
-          <Link href="/map" className="btn ghost">
-            Map
-          </Link>
-        </div>
-        <PropertyFilters />
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          {["RENT", "SALE", "SHORT_STAY"].map((x) => (
-            <Link
-              key={x}
-              href={"/search?listingType=" + x}
-              className={"chip " + (params.get("listingType") === x ? "active" : "")}
+          <div className="search-head-actions">
+            <button
+              className={`btn ghost flex items-center gap-2 ${showFilters ? "" : ""}`}
+              onClick={() => setFilters(p => !p)}
+              style={{ fontSize: 13 }}
             >
-              {x === "RENT" ? "Rent" : x === "SALE" ? "Buy" : "Short stay"}
+              <SlidersHorizontal size={14} />
+              Filters
+            </button>
+            <Link href="/map" className="btn ghost flex items-center gap-2" style={{ fontSize: 13 }}>
+              <Map size={14} /> Map only
             </Link>
-          ))}
-          <SavedSearchChip />
+          </div>
         </div>
+
+        {/* Listing type tabs */}
+        <div className="search-type-bar">
+          <div className="search-type-chips">
+            {[
+              { key: null,          label: "All" },
+              { key: "RENT",        label: "Rent" },
+              { key: "SALE",        label: "Buy" },
+              { key: "SHORT_STAY",  label: "Short stay" },
+            ].map(({ key, label }) => (
+              <Link
+                key={label}
+                href={key ? `/search?listingType=${key}` : "/search"}
+                className={`chip ${currentType === key || (!currentType && !key) ? "active" : ""}`}
+              >
+                {label}
+              </Link>
+            ))}
+            <SavedSearchChip />
+          </div>
+        </div>
+
+        {/* Filters panel */}
+        {showFilters && (
+          <div className="search-filters-panel">
+            <PropertyFilters />
+          </div>
+        )}
+
+        {/* Error */}
         {isError && (
-          <div className="notice error mt-4">
+          <div className="alert alert-error mt-4">
             {error instanceof Error ? error.message : "Search failed"}
           </div>
         )}
-        <div className="sectionLabel mt-5">
-          <span>
-            <b>{items.length}</b> live results
-          </span>
-          <span className="muted">Rwanda</span>
+
+        {/* Results count */}
+        <div className="search-results-bar">
+          <div className="search-results-count">
+            <strong>{isLoading ? "…" : items.length}</strong>
+            <span>live results</span>
+            <span className="search-results-region">· Rwanda</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <LayoutGrid size={15} className="text-[var(--color-fg-muted)]" />
+          </div>
         </div>
+
+        {/* Grid */}
         {isLoading ? (
-          <div className="grid [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
-            {[1, 2, 3, 4].map((i) => (
-              <PropertyCardSkeleton key={i} />
-            ))}
+          <div className="search-grid">
+            {[1, 2, 3, 4, 5, 6].map(i => <PropertyCardSkeleton key={i} />)}
           </div>
         ) : items.length ? (
-          <div className="grid [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
+          <div className="search-grid">
             {items.map((item: SearchItem) => (
               <div
                 key={item.listing.id}
                 data-property-id={item.property.id}
-                className={
-                  activeId === item.property.id
-                    ? "[&_.card]:ring-2 [&_.card]:ring-[var(--color-accent)]"
-                    : ""
-                }
+                className={activeId === item.property.id
+                  ? "[&_.card]:ring-2 [&_.card]:ring-[var(--color-accent)] [&_.card]:shadow-md"
+                  : ""}
               >
                 <PropertyCard item={item} />
               </div>
@@ -126,15 +162,13 @@ function SearchContent() {
           <EmptyState
             kind="search"
             title="No properties match"
-            description="The live backend returned no listings for these filters."
-            action={
-              <Link href="/search" className="btn">
-                Reset search
-              </Link>
-            }
+            description="The live backend returned no listings for these filters. Try resetting or broadening your search."
+            action={<Link href="/search" className="btn">Reset search</Link>}
           />
         )}
       </section>
+
+      {/* ── Map side ── */}
       <aside className="searchMap">
         <MapboxClient
           items={items}
@@ -153,10 +187,8 @@ export default function SearchPage() {
       fallback={
         <main className="searchSplit">
           <section className="searchList">
-            <div className="grid [grid-template-columns:repeat(auto-fill,minmax(250px,1fr))]">
-              {[1, 2, 3, 4].map((i) => (
-                <PropertyCardSkeleton key={i} />
-              ))}
+            <div className="search-grid mt-6">
+              {[1, 2, 3, 4, 5, 6].map(i => <PropertyCardSkeleton key={i} />)}
             </div>
           </section>
         </main>

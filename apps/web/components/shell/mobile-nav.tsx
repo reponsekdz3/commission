@@ -13,6 +13,10 @@ const ITEMS = [
 
 export function MobileNav() {
   const pathname = usePathname();
+  const hideOnAuth = ["/login", "/register", "/forgot", "/verify"].some(
+    p => pathname === p || pathname.startsWith(p + "/")
+  );
+  if (hideOnAuth) return null;
 
   return (
     <nav

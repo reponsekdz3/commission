@@ -1,124 +1,279 @@
 "use client";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Building2, Mail, Phone, User, Lock, CheckCircle, ShieldCheck } from "lucide-react";
+import {
+  Building2, Mail, Phone, User, Lock, CheckCircle,
+  ShieldCheck, Eye, EyeOff, ArrowRight, Sparkles,
+  Check, X,
+} from "lucide-react";
 import { api } from "../../lib/api";
 import { Input, Button } from "../../components/ui";
 
 const s = z.object({
-  fullName: z.string().min(2),
-  email:    z.string().email(),
-  phone:    z.string().regex(/^\+?[0-9]{10,20}$/, "Use a valid phone number"),
+  fullName: z.string().min(2, "Full name must be at least 2 characters"),
+  email:    z.string().email("Enter a valid email address"),
+  phone:    z.string().regex(/^\+?[0-9]{10,20}$/, "Use a valid phone number (+250…)"),
   password: z.string().min(10, "Password must be at least 10 characters"),
 });
 type F = z.infer<typeof s>;
 
+const PERKS = [
+  "Free to create & browse listings",
+  "Verified properties only",
+  "Secure RWF, USD & more payments",
+  "Cross-device sync & notifications",
+  "Real-time booking management",
+];
+
+function PasswordStrength({ pw }: { pw: string }) {
+  const checks = useMemo(() => [
+    { label: "10+ characters",       pass: pw.length >= 10 },
+    { label: "Uppercase letter",      pass: /[A-Z]/.test(pw) },
+    { label: "Lowercase letter",      pass: /[a-z]/.test(pw) },
+    { label: "Number",                pass: /[0-9]/.test(pw) },
+  ], [pw]);
+
+  const score = checks.filter(c => c.pass).length;
+  const levels = ["", "Weak", "Fair", "Good", "Strong"];
+  const colors = ["", "var(--color-danger)", "var(--color-accent)", "var(--color-info)", "var(--color-success)"];
+
+  if (!pw) return null;
+
+  return (
+    <div className="auth-pw-strength">
+      <div className="auth-pw-bars">
+        {[1, 2, 3, 4].map(i => (
+          <div
+            key={i}
+            className="auth-pw-bar"
+            style={{ background: i <= score ? colors[score] : "var(--color-border)" }}
+          />
+        ))}
+        <span style={{ color: colors[score], fontSize: 11, fontWeight: 800 }}>{levels[score]}</span>
+      </div>
+      <div className="auth-pw-checks">
+        {checks.map(({ label, pass }) => (
+          <span key={label} className={`auth-pw-check ${pass ? "pass" : ""}`}>
+            {pass ? <Check size={10} /> : <X size={10} />}
+            {label}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function Register() {
   const [message, setMessage] = useState("");
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<F>({
+  const [showPw, setShowPw] = useState(false);
+
+  const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<F>({
     resolver: zodResolver(s),
   });
 
+  const watchedPw = watch("password", "");
+
   const submit = async (v: F) => {
+    setMessage("");
     try {
       await api("/auth/register", { method: "POST", body: JSON.stringify(v) });
       setMessage("Account created. Sign in to continue.");
     } catch (e) {
-      setMessage(e instanceof Error ? e.message : "Registration failed");
+      setMessage(e instanceof Error ? e.message : "Registration failed. Please try again.");
     }
   };
 
   const isSuccess = message.startsWith("Account created");
 
   return (
-    <div className="min-h-[calc(100vh-73px)] grid lg:grid-cols-2">
-      {/* Left panel */}
-      <div
-        className="hidden lg:flex flex-col justify-between p-12 relative overflow-hidden"
-        style={{ background: "linear-gradient(145deg, var(--color-primary-deep), #0a7352)" }}
-      >
-        <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full opacity-20"
-          style={{ background: "radial-gradient(circle, #34D399, transparent 70%)" }} />
-        <div className="relative z-10">
-          <div className="flex items-center gap-3 mb-12">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/20">
-              <Building2 size={20} className="text-white" />
-            </span>
-            <span className="font-[family-name:var(--font-display)] text-xl font-[900] tracking-[.14em] text-white">IMIZI</span>
+    <div className="auth-page">
+      {/* ── Left: Brand Panel ── */}
+      <div className="auth-brand-panel">
+        <div className="auth-orb auth-orb-1" />
+        <div className="auth-orb auth-orb-2" />
+        <div className="auth-orb auth-orb-3" />
+
+        <div className="auth-brand-top">
+          <div className="auth-logo">
+            <Building2 size={22} />
           </div>
-          <h2 className="text-4xl font-[900] tracking-[-0.06em] text-white leading-tight mb-4">
-            One account. Unlimited property possibilities.
-          </h2>
-          <p className="text-white/70 text-[15px] leading-relaxed max-w-sm">
-            Free to join. Search and shortlist immediately. Booking, offers and payments activate once you&apos;re in.
-          </p>
+          <span className="auth-brand-name">IMIZI</span>
+          <span className="auth-brand-tag">Rwanda</span>
         </div>
-        <div className="relative z-10 flex flex-col gap-3">
-          {["Free to create & browse", "Verified listings only", "Secure RWF payments", "Cross-device sync"].map(f => (
-            <div key={f} className="flex items-center gap-3">
-              <ShieldCheck size={16} className="text-emerald-300 flex-shrink-0" />
-              <span className="text-white/80 text-sm font-[600]">{f}</span>
-            </div>
-          ))}
+
+        <div className="auth-brand-body">
+          <div className="auth-eyebrow-pill">
+            <Sparkles size={11} />
+            <span>Free to join — no credit card needed</span>
+          </div>
+          <h2 className="auth-brand-h2">
+            One account.{" "}
+            <span className="auth-brand-h2-accent">Unlimited possibilities.</span>
+          </h2>
+          <p className="auth-brand-lead">
+            Join thousands of Rwandans finding and managing property smarter, faster and more securely than ever.
+          </p>
+
+          <div className="auth-features">
+            {PERKS.map(p => (
+              <div key={p} className="auth-feature-row">
+                <div className="auth-feature-icon">
+                  <ShieldCheck size={13} />
+                </div>
+                <span>{p}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="auth-social-proof">
+          <div className="auth-proof-item"><strong>Free</strong><span>Always</span></div>
+          <div className="auth-proof-item"><strong>60s</strong><span>Setup time</span></div>
+          <div className="auth-proof-item"><strong>5k+</strong><span>Members</span></div>
         </div>
       </div>
 
-      {/* Right: form */}
-      <div className="flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-[460px]">
-          <div className="mb-8">
-            <div className="eyebrow mb-3">Join Imizi</div>
-            <h1 className="text-[clamp(2rem,5vw,2.8rem)] font-[900] tracking-[-0.06em] mb-2">
-              Create your account.
-            </h1>
-            <p className="text-[var(--color-fg-muted)] text-sm leading-relaxed">
-              Search, save, book and manage properties across Rwanda from one account.
+      {/* ── Right: Form Panel ── */}
+      <div className="auth-form-panel">
+        <div className="auth-form-inner">
+          {/* Mobile logo */}
+          <div className="auth-mobile-logo">
+            <div className="auth-logo auth-logo-sm">
+              <Building2 size={18} />
+            </div>
+            <span className="auth-brand-name">IMIZI</span>
+          </div>
+
+          <div className="auth-form-head">
+            <div className="eyebrow mb-2">Join Imizi</div>
+            <h1 className="auth-form-title">Create your account.</h1>
+            <p className="auth-form-sub">
+              Search, save, book and manage properties across Rwanda — free forever.
             </p>
           </div>
 
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit(submit)}>
-            <div className="field-group">
-              <label className="field-label flex items-center gap-2"><User size={13} /> Full name</label>
-              <Input {...register("fullName")} error={errors.fullName?.message} />
-            </div>
-            <div className="field-group">
-              <label className="field-label flex items-center gap-2"><Mail size={13} /> Email</label>
-              <Input type="email" {...register("email")} error={errors.email?.message} />
-            </div>
-            <div className="field-group">
-              <label className="field-label flex items-center gap-2"><Phone size={13} /> Phone</label>
-              <Input placeholder="+250…" {...register("phone")} error={errors.phone?.message} />
-            </div>
-            <div className="field-group">
-              <label className="field-label flex items-center gap-2"><Lock size={13} /> Password</label>
-              <Input type="password" {...register("password")} error={errors.password?.message} />
-              <span className="field-hint">Minimum 10 characters</span>
-            </div>
-
-            {message && (
-              <div className={`alert ${isSuccess ? "alert-info flex items-center gap-2" : "alert-error"}`}>
-                {isSuccess && <CheckCircle size={16} className="flex-shrink-0" />}
-                {message}
-                {isSuccess && (
-                  <Link href="/login" className="ml-auto font-[700] underline">Sign in →</Link>
-                )}
+          {/* Success state */}
+          {isSuccess ? (
+            <div className="auth-success-card">
+              <div className="auth-success-icon">
+                <CheckCircle size={32} />
               </div>
-            )}
+              <h3>Account created!</h3>
+              <p>Your account is ready. Sign in to start exploring properties.</p>
+              <Link href="/login" className="auth-submit-btn" style={{ textAlign: "center" }}>
+                Go to sign in <ArrowRight size={16} />
+              </Link>
+            </div>
+          ) : (
+            <form className="auth-form" onSubmit={handleSubmit(submit)} noValidate>
+              {/* Full name */}
+              <div className="field-group">
+                <label className="field-label">
+                  <User size={13} />
+                  Full name
+                </label>
+                <Input
+                  placeholder="Jean-Pierre Habimana"
+                  autoComplete="name"
+                  {...register("fullName")}
+                  error={errors.fullName?.message}
+                />
+              </div>
 
-            {!isSuccess && (
-              <Button disabled={isSubmitting} className="w-full justify-center mt-1" style={{ minHeight: 48, fontSize: 15 }}>
-                {isSubmitting ? "Creating account…" : "Create account"}
+              {/* Email */}
+              <div className="field-group">
+                <label className="field-label">
+                  <Mail size={13} />
+                  Email address
+                </label>
+                <Input
+                  type="email"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                  {...register("email")}
+                  error={errors.email?.message}
+                />
+              </div>
+
+              {/* Phone */}
+              <div className="field-group">
+                <label className="field-label">
+                  <Phone size={13} />
+                  Phone number
+                </label>
+                <Input
+                  placeholder="+250 7XX XXX XXX"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  {...register("phone")}
+                  error={errors.phone?.message}
+                />
+              </div>
+
+              {/* Password */}
+              <div className="field-group">
+                <label className="field-label">
+                  <Lock size={13} />
+                  Password
+                </label>
+                <div className="auth-pw-wrap">
+                  <Input
+                    type={showPw ? "text" : "password"}
+                    placeholder="Min. 10 characters"
+                    autoComplete="new-password"
+                    {...register("password")}
+                    error={errors.password?.message}
+                  />
+                  <button
+                    type="button"
+                    className="auth-pw-toggle"
+                    onClick={() => setShowPw(p => !p)}
+                    aria-label={showPw ? "Hide password" : "Show password"}
+                  >
+                    {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <PasswordStrength pw={watchedPw} />
+              </div>
+
+              {message && !isSuccess && (
+                <div className="alert alert-error flex items-start gap-2">
+                  <span className="flex-shrink-0">⚠️</span>
+                  <span>{message}</span>
+                </div>
+              )}
+
+              <Button disabled={isSubmitting} className="auth-submit-btn">
+                {isSubmitting ? (
+                  <span className="auth-spinner" />
+                ) : (
+                  <>Create free account <ArrowRight size={16} /></>
+                )}
               </Button>
-            )}
-          </form>
 
-          <p className="mt-6 text-sm text-center text-[var(--color-fg-muted)] border-t border-[var(--color-border)] pt-5">
-            Already have an account?{" "}
-            <Link href="/login" className="font-[700] text-[var(--color-primary)] hover:underline">Sign in →</Link>
-          </p>
+              <p className="auth-legal">
+                By creating an account you agree to our{" "}
+                <Link href="/legal/terms">Terms of Service</Link> and{" "}
+                <Link href="/legal/privacy">Privacy Policy</Link>.
+              </p>
+            </form>
+          )}
+
+          {/* Sign in link */}
+          {!isSuccess && (
+            <>
+              <div className="auth-divider">
+                <span>Already have an account?</span>
+              </div>
+              <Link href="/login" className="auth-register-cta">
+                Sign in instead
+                <ArrowRight size={15} />
+              </Link>
+            </>
+          )}
         </div>
       </div>
     </div>

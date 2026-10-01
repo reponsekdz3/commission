@@ -23,6 +23,9 @@ export function Topbar() {
   const [u, setU] = useState<{ fullName?: string; email?: string } | null>(null);
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const hideOnAuth = ["/login", "/register", "/forgot", "/verify"].some(
+    p => pathname === p || pathname.startsWith(p + "/")
+  );
 
   useEffect(() => {
     try { setU(JSON.parse(localStorage.getItem("imizi_user") || "null")); } catch {}
@@ -33,6 +36,8 @@ export function Topbar() {
 
   // close mobile menu on route change
   useEffect(() => setMobileOpen(false), [pathname]);
+
+  if (hideOnAuth) return null;
 
   return (
     <>

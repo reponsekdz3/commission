@@ -9,8 +9,6 @@ import { authApi } from "../../lib/api";
 import { trackEvent } from "../../lib/analytics";
 import { Button, Input, Progress } from "../../components/ui";
 
-export const dynamic = "force-dynamic";
-
 const schema = z.object({
   provider: z.enum(["MTN_MOMO", "FLUTTERWAVE", "CARD"]),
   msisdn: z.string().optional(),
