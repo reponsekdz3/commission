@@ -63,6 +63,7 @@ jobs:
       API_PREFIX: /api/v1
       DEFAULT_COUNTRY: RW
       DEFAULT_CURRENCY: RWF
+      RWANDA_LOCATION_SOURCE: fallback
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
