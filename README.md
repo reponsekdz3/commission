@@ -1,14 +1,14 @@
 <div align='center'>
 
-# IMIZI
+# HAFIYAWE — IMIZI
 
 ### Rwanda Real-Estate Marketplace & Property Operations Platform
 
 **Discover. Locate. Compare. Message. View. Book. Pay. Manage.**
 
 <p>
-  <a href='https://github.com/reponsekdz3/commission/actions/workflows/ci.yml'><img src='https://github.com/reponsekdz3/commission/actions/workflows/ci.yml/badge.svg' alt='CI'></a>
-  <a href='https://github.com/reponsekdz3/commission/actions/workflows/codeql.yml'><img src='https://github.com/reponsekdz3/commission/actions/workflows/codeql.yml/badge.svg' alt='CodeQL'></a>
+  <a href='https://github.com/reponsekdz3/hafiyawe/actions/workflows/ci.yml'><img src='https://github.com/reponsekdz3/hafiyawe/actions/workflows/ci.yml/badge.svg' alt='CI'></a>
+  <a href='https://github.com/reponsekdz3/hafiyawe/actions/workflows/codeql.yml'><img src='https://github.com/reponsekdz3/hafiyawe/actions/workflows/codeql.yml/badge.svg' alt='CodeQL'></a>
   <img src='https://img.shields.io/badge/Next.js-15-black?logo=next.js' alt='Next.js 15'>
   <img src='https://img.shields.io/badge/Expo-57-000020?logo=expo' alt='Expo 57'>
   <img src='https://img.shields.io/badge/PostgreSQL-PostGIS-336791?logo=postgresql' alt='PostgreSQL PostGIS'>
@@ -19,11 +19,11 @@
 
 ## App showcase — Web + Mobile
 
-[![Imizi web and mobile app showcase](./docs/assets/imizi-app-showcase.svg)](https://github.com/reponsekdz3/commission)
+[![Imizi web and mobile app showcase](./docs/assets/imizi-app-showcase.svg)](https://github.com/reponsekdz3/hafiyawe)
 
 **Open the showcase image:** [Web + Mobile product visual](./docs/assets/imizi-app-showcase.svg)
 
-> Repository-native product showcase based on the current UI surfaces. It is a product visual, not a production screenshot.
+> `hafiyawe` is the clone repository target for the Imizi production-oriented specification. Product visuals are repository-native; they are not fabricated production screenshots.
 
 <p><strong>A connected web + mobile property platform built around real property records, canonical Rwanda locations, geospatial discovery, transactions, messaging, media and property operations.</strong></p>
 
@@ -540,7 +540,23 @@ The complete release has passed deployment, security, functional, backup/restore
 
 This README intentionally uses the first two categories unless stronger evidence exists.
 
-## Recent hardening and UI work
+## Hafiyawe clone baseline
+
+This repository is the `hafiyawe` implementation line for the Imizi master clone specification. It intentionally preserves the modular-monolith architecture and existing API/domain contracts while tightening CI and repository traceability. The application name remains **Imizi**; `hafiyawe` is the repository name.
+
+### Non-negotiable implementation rules
+
+- PostgreSQL remains the system of record.
+- OpenSearch remains derived/search infrastructure with PostgreSQL/PostGIS fallback.
+- Authorization is enforced server-side with role and object-level permissions.
+- Transactional money uses integer minor units and backend-authoritative state machines.
+- Booking/payment operations require idempotency and database concurrency protection.
+- Messaging requires persisted conversations, membership authorization, Socket.IO transport and read state.
+- Large/private media uses signed object-storage URLs and ownership checks.
+- Web and mobile consume the same API contracts.
+- CI must fail on typecheck, tests, migrations, smoke checks, builds, Expo validation or high-severity dependency audit failures.
+
+
 
 The recent repository work strengthened both reliability and user experience without removing the existing application structure.
 
