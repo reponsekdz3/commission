@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, hafiyawe]
   pull_request:
     branches: [main]
   workflow_dispatch:
@@ -131,6 +131,18 @@ jobs:
       - name: Validate Expo config
         working-directory: apps/mobile
         run: npx expo config --type public
+
+  production-contract:
+    name: Production contract • architecture and workflow guardrails
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm install --no-audit --no-fund
+      - run: node scripts/production-gate.mjs
 
   security:
     name: Security • dependency audit
