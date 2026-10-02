@@ -14,10 +14,11 @@ export class AuthController {
 
   private setSessionCookies(res:Response,data:{accessToken:string;refreshToken:string}){
     const production=process.env.NODE_ENV==="production";
-    const sameSite=(process.env.AUTH_COOKIE_SAMESITE ?? (production ? "none" : "lax")) as "lax"|"strict"|"none";
+    const sameSite=(process.env.AUTH_COOKIE_SAMESITE ?? "lax") as "lax"|"strict"|"none";
     const secure=production || sameSite==="none";
     res.cookie("imizi_access",data.accessToken,{httpOnly:true,secure,sameSite,path:"/",maxAge:15*60*1000});
-    res.cookie("imizi_refresh",data.refreshToken,{httpOnly:true,secure,sameSite,path:"/api/v1/auth",maxAge:30*24*60*60*1000});
+    const authPath=((process.env.API_PREFIX ?? "/api/v1").replace(/\/$/,""))+"/auth";
+    res.cookie("imizi_refresh",data.refreshToken,{httpOnly:true,secure,sameSite,path:authPath,maxAge:30*24*60*60*1000});
   }
 
   private readCookie(req:Request,name:string){
@@ -66,7 +67,8 @@ export class AuthController {
     const token=parsed.success ? parsed.data.refreshToken : this.readCookie(req,"imizi_refresh");
     if(token)await this.auth.logout(token);
     res.clearCookie("imizi_access",{path:"/"});
-    res.clearCookie("imizi_refresh",{path:"/api/v1/auth"});
+    const authPath=((process.env.API_PREFIX ?? "/api/v1").replace(/\/$/,""))+"/auth";
+    res.clearCookie("imizi_refresh",{path:authPath});
     return {ok:true};
   }
   @Post("mfa/setup") setupMfa(@CurrentUser()u:UserRecord){return this.auth.setupMfa(u);}
