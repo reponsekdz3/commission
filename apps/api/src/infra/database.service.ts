@@ -144,6 +144,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return result.rows[0]?.user_id as string | undefined;
   }
 
+  async revokeRefreshToken(refreshHash:string){
+    await this.query("UPDATE sessions SET revoked_at=now() WHERE refresh_token_hash=$1 AND revoked_at IS NULL",[refreshHash]);
+  }
+
   async createProperty(input: Record<string, any>, ownerId: string, organizationId: string | undefined, risk: { level: RiskLevel; score: number }) {
     const id = randomUUID();
     await this.transaction(async (client) => {
