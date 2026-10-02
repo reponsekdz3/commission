@@ -3,6 +3,7 @@ import { ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { searchSchema } from "@imizi/validation";
 import { Public } from "../../common/public.decorator";
+import { z } from "zod";
 import { SearchService } from "./search.service";
 
 @ApiTags("search")
@@ -18,8 +19,10 @@ export class SearchController {
   }
 
   @Public()
+  @Throttle({ search: { limit: 60, ttl: 60_000 } })
   @Get("suggest")
   suggest(@Query("q") q: string) {
-    return this.search.suggest(q ?? "");
+    const value=z.string().trim().max(120).parse(q ?? "");
+    return this.search.suggest(value);
   }
 }
