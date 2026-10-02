@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Body, Controller, ForbiddenException, Get, Param, Post, BadRequestException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
@@ -31,7 +32,7 @@ export class DocumentsController{
     const allowed=/^(application/pdf|image/(jpeg|png|webp))$/.test(data.contentType);
     if(!allowed)throw new BadRequestException("file_type_rejected");
     const safe=data.filename.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,140);
-    const key="private/property/"+data.propertyId+"/documents/"+user.id+"/"+crypto.randomUUID()+"-"+safe;
+    const key="private/property/"+data.propertyId+"/documents/"+user.id+"/"+randomUUID()+"-"+safe;
     return {...this.storage.presignedPut(key,data.contentType,900),private:true,maxBytes:25*1024*1024,expiresAt:data.expiresAt};
   }
 
