@@ -42,9 +42,9 @@ export class MediaController {
 
     const config=loadConfig();
     const safeName=data.filename.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,140);
-    const key="property/"+data.propertyId+"/original/"+user.id+"/"+randomUUID()+"-"+safeName;
+    const key="private/property/"+data.propertyId+"/quarantine/"+user.id+"/"+randomUUID()+"-"+safeName;
     const maxBytes=data.kind==="VIDEO" ? Math.min(config.maxMediaBytes,500*1024*1024) : Math.min(config.maxMediaBytes,50*1024*1024);
-    return {...this.storage.presignedPut("public/"+key,data.contentType),private:false,maxBytes,kind:data.kind,contentType:data.contentType};
+    return {...this.storage.presignedPut(key,data.contentType),private:true,maxBytes,kind:data.kind,contentType:data.contentType};
   }
 
   @Post("complete")
@@ -59,10 +59,10 @@ export class MediaController {
     if(!property)return{error:"not_found"};
     assertPropertyAccess(user,property,true);
 
-    const prefix="property/"+data.propertyId+"/original/"+user.id+"/";
+    const prefix="private/property/"+data.propertyId+"/quarantine/"+user.id+"/";
     if(!data.key.startsWith(prefix)||data.key.includes("..")||data.key.includes("\\"))throw new BadRequestException("invalid_key");
 
-    const meta=await this.storage.headObject("public/"+data.key);
+    const meta=await this.storage.headObject(data.key);
     const allowed=allowedByKind[data.kind];
     if(!meta.contentType || !allowed.includes(meta.contentType.toLowerCase()))throw new BadRequestException("uploaded_content_type_mismatch");
 
