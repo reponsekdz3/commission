@@ -49,6 +49,13 @@ export class StorageService{
     return {contentLength:Number(response.headers.get("content-length")??0),contentType:response.headers.get("content-type")??undefined};
   }
 
+  async deleteObject(key:string){
+    const signed=this.presign("DELETE",key,undefined,300);
+    const response=await fetch(signed.url,{method:"DELETE"});
+    if(!response.ok&&response.status!==404)throw new Error("Object DELETE failed: "+response.status);
+    return {deleted:true};
+  }
+
   async putBuffer(key:string,contentType:string,data:Buffer){
     const signed=this.presignedPut(key,contentType,900);
     const response=await fetch(signed.uploadUrl,{method:"PUT",headers:{"Content-Type":contentType},body:data});
