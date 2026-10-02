@@ -17,7 +17,7 @@ FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build -w @imizi/domain && npm run build -w @imizi/api
+RUN npm run build:packages && npm run build -w @imizi/api
 
 FROM node:20-alpine
 WORKDIR /app
