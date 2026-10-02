@@ -2,7 +2,7 @@ import { Body, Controller, Post, BadRequestException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { CurrentUser } from "../../common/current-user.decorator";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { assertPropertyAccess } from "../../common/access";
 import { DatabaseService } from "../../infra/database.service";
 import { StorageService } from "../../infra/storage.service";
