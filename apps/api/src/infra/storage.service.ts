@@ -63,6 +63,14 @@ export class StorageService{
     return {bucket:signed.bucket,key:signed.key};
   }
 
+  async readPrefix(key:string,bytes=64){
+    if(!Number.isInteger(bytes)||bytes<1||bytes>1024)throw new BadRequestException("Invalid prefix length");
+    const signed=this.presignedGet(key,300);
+    const response=await fetch(signed.downloadUrl,{headers:{Range:"bytes=0-"+(bytes-1)}});
+    if(!(response.ok||response.status===206))throw new Error("Object prefix read failed: "+response.status);
+    return Buffer.from(await response.arrayBuffer());
+  }
+
   async readBuffer(key:string){
     const signed=this.presignedGet(key,900);
     const response=await fetch(signed.downloadUrl);
