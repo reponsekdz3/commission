@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { loadConfig } from "@imizi/config";
 import type { Role, RiskLevel } from "@imizi/types";
 import { matchesSavedSearch } from "@imizi/domain";
-import type { UserRecord, PropertyRecord, ListingRecord, BookingRecord, PaymentIntentRecord } from "../store/platform.store";
+import type { UserRecord, PropertyRecord, ListingRecord, BookingRecord, PaymentIntentRecord } from "../store/records";
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
