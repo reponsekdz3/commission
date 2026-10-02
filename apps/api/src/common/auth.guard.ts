@@ -5,6 +5,16 @@ import { IS_PUBLIC } from "./public.decorator";
 import { DatabaseService } from "../infra/database.service";
 
 @Injectable()
+function readCookie(header:string|undefined,name:string){
+  if(!header)return undefined;
+  const prefix=name+"=";
+  for(const part of header.split(";")){
+    const value=part.trim();
+    if(value.startsWith(prefix))return decodeURIComponent(value.slice(prefix.length));
+  }
+  return undefined;
+}
+
 export class AuthGuard implements CanActivate {
   constructor(private readonly jwt: JwtService, private readonly reflector: Reflector, private readonly db: DatabaseService) {}
 
@@ -13,18 +23,17 @@ export class AuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest();
 
     const header = req.headers?.authorization as string | undefined;
-    if (!header) {
+    const bearer = header ? (/^Bearer\s+(.+)$/i.exec(header.trim())?.[1] ?? null) : null;
+    const cookieToken = readCookie(req.headers?.cookie as string|undefined,"imizi_access");
+    const token = bearer ?? cookieToken;
+    if (!token) {
       if (isPublic) return true;
       throw new UnauthorizedException("Authentication required");
     }
-
-    const match = /^Bearer\s+(.+)$/i.exec(header.trim());
-    if (!match) {
-      throw new UnauthorizedException("Invalid authorization header");
-    }
+    if (header && !bearer) throw new UnauthorizedException("Invalid authorization header");
 
     try {
-      const payload = this.jwt.verify<{ sub: string }>(match[1]);
+      const payload = this.jwt.verify<{ sub: string }>(token);
       if (!payload.sub) throw new UnauthorizedException("Invalid token");
 
       const user = await this.db.findUserById(payload.sub);
