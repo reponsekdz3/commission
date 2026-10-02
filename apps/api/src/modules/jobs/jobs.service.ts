@@ -168,6 +168,23 @@ export class JobsService implements OnModuleInit {
         }
 
 
+        if(job.name==="message.attachment.scan"){
+          const attachmentId=String(job.payload?.attachmentId ?? "");
+          const result=await this.db.query("SELECT * FROM message_attachments WHERE id=$1",[attachmentId]);
+          const attachment=result.rows[0];
+          if(attachment){
+            const input=await this.storage.readBuffer(String(attachment.storage_key));
+            const scan=await this.malware.scan(input);
+            await this.db.query(
+              "UPDATE message_attachments SET scan_status=$2,scan_result=$3,scanned_at=now() WHERE id=$1",
+              [attachmentId,scan.clean?"CLEAN":"INFECTED",scan.result],
+            );
+            if(!scan.clean){
+              await this.db.query("DELETE FROM message_attachments WHERE id=$1 AND message_id IS NULL",[attachmentId]);
+            }
+          }
+        }
+
         if(job.name==="media.process"){
           const media=await this.db.getMedia(String(job.payload?.mediaId ?? ""));
           if(media){
