@@ -22,9 +22,8 @@ export class MediaController {
     if(!(allowedByKind[d.kind]??[]).includes(d.contentType))throw new BadRequestException("file_type_rejected");
     const maxBytes=d.kind==="VIDEO"?loadConfig().maxMediaBytes:Math.min(loadConfig().maxMediaBytes,50*1024*1024);
     const safeName=d.filename.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,180);
-    const prefix=d.kind==="DOCUMENT"?"private/property/":"public/property/";
-    const key=prefix+d.propertyId+"/original/"+Date.now()+"-"+safeName;
-    return {...this.storage.presignedPut(key,d.contentType),maxBytes,kind:d.kind,private:d.kind==="DOCUMENT"};
+    const key="private/quarantine/property/"+d.propertyId+"/"+Date.now()+"-"+safeName;
+    return {...this.storage.presignedPut(key,d.contentType),maxBytes,kind:d.kind,private:true};
   }
   @Post("complete")
   async complete(@CurrentUser() user:UserRecord,@Body() body:unknown){
