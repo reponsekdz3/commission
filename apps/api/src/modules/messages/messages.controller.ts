@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, BadRequestException } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, BadRequestException, ForbiddenException, NotFoundException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { messageSchema } from "@imizi/validation";
 import { CurrentUser } from "../../common/current-user.decorator";
@@ -27,7 +27,7 @@ export class MessagesController {
   async attachmentSigned(@CurrentUser() user:UserRecord,@Body() body:unknown){
     const d=z.object({conversationId:z.string().uuid(),filename:z.string().trim().min(1).max(180),contentType:z.string().trim().toLowerCase().max(100),sizeBytes:z.number().int().positive().max(50*1024*1024)}).parse(body);
     const member=await this.db.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND user_id=$2",[d.conversationId,user.id]);
-    if(!member.rows[0]) return {error:"forbidden"};
+    if(!member.rows[0]) throw new ForbiddenException("Conversation access denied");
     const allowed=/^(image\/(jpeg|png|webp|gif)|video\/(mp4|webm|quicktime)|audio\/(mpeg|mp4|wav|webm)|application\/pdf|text\/plain)$/.test(d.contentType);
     if(!allowed) throw new BadRequestException("file_type_rejected");
     const safe=d.filename.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,180);
@@ -38,9 +38,9 @@ export class MessagesController {
   @Post("attachments/complete")
   async attachmentComplete(@CurrentUser() user:UserRecord,@Body() body:unknown){
     const d=z.object({conversationId:z.string().uuid(),key:z.string().min(20).max(1000),filename:z.string().trim().min(1).max(180),contentType:z.string().trim().toLowerCase().max(100)}).parse(body);
-    if(!d.key.startsWith("private/messages/"+d.conversationId+"/"+user.id+"/"))return {error:"invalid_key"};
+    if(!d.key.startsWith("private/messages/"+d.conversationId+"/"+user.id+"/"))throw new BadRequestException("invalid_key");
     const member=await this.db.query("SELECT 1 FROM conversation_members WHERE conversation_id=$1 AND user_id=$2",[d.conversationId,user.id]);
-    if(!member.rows[0])return{error:"forbidden"};
+    if(!member.rows[0])throw new ForbiddenException("Conversation access denied");
     const meta=await this.storage.headObject(d.key);
     const actualType=meta.contentType?.split(";")[0].trim().toLowerCase();
     if(actualType!==d.contentType)throw new BadRequestException("uploaded_content_type_mismatch");
@@ -62,7 +62,7 @@ export class MessagesController {
       "SELECT a.storage_key FROM message_attachments a JOIN conversation_members cm ON cm.conversation_id=a.conversation_id WHERE a.id=$1 AND cm.user_id=$2",
       [id,user.id],
     );
-    if(!result.rows[0])return{error:"not_found"};
+    if(!result.rows[0])throw new NotFoundException("Attachment not found");
     return this.storage.presignedGet(result.rows[0].storage_key,600);
   }
 
@@ -81,7 +81,11 @@ export class MessagesGateway {
     try {
       const authToken=client.handshake.auth?.token as string | undefined;
       const header=client.handshake.headers.authorization;
-      const token=authToken ?? (typeof header==="string" ? header.replace(/^Bearer\\s+/i,"") : undefined);
+      let token=authToken;
+      if(!token && typeof header==="string"){
+        const separator=header.indexOf(" ");
+        if(separator>0 && header.slice(0,separator).toLowerCase()==="bearer") token=header.slice(separator+1).trim();
+      }
       if(!token) return client.disconnect(true);
       const payload=await this.jwt.verifyAsync<{sub:string}>(token);
       if(!payload?.sub) return client.disconnect(true);

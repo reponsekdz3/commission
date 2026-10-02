@@ -7,6 +7,7 @@ import {
   ArrowUpRight, Building2, CheckCircle,
 } from "lucide-react";
 import { authApi, formatRwf, shortDate } from "../../lib/api";
+import { useUser } from "../../hooks/use-user";
 
 const roleLabels: Record<string, string> = {
   SUPER_ADMIN: "Super admin", ADMIN: "Administrator", MODERATOR: "Moderator",
@@ -28,19 +29,16 @@ const NAV_ITEMS = [
 ] as const;
 
 export default function Workspace() {
-  const [u, setU]       = useState<any>();
+  const { data: u, isLoading: userLoading } = useUser();
   const [d, setD]       = useState<any>();
   const [err, setErr]   = useState("");
   const [busy, setBusy] = useState(true);
 
   useEffect(() => {
-    try {
-      const x = JSON.parse(localStorage.getItem("imizi_user") || "null");
-      setU(x);
-      if (!x) return;
-      load(x);
-    } catch (e: any) { setErr(e.message); }
-  }, []);
+    if (userLoading) return;
+    if (userLoading || busy && !u) { setBusy(false); return; }
+    void load(u);
+  }, [u, userLoading]);
 
   async function load(x: any) {
     setBusy(true);

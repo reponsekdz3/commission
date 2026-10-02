@@ -4,7 +4,8 @@ import { calculatePrice, parseNaturalSearch, transitionBooking, datesOverlap, rw
 describe("api domain contracts", () => {
   it("parses Rwanda-style natural property searches", () => {
     const parsed = parseNaturalSearch("house near Kigali with 3 bedrooms under 1 million");
-    expect(parsed.listingType).toBe("RENT");
+    expect(parsed.listingType).toBeUndefined();
+    expect(parseNaturalSearch("gukodesha inzu 3 bedrooms under 1 million").listingType).toBe("RENT");
     expect(parsed.bedrooms).toBe(3);
     expect(parsed.maxPrice).toBe(1_000_000);
   });

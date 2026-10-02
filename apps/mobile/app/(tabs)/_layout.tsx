@@ -85,7 +85,7 @@ export default function TabsLayout() {
               accessibilityRole="tab"
               accessibilityLabel={accessibilityLabel}
               accessibilityState={accessibilityState}
-              onPress={() => { selection(); onPress?.(); }}
+              onPress={(event) => { selection(); onPress?.(event); }}
               style={styles.tabButton}
               android_ripple={{ color: c.ripple, borderless: true, radius: 32 }}
             >
