@@ -28,7 +28,7 @@ export function Topbar() {
   );
 
   useEffect(() => {
-    try { setU(JSON.parse(localStorage.getItem("imizi_user") || "null")); } catch {}
+    try { setU(JSON.parse(sessionStorage.getItem("imizi_user") || localStorage.getItem("imizi_user") || "null")); } catch {}
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
