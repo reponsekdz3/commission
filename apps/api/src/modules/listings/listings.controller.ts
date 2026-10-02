@@ -28,9 +28,29 @@ export class ListingsController {
 
   @Public()
   @Get("listings/:id")
-  async get(@Param("id") id:string){const listing=await this.db.getListing(id);if(!listing)return{error:"not_found"};return{listing,property:await this.db.getProperty(listing.propertyId)};}
+  async get(@Param("id") id:string,@CurrentUser() user?:UserRecord){
+    const listing=await this.db.getListing(id);
+    if(!listing)return{error:"not_found"};
+    const property=await this.db.getProperty(listing.propertyId);
+    if(!property)return{error:"not_found"};
+    const privileged=Boolean(user&&(
+      user.id===property.ownerId ||
+      (property.organizationId&&property.organizationId===user.organizationId) ||
+      user.roles.some(r=>["SUPER_ADMIN","ADMIN","MODERATOR","VERIFICATION_AGENT"].includes(r))
+    ));
+    if(!privileged&&(property.status!=="PUBLISHED"||listing.status!=="ACTIVE"))return{error:"not_found"};
+    return{listing,property:await this.db.hydrateProperty(property.id,!privileged)};
+  }
 
   @Public()
   @Get("units/:id")
-  async unit(@Param("id") id:string){return (await this.db.getUnit(id)) ?? {error:"not_found"};}
+  async unit(@Param("id") id:string,@CurrentUser() user?:UserRecord){
+    const unit=await this.db.getUnit(id);
+    if(!unit)return{error:"not_found"};
+    const property=await this.db.getProperty(unit.propertyId);
+    if(!property)return{error:"not_found"};
+    const privileged=Boolean(user&&(user.id===property.ownerId||(property.organizationId&&property.organizationId===user.organizationId)||user.roles.some(r=>["SUPER_ADMIN","ADMIN","MODERATOR","VERIFICATION_AGENT"].includes(r))));
+    if(!privileged&&property.status!=="PUBLISHED")return{error:"not_found"};
+    return unit;
+  }
 }
