@@ -19,9 +19,12 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      const match = header.match(/^Bearer\s+(.+)$/i);
-      if (!match?.[1]) throw new UnauthorizedException("Invalid authorization header");
-      const payload = this.jwt.verify<{ sub: string }>(match[1]);
+      const separator = header.indexOf(" ");
+      if (separator <= 0) throw new UnauthorizedException("Invalid authorization header");
+      const scheme = header.slice(0, separator);
+      const token = header.slice(separator + 1).trim();
+      if (scheme.toLowerCase() !== "bearer" || !token) throw new UnauthorizedException("Invalid authorization header");
+      const payload = this.jwt.verify<{ sub: string }>(token);
       if (!payload?.sub) throw new UnauthorizedException("Invalid token");
       const user = await this.db.findUserById(payload.sub);
       if (!user || user.status !== "ACTIVE") throw new UnauthorizedException("Invalid or inactive account");
