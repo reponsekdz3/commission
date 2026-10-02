@@ -32,9 +32,15 @@ export class MediaController {
     assertPropertyAccess(user,property,true); const expectedPrefix="public/property/"+d.propertyId+"/original/";
     if(!d.key.startsWith(expectedPrefix)||d.key.includes(".."))throw new BadRequestException("invalid_key");
     const meta=await this.storage.headObject(d.key); const actualType=meta.contentType?.split(";")[0].trim().toLowerCase();
-    if(!actualType||!(allowedByKind[d.kind]??[]).includes(actualType))throw new BadRequestException("uploaded_content_type_rejected");
+    if(!actualType||!(allowedByKind[d.kind]??[]).includes(actualType)){
+      await this.storage.deleteObject(d.key).catch(()=>undefined);
+      throw new BadRequestException("uploaded_content_type_rejected");
+    }
     const maxBytes=d.kind==="VIDEO"?loadConfig().maxMediaBytes:Math.min(loadConfig().maxMediaBytes,50*1024*1024);
-    if(meta.contentLength<=0||meta.contentLength>maxBytes)throw new BadRequestException("uploaded_media_size_rejected");
+    if(meta.contentLength<=0||meta.contentLength>maxBytes){
+      await this.storage.deleteObject(d.key).catch(()=>undefined);
+      throw new BadRequestException("uploaded_media_size_rejected");
+    }
     const media=await this.db.addMedia(d.propertyId,d.kind,d.key); await this.db.enqueueJob("media.process",{mediaId:media.id});
     return (await this.db.hydrateProperty(d.propertyId))?.media ?? [];
   }
