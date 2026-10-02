@@ -205,7 +205,7 @@ export default function Register() {
           <Text style={[s.eyebrow, { color: c.primary, fontFamily: fonts.sansBold }]}>JOIN IMIZI</Text>
           <Text style={[s.h1, { color: c.text, fontFamily: fonts.displayStrong }]}>Create your account.</Text>
           <Text style={[s.meta, { color: c.muted, fontFamily: fonts.sans }]}>
-            Free forever. Search, save, book and manage properties across Rwanda from one account.
+            Search, save, message, book and manage properties across Rwanda from one account.
           </Text>
 
           {/* Perks */}
