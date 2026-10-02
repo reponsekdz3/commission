@@ -171,9 +171,14 @@ export class JobsService implements OnModuleInit {
         if(job.name==="media.process"){
           const media=await this.db.getMedia(String(job.payload?.mediaId ?? ""));
           if(media){
+            const meta=await this.storage.headObject(String(media.storage_key));
             const input=await this.storage.readBuffer(String(media.storage_key));
             const scan=await this.malware.scan(input);
-            if(!scan.clean){throw new Error("Malware detected in uploaded media: "+scan.result);}
+            if(!scan.clean){
+              await this.db.markMediaScan(media.id,"INFECTED",scan.result);
+              await this.db.query("UPDATE background_jobs SET status='DONE',updated_at=now(),finished_at=now(),locked_at=NULL WHERE id=$1",[job.id]);
+              continue;
+            }
             const checksum=createHash("sha256").update(input).digest("hex");
             const dir=await mkdtemp(join(tmpdir(),"imizi-media-"));
             try{
@@ -223,9 +228,12 @@ export class JobsService implements OnModuleInit {
                 variants.width=String(width);
                 variants.height=String(height);
               } else {
-                variants.original=String(media.storage_key);
+                const ext=meta.contentType==="application/pdf" ? "pdf" : "bin";
+                const publicKey="property/"+media.property_id+"/optimized/"+media.id+"-floor-plan."+ext;
+                await this.storage.putBuffer("public/"+publicKey,meta.contentType ?? "application/octet-stream",input);
+                variants.original=publicKey;
               }
-              await this.db.updateMediaVariants(media.id,variants,checksum);
+              await this.db.updateMediaVariants(media.id,variants,checksum,"CLEAN",scan.result);
             }finally{
               await rm(dir,{recursive:true,force:true}).catch(()=>undefined);
             }
