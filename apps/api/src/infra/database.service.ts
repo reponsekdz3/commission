@@ -182,7 +182,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return this.getProperty(id);
   }
 
-  async getProperty(id: string): Promise<PropertyRecord | undefined> {
+  async getProperty(id: string, publicView=false): Promise<PropertyRecord | undefined> {
     const base = await this.query(
       "SELECT p.*,pl.province,pl.district,pl.sector,pl.cell,pl.village, " +
       "ST_Y(pl.geom::geometry) latitude,ST_X(pl.geom::geometry) longitude " +
@@ -207,13 +207,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       parking:row.parking == null ? undefined : Number(row.parking),
       areaValue:row.area_value == null ? undefined : Number(row.area_value),areaUnit:String(row.area_unit),
       amenities:amenities.rows.map((x:any)=>String(x.amenity)),
-      media:media.rows.map((x:any)=>{const variants=(x.variants ?? {}) as Record<string,string>;const source=String(x.kind)==="VIDEO" ? (variants.video ?? x.storage_key) : String(x.kind)==="PHOTO" ? (variants.large ?? variants.medium ?? x.storage_key) : String(x.kind)==="TOUR_360" ? (variants.panorama ?? x.storage_key) : x.storage_key;const toUrl=(key:string)=>String(key).startsWith("http") ? String(key) : (config.cdnBaseUrl ? config.cdnBaseUrl.replace(/\/$/,"")+"/"+String(key).split("/").map(encodeURIComponent).join("/") : new URL("/"+String(key),config.s3Endpoint ?? "http://localhost:9000").toString());return {id:String(x.id),kind:String(x.kind),url:toUrl(String(source)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(x.sort_order)};}),
+      media:media.rows.map((x:any)=>{const variants=(x.variants ?? {}) as Record<string,string>;const kind=String(x.kind);const source=kind==="VIDEO" ? variants.video : kind==="PHOTO" ? (variants.large ?? variants.medium ?? variants.small) : kind==="TOUR_360" ? variants.panorama : variants.original;const legacyPublic=!String(x.storage_key).startsWith("private/")&&!String(x.storage_key).startsWith("quarantine/");if(!source&&!legacyPublic)return null;const safeSource=source??String(x.storage_key);const toUrl=(key:string)=>String(key).startsWith("http") ? String(key) : (config.cdnBaseUrl ? config.cdnBaseUrl.replace(/\/$/,"")+"/"+String(key).replace(/^public\//,"").split("/").map(encodeURIComponent).join("/") : new URL("/"+String(key).replace(/^public\//,""),config.s3Endpoint ?? "http://localhost:9000").toString());return {id:String(x.id),kind,url:toUrl(String(safeSource)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(x.sort_order)};}).filter(Boolean),
       createdAt:new Date(row.created_at).toISOString(),updatedAt:new Date(row.updated_at).toISOString(),
     };
   }
 
   async hydrateProperty(id: string, publicView=false) {
-    const property = await this.getProperty(id);
+    const property = await this.getProperty(id,publicView);
     if (!property) return undefined;
     const [units,listings,views] = await Promise.all([
       this.query(
