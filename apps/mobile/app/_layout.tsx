@@ -1,8 +1,7 @@
 import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
 import { useEffect } from "react";
 import * as Notifications from "expo-notifications";
-import { Platform, View } from "react-native";
+import { Platform, View, StatusBar } from "react-native";
 import { router } from "expo-router";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -50,7 +49,7 @@ function AppStack() {
   const c = useTheme((s) => s.palette);
   return (
     <>
-      <StatusBar style={c.statusBar === "#07100D" ? "light" : "dark"} />
+      <StatusBar barStyle={c.statusBar === "#07100D" ? "light-content" : "dark-content"} backgroundColor="transparent" translucent />
       <Stack
         screenOptions={{
           headerShown: false,
