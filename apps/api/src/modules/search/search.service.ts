@@ -149,9 +149,10 @@ export class SearchService {
   private async createSuggestion(q:string){
     const parsed=parseNaturalSearch(q);
     const term=String(q??"").trim().toLowerCase();
+    const db=this.source as DatabaseService;
     const result=term
-      ? await this.source.query("SELECT id,name,level FROM rwanda_admin_units WHERE active=true AND lower(name) LIKE $1 ORDER BY CASE level WHEN 'DISTRICT' THEN 0 WHEN 'SECTOR' THEN 1 WHEN 'CELL' THEN 2 WHEN 'VILLAGE' THEN 3 ELSE 4 END,normalized_name LIMIT 12",[`%${term}%`])
-      : await this.source.query("SELECT id,name,level FROM rwanda_admin_units WHERE active=true AND level='DISTRICT' ORDER BY normalized_name LIMIT 12");
+      ? await db.query("SELECT id,name,level FROM rwanda_admin_units WHERE active=true AND lower(name) LIKE $1 ORDER BY CASE level WHEN 'DISTRICT' THEN 0 WHEN 'SECTOR' THEN 1 WHEN 'CELL' THEN 2 WHEN 'VILLAGE' THEN 3 ELSE 4 END,normalized_name LIMIT 12",[`%${term}%`])
+      : await db.query("SELECT id,name,level FROM rwanda_admin_units WHERE active=true AND level='DISTRICT' ORDER BY normalized_name LIMIT 12");
     return {parsed,suggestions:result.rows.map((row:any)=>({id:String(row.id),name:String(row.name),level:String(row.level)}))};
   }
 }
