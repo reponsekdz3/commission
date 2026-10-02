@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MapboxClient } from "../map/mapbox-client";
@@ -66,7 +66,7 @@ function SearchContent() {
 
   const currentType = params.get("listingType");
   const activeFilterCount = ["district","propertyType","bedroomsMin","minPriceMinor","maxPriceMinor","verifiedOnly"].filter(key => Boolean(params.get(key))).length;
-  const submitSearch = (event: React.FormEvent) => { event.preventDefault(); const p = new URLSearchParams(params.toString()); if (queryText.trim()) p.set("q", queryText.trim()); else p.delete("q"); router.replace(pathname + (p.toString() ? "?" + p.toString() : ""), { scroll: false }); };
+  const submitSearch = (event: FormEvent) => { event.preventDefault(); const p = new URLSearchParams(params.toString()); if (queryText.trim()) p.set("q", queryText.trim()); else p.delete("q"); router.replace(pathname + (p.toString() ? "?" + p.toString() : ""), { scroll: false }); };
 
   return (
     <main className={"searchSplit " + (showMobileMap ? "mobileMapOpen" : "")} style={{animationName:'fadeIn',animationDuration:'.4s',animationFillMode:'both'}}>
