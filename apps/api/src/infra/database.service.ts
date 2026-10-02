@@ -516,18 +516,78 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async refundPayment(intentId:string,amountMinor:number,reason:string){
+  async reserveRefund(intentId:string,amountMinor:number,reason:string,requestKey:string){
     return this.transaction(async(client)=>{
+      const existing=await client.query("SELECT * FROM payment_refunds WHERE request_key=$1 FOR UPDATE",[requestKey]);
+      if(existing.rows[0]){
+        if(String(existing.rows[0].status)==="FAILED"){
+          const retry=await client.query("UPDATE payment_refunds SET status='PENDING',reason=$2,provider_reference=NULL WHERE id=$1 RETURNING *",[existing.rows[0].id,reason]);
+          return {created:false,refund:retry.rows[0]};
+        }
+        return {created:false,refund:existing.rows[0]};
+      }
       const r=await client.query("SELECT * FROM payment_intents WHERE id=$1 FOR UPDATE",[intentId]);
       if(!r.rows[0]) return undefined;
       const current=this.mapPayment(r.rows[0]);
       if(current.status!=="SUCCEEDED" && current.status!=="PARTIALLY_REFUNDED") throw new Error("Only successful payments can be refunded");
+      if(!Number.isInteger(amountMinor)||amountMinor<=0) throw new Error("Refund amount must be positive");
       const already=await client.query("SELECT COALESCE(SUM(amount_minor),0)::bigint total FROM payment_refunds WHERE intent_id=$1 AND status IN ('PENDING','COMPLETED')",[intentId]);
       const refunded=Number(already.rows[0].total);
       if(refunded+amountMinor>current.amountMinor) throw new Error("Refund exceeds remaining captured amount");
-      await client.query("INSERT INTO payment_refunds(intent_id,amount_minor,reason,status) VALUES($1,$2,$3,'PENDING')",[intentId,amountMinor,reason]);
-      const nextStatus=refunded+amountMinor>=current.amountMinor ? "REFUNDED" : "PARTIALLY_REFUNDED";
+      const inserted=await client.query(
+        "INSERT INTO payment_refunds(intent_id,amount_minor,reason,status,request_key) VALUES($1,$2,$3,'PENDING',$4) RETURNING *",
+        [intentId,amountMinor,reason,requestKey],
+      );
+      return {created:true,refund:inserted.rows[0]};
+    });
+  }
+
+  async failRefund(refundId:string){
+    await this.query("UPDATE payment_refunds SET status='FAILED' WHERE id=$1 AND status='PENDING'",[refundId]);
+    return {failed:true};
+  }
+
+  async refundPayment(intentId:string,refundId:string,providerReference:string){
+    return this.transaction(async(client)=>{
+      const refund=await client.query("SELECT * FROM payment_refunds WHERE id=$1 AND intent_id=$2 FOR UPDATE",[refundId,intentId]);
+      if(!refund.rows[0]) return undefined;
+      if(String(refund.rows[0].status)==="COMPLETED") return this.mapPayment((await client.query("SELECT * FROM payment_intents WHERE id=$1",[intentId])).rows[0]);
+      if(String(refund.rows[0].status)!=="PENDING") throw new Error("Refund is not pending");
+      const intentRow=await client.query("SELECT * FROM payment_intents WHERE id=$1 FOR UPDATE",[intentId]);
+      if(!intentRow.rows[0]) return undefined;
+      const intent=this.mapPayment(intentRow.rows[0]);
+      await client.query("UPDATE payment_refunds SET provider_reference=$2,status='COMPLETED' WHERE id=$1",[refundId,providerReference]);
+      const totals=await client.query("SELECT COALESCE(SUM(amount_minor),0)::bigint total FROM payment_refunds WHERE intent_id=$1 AND status='COMPLETED'",[intentId]);
+      const refundedTotal=Number(totals.rows[0].total);
+      const nextStatus=refundedTotal>=intent.amountMinor ? "REFUNDED" : "PARTIALLY_REFUNDED";
       await client.query("UPDATE payment_intents SET status=$2 WHERE id=$1",[intentId,nextStatus]);
+
+      if(intent.bookingId){
+        const bookingRow=await client.query("SELECT * FROM bookings WHERE id=$1 FOR UPDATE",[intent.bookingId]);
+        const booking=bookingRow.rows[0] ? this.mapBooking(bookingRow.rows[0]) : undefined;
+        if(booking){
+          const owner=await client.query("SELECT p.owner_id FROM property_listings pl JOIN properties p ON p.id=pl.property_id WHERE pl.id=$1",[booking.listingId]);
+          const ownerId=owner.rows[0]?.owner_id as string|undefined;
+          const platform=Math.floor(Number(refund.rows[0].amount_minor)*loadConfig().commissionBps/10000);
+          const landlord=Number(refund.rows[0].amount_minor)-platform;
+          await this.ensureLedgerAccount(client,booking.tenantId,"CUSTOMER",booking.currency);
+          await this.ensureLedgerAccount(client,null,"PLATFORM_HOLDING",booking.currency);
+          await this.ensureLedgerAccount(client,null,"PLATFORM_REVENUE",booking.currency);
+          if(ownerId) await this.ensureLedgerAccount(client,ownerId,"LANDLORD",booking.currency);
+          await this.ledger(client,booking.tenantId,"CUSTOMER","CREDIT",Number(refund.rows[0].amount_minor),booking.currency,refundId);
+          await this.ledger(client,null,"PLATFORM_HOLDING","DEBIT",Number(refund.rows[0].amount_minor),booking.currency,refundId);
+          await this.ledger(client,null,"PLATFORM_REVENUE","DEBIT",platform,booking.currency,refundId);
+          if(ownerId) await this.ledger(client,ownerId,"LANDLORD","DEBIT",landlord,booking.currency,refundId);
+          await client.query(
+            "INSERT INTO payment_transactions(intent_id,provider,provider_reference,amount_minor,currency,status) VALUES($1,$2,$3,$4,$5,'REFUNDED')",
+            [intentId,intent.provider,providerReference,Number(refund.rows[0].amount_minor),intent.currency],
+          );
+          await client.query(
+            "INSERT INTO notifications(user_id,channel,event_type,title,body) VALUES($1,'in_app','PAYMENT_REFUNDED','Refund completed',$2)",
+            [booking.tenantId,"Your payment refund of "+Number(refund.rows[0].amount_minor)+" "+booking.currency+" has completed."],
+          );
+        }
+      }
       const fresh=await client.query("SELECT * FROM payment_intents WHERE id=$1",[intentId]);
       return this.mapPayment(fresh.rows[0]);
     });
