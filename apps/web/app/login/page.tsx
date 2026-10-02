@@ -8,7 +8,7 @@ import {
   Building2, Lock, Mail, ShieldCheck, Eye, EyeOff,
   ArrowRight, Sparkles, MapPin, TrendingUp, Users,
 } from "lucide-react";
-import { api } from "../../lib/api";
+import { api, signInSession } from "../../lib/api";
 import { Input, Button } from "../../components/ui";
 
 const schema = z.object({
@@ -60,12 +60,11 @@ export default function Login() {
         password: v.password,
       };
       if (v.mfaCode && /^\d{6}$/.test(v.mfaCode)) payload.mfaCode = v.mfaCode;
-      const d = await api<{ accessToken: string; refreshToken: string; user: unknown }>(
-        "/auth/login", { method: "POST", body: JSON.stringify(payload) }
+      const d = await api<{ accessToken: string; user: unknown }>(
+        "/auth/login",
+        { method: "POST", headers: { "X-Imizi-Client": "web" }, body: JSON.stringify(payload) }
       );
-      localStorage.setItem("imizi_token",   d.accessToken);
-      localStorage.setItem("imizi_refresh",  d.refreshToken);
-      localStorage.setItem("imizi_user",     JSON.stringify(d.user));
+      await signInSession(d.accessToken,d.user);
       location.href = "/dashboard";
     } catch (e) {
       const text = e instanceof Error ? e.message : "Sign in failed. Please try again.";
