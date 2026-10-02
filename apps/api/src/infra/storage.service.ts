@@ -11,7 +11,7 @@ export class StorageService{
   private readonly config=loadConfig();
   private assertConfigured(){if(!this.config.s3Endpoint||!this.config.s3AccessKey||!this.config.s3SecretKey)throw new BadRequestException("S3-compatible storage is not configured");}
 
-  private presign(method:"GET"|"PUT"|"HEAD",key:string,contentType?:string,expiresSeconds=900){
+  private presign(method:"GET"|"PUT"|"HEAD"|"DELETE",key:string,contentType?:string,expiresSeconds=900){
     this.assertConfigured();
     if(key.includes(".."))throw new BadRequestException("Invalid storage key");
     const endpoint=new URL(this.config.s3Endpoint!);
