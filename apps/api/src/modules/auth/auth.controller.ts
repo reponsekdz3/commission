@@ -7,7 +7,7 @@ import { loginSchema, registerSchema, mfaCodeSchema, reauthSchema, refreshSchema
 import { z } from "zod";
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { AuthService } from "./auth.service";
 
 @ApiTags("auth")
