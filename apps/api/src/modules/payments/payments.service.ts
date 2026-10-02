@@ -2,7 +2,7 @@ import { Injectable, NotFoundException, UnauthorizedException, BadRequestExcepti
 import { createHash, randomUUID } from "crypto";
 import { createPaymentGateway } from "@imizi/payments";
 import { paymentIsAuthoritative, transitionPayment } from "@imizi/domain";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { DatabaseService } from "../../infra/database.service";
 
 @Injectable()
