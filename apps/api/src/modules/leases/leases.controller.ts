@@ -1,7 +1,7 @@
 import { Controller, ForbiddenException, Get, Param, Post, StreamableFile } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
-import { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { FeatureService } from "../../infra/feature.service";
 
 @ApiTags("leases")
