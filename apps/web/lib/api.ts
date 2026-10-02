@@ -4,7 +4,7 @@ async function parse<T>(r:Response){const text=await r.text();let data:any;try{d
 async function request<T>(path:string,init:RequestInit,headers:Record<string,string>){const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);try{return await parse<T>(await fetch(apiUrl(path),{...init,headers,credentials:"include",cache:"no-store",signal:init.signal??controller.signal}))}catch(e:any){if(e?.name==="AbortError")throw new Error("Request timed out. Check your connection and try again.");throw e}finally{clearTimeout(timer)}}
 export async function api<T>(path:string,init:RequestInit={}){return request<T>(path,init,{"content-type":"application/json",...(init.headers as Record<string,string>||{})})}
 async function refreshSession(){
-  if(typeof window==="undefined")return null;
+  if(typeof window==="undefined")return false;
   if(refreshPromise)return refreshPromise;
   const legacyRefresh=localStorage.getItem("imizi_refresh");
   refreshPromise=api<any>("/auth/refresh",{
@@ -14,9 +14,9 @@ async function refreshSession(){
   }).then(next=>{
     localStorage.removeItem("imizi_token");
     localStorage.removeItem("imizi_refresh");
-    localStorage.setItem("imizi_user",JSON.stringify(next.user));
-    return next.accessToken;
-  }).catch(()=>null).finally(()=>{refreshPromise=null});
+    if(next?.user)localStorage.setItem("imizi_user",JSON.stringify(next.user));
+    return true;
+  }).catch(()=>false).finally(()=>{refreshPromise=null});
   return refreshPromise;
 }
 export async function authApi<T>(path:string,init:RequestInit={},retry=true){
@@ -26,8 +26,8 @@ export async function authApi<T>(path:string,init:RequestInit={},retry=true){
   try{return await request<T>(path,init,headers)}
   catch(e:any){
     if(e.status===401&&retry){
-      const next=await refreshSession();
-      if(next)return authApi<T>(path,{...init,headers:{...(init.headers as Record<string,string>||{}),authorization:"Bearer "+next}},false)
+      const refreshed=await refreshSession();
+      if(refreshed)return authApi<T>(path,init,false)
     }
     if(e.status===401){localStorage.removeItem("imizi_token");localStorage.removeItem("imizi_refresh");localStorage.removeItem("imizi_user")}
     throw e;
