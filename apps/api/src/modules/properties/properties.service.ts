@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { scoreFraud, shouldQueueForModeration } from "@imizi/domain";
-import { UserRecord, PropertyRecord } from "../../store/platform.store";
+import type { UserRecord, PropertyRecord } from "../../store/records";
 import { assertPermission, assertPropertyAccess } from "../../common/access";
 import { DatabaseService } from "../../infra/database.service";
 import { FeatureService } from "../../infra/feature.service";
