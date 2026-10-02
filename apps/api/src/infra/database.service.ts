@@ -630,9 +630,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  private mfaEncryptionKey(){
+    const raw=loadConfig().mfaEncryptionKey;
+    return /^[0-9a-fA-F]{64}$/.test(raw) ? Buffer.from(raw,"hex") : createHash("sha256").update(raw,"utf8").digest();
+  }
+
   private encryptMfaSecret(secret:string){
-    const key=Buffer.from(loadConfig().mfaEncryptionKey,"hex");
-    if(key.length!==32)throw new Error("Invalid MFA encryption key");
+    const key=this.mfaEncryptionKey();
     const iv=randomBytes(12);
     const cipher=createCipheriv("aes-256-gcm",key,iv);
     const ciphertext=Buffer.concat([cipher.update(secret,"utf8"),cipher.final()]);
@@ -644,8 +648,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     if(!value.startsWith("enc:v1:"))return {secret:value,encrypted:false};
     const [,version,ivRaw,tagRaw,dataRaw]=value.split(":");
     if(version!=="v1"||!ivRaw||!tagRaw||!dataRaw)throw new Error("Invalid encrypted MFA secret");
-    const key=Buffer.from(loadConfig().mfaEncryptionKey,"hex");
-    if(key.length!==32)throw new Error("Invalid MFA encryption key");
+    const key=this.mfaEncryptionKey();
     const iv=Buffer.from(ivRaw,"base64url");
     const tag=Buffer.from(tagRaw,"base64url");
     const ciphertext=Buffer.from(dataRaw,"base64url");
