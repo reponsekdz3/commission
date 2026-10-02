@@ -62,7 +62,11 @@ export async function authApi<T>(path:string,init:RequestInit={},retry=true){
 
 export async function signInSession(access:string,user:unknown){
   accessToken=access;
-  try{sessionStorage.setItem("imizi_user",JSON.stringify(user));}catch{}
+  try{
+    sessionStorage.setItem("imizi_user",JSON.stringify(user));
+    localStorage.removeItem("imizi_token");
+    localStorage.removeItem("imizi_refresh");
+  }catch{}
 }
 
 export async function signOut(){
