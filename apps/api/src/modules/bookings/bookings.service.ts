@@ -51,6 +51,10 @@ export class BookingsService {
     const listing=await db.getListing(input.listingId);
     if(!listing)throw new NotFoundException("Listing not found");
     if(listing.listingType==="SALE")throw new BadRequestException("Sale listings require an offer, not a rental booking.");
+    if(input.unitId){
+      const unit=await db.getUnit(input.unitId);
+      if(!unit || unit.propertyId!==listing.propertyId) throw new BadRequestException("Selected unit does not belong to the listing property.");
+    }
     if(new Date(input.startDate)<new Date(listing.availableFrom))throw new BadRequestException("Selected start date is before listing availability.");
     const quote=await this.quoteProduction(input.listingId,input.startDate,input.endDate);
     let booking;
