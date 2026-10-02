@@ -1,7 +1,7 @@
 import { Body, Controller, ForbiddenException, Get, Param, Post, BadRequestException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { FeatureService } from "../../infra/feature.service";
 import { DatabaseService } from "../../infra/database.service";
 import { assertPropertyAccess } from "../../common/access";
