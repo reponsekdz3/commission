@@ -50,6 +50,8 @@ export class BookingsService {
     const db=this.db();
     const listing=await db.getListing(input.listingId);
     if(!listing)throw new NotFoundException("Listing not found");
+    const property=await db.getProperty(listing.propertyId);
+    if(!property||property.status!=="PUBLISHED"||listing.status!=="ACTIVE")throw new NotFoundException("Listing not available");
     if(listing.listingType==="SALE")throw new BadRequestException("Sale listings require an offer, not a rental booking.");
     if(input.unitId){
       const unit=await db.getUnit(input.unitId);
