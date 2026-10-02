@@ -7,7 +7,7 @@ import { PropertyCard } from "../src/components/PropertyCard";
 import { cacheJson,readCached } from "../src/lib/cache";
 import { useTheme } from "../src/stores/theme";
 import { fonts } from "../src/theme";
-import { Chip,Field,OfflineBanner } from "../src/components/ui";
+import { Chip,Field } from "../src/components/ui";
 import { selection } from "../src/lib/haptics";
 
 const TYPES=[["","All"],["RENT","Rent"],["SALE","Buy"],["SHORT_STAY","Stay"]] as const;
