@@ -16,60 +16,31 @@ export type Permission =
   | "agency:manage"
   | "message:send"
   | "review:create"
-  | "maintenance:manage";
+  | "maintenance:manage"
+  | "account:change-contact"
+  | "mfa:manage";
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   SUPER_ADMIN: [
-    "property:create",
-    "property:update",
-    "property:delete",
-    "listing:publish",
-    "booking:create",
-    "booking:manage",
-    "payment:refund",
-    "payout:change",
-    "verification:review",
-    "moderation:queue",
-    "admin:access",
-    "finance:access",
-    "agency:manage",
-    "message:send",
-    "review:create",
-    "maintenance:manage",
+    "property:create","property:update","property:delete","listing:publish","booking:create","booking:manage",
+    "payment:refund","payout:change","verification:review","moderation:queue","admin:access","finance:access",
+    "agency:manage","message:send","review:create","maintenance:manage","account:change-contact","mfa:manage",
   ],
   ADMIN: [
-    "admin:access",
-    "moderation:queue",
-    "verification:review",
-    "property:delete",
-    "booking:manage",
-    "message:send",
+    "admin:access","moderation:queue","verification:review","property:delete","booking:manage","message:send",
+    "account:change-contact","mfa:manage",
   ],
-  MODERATOR: ["moderation:queue", "admin:access", "message:send"],
-  VERIFICATION_AGENT: ["verification:review", "admin:access"],
-  FINANCE_ADMIN: ["finance:access", "payment:refund", "payout:change", "admin:access"],
-  USER: ["booking:create", "message:send"],
-  TENANT: ["booking:create", "message:send", "review:create"],
-  BUYER: ["booking:create", "message:send"],
-  LANDLORD: [
-    "property:create",
-    "property:update",
-    "listing:publish",
-    "booking:manage",
-    "message:send",
-    "maintenance:manage",
-  ],
-  SELLER: ["property:create", "property:update", "listing:publish", "message:send"],
-  AGENT: ["property:create", "property:update", "listing:publish", "booking:manage", "message:send"],
-  AGENCY_ADMIN: [
-    "property:create",
-    "property:update",
-    "listing:publish",
-    "booking:manage",
-    "agency:manage",
-    "message:send",
-  ],
-  PROPERTY_MANAGER: ["booking:manage", "maintenance:manage", "property:update", "message:send"],
+  MODERATOR: ["moderation:queue","admin:access","message:send"],
+  VERIFICATION_AGENT: ["verification:review","admin:access"],
+  FINANCE_ADMIN: ["finance:access","payment:refund","payout:change","admin:access","account:change-contact","mfa:manage"],
+  USER: ["booking:create","message:send","account:change-contact","mfa:manage"],
+  TENANT: ["booking:create","message:send","review:create","account:change-contact","mfa:manage"],
+  BUYER: ["booking:create","message:send","account:change-contact","mfa:manage"],
+  LANDLORD: ["property:create","property:update","listing:publish","booking:manage","message:send","maintenance:manage","account:change-contact","mfa:manage"],
+  SELLER: ["property:create","property:update","listing:publish","message:send","account:change-contact","mfa:manage"],
+  AGENT: ["property:create","property:update","listing:publish","booking:manage","message:send","account:change-contact","mfa:manage"],
+  AGENCY_ADMIN: ["property:create","property:update","listing:publish","booking:manage","agency:manage","message:send","account:change-contact","mfa:manage"],
+  PROPERTY_MANAGER: ["booking:manage","maintenance:manage","property:update","message:send","account:change-contact","mfa:manage"],
 };
 
 export function hasPermission(roles: Role[], permission: Permission): boolean {
@@ -87,28 +58,11 @@ export interface ResourceAccessInput {
 }
 
 export function authorizeResource(input: ResourceAccessInput): boolean {
-  if (hasPermission(input.actorRoles, "admin:access") && hasPermission(input.actorRoles, input.permission)) {
-    if (["SUPER_ADMIN", "ADMIN", "MODERATOR", "VERIFICATION_AGENT", "FINANCE_ADMIN"].some((r) =>
-      input.actorRoles.includes(r as Role),
-    )) {
-      return hasPermission(input.actorRoles, input.permission) || input.actorRoles.includes("SUPER_ADMIN");
-    }
-  }
+  if (hasPermission(input.actorRoles, "admin:access") && hasPermission(input.actorRoles, input.permission)) return true;
   if (input.actorRoles.includes("SUPER_ADMIN")) return true;
-  if (input.isPublic && input.permission === "property:update" === false && input.permission.startsWith("property") === false) {
-    // fall through
-  }
-  if (input.ownerId && input.ownerId === input.actorId) {
-    return hasPermission(input.actorRoles, input.permission) || input.permission === "property:update";
-  }
-  if (
-    input.organizationId &&
-    input.actorOrganizationId &&
-    input.organizationId === input.actorOrganizationId
-  ) {
-    return hasPermission(input.actorRoles, input.permission);
-  }
-  return hasPermission(input.actorRoles, input.permission) && Boolean(input.isPublic);
+  if (input.ownerId && input.ownerId === input.actorId) return hasPermission(input.actorRoles, input.permission);
+  if (input.organizationId && input.organizationId === input.actorOrganizationId) return hasPermission(input.actorRoles, input.permission);
+  return Boolean(input.isPublic) && hasPermission(input.actorRoles, input.permission);
 }
 
 export function canReadProperty(input: {
@@ -123,9 +77,7 @@ export function canReadProperty(input: {
   if (!input.actorId) return false;
   if (input.actorId === input.ownerId) return true;
   if (input.organizationId && input.organizationId === input.actorOrganizationId) return true;
-  return input.actorRoles.some((r) =>
-    ["SUPER_ADMIN", "ADMIN", "MODERATOR", "VERIFICATION_AGENT"].includes(r),
-  );
+  return input.actorRoles.some((r) => ["SUPER_ADMIN", "ADMIN", "MODERATOR", "VERIFICATION_AGENT"].includes(r));
 }
 
 export const SENSITIVE_ACTIONS = [
@@ -134,7 +86,9 @@ export const SENSITIVE_ACTIONS = [
   "property:delete",
   "account:change-phone",
   "account:change-email",
+  "account:change-contact",
   "ownership:change",
+  "mfa:manage",
 ] as const;
 
 export function requiresReauth(action: string): boolean {
