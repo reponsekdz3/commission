@@ -79,7 +79,7 @@ export default function Register() {
   const submit = async (v: F) => {
     setMessage("");
     try {
-      await api("/auth/register", { method: "POST", body: JSON.stringify(v) });
+      await api("/auth/register", { method: "POST", headers: {"X-Imizi-Session":"cookie"}, body: JSON.stringify(v) });
       setMessage("Account created. Sign in to continue.");
     } catch (e) {
       setMessage(e instanceof Error ? e.message : "Registration failed. Please try again.");
