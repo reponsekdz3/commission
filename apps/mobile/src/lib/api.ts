@@ -1,6 +1,8 @@
 import * as SecureStore from "expo-secure-store";
 
-export const API=process.env.EXPO_PUBLIC_API_URL||"http://localhost:4000/api/v1";
+const configuredApi=process.env.EXPO_PUBLIC_API_URL?.trim();
+export const API=configuredApi || (__DEV__ ? "http://localhost:4000/api/v1" : "");
+function requireApiUrl(){if(!API)throw new Error("EXPO_PUBLIC_API_URL is required for release builds");return API;}
 export type SearchItem={listing:{id:string;listingType:string;priceMinor:number;currency:string;availableFrom?:string;status?:string};property:{id:string;title:string;district:string;province:string;sector?:string;latitude:number;longitude:number;bedrooms?:number;bathrooms?:number;parking?:number;areaValue?:number;areaUnit?:string;media?:{url:string}[];verificationStatus?:string;propertyType?:string;amenities?:string[]}};
 const ACCESS="imizi.access",REFRESH="imizi.refresh",LEGACY_ACCESS="imizi_token",LEGACY_REFRESH="imizi_refresh";
 let refreshPromise:Promise<string|null>|null=null;
@@ -12,7 +14,7 @@ async function refresh(){
  refreshPromise=(async()=>{
   const r=await SecureStore.getItemAsync(REFRESH)??await SecureStore.getItemAsync(LEGACY_REFRESH);
   if(!r)return null;
-  const res=await fetch(API+"/auth/refresh",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({refreshToken:r})});
+  const res=await fetch(requireApiUrl()+"/auth/refresh",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({refreshToken:r})});
   if(!res.ok){
    await Promise.all([ACCESS,REFRESH,LEGACY_ACCESS,LEGACY_REFRESH].map(k=>SecureStore.deleteItemAsync(k)));
    return null;
@@ -41,7 +43,7 @@ export async function api<T>(path:string,init:RequestInit={},auth=false,retry=tr
   const controller=new AbortController();
   const timer=setTimeout(()=>controller.abort(),15000);
   try{
-   const r=await fetch(API+(path.startsWith("/")?path:"/"+path),{...init,headers,signal:init.signal??controller.signal});
+   const r=await fetch(requireApiUrl()+(path.startsWith("/")?path:"/"+path),{...init,headers,signal:init.signal??controller.signal});
    const tx=await r.text();
    let d:any;try{d=tx?JSON.parse(tx):null}catch{d=tx}
    if(r.status===401&&auth&&retry){
