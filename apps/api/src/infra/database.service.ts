@@ -261,12 +261,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         await client.query("UPDATE properties SET "+column+"=$2,updated_at=now() WHERE id=$1",[id,value]);
       }
       if (["province","district","sector","cell","village","provinceId","districtId","sectorId","cellId","villageId","addressLine","latitude","longitude"].some((x)=>patch[x] !== undefined)) {
-        const location=await client.query("SELECT province,district,sector,cell,village,address_line,ST_Y(geom::geometry) lat,ST_X(geom::geometry) lng FROM property_locations WHERE property_id=$1",[id]);
+        const location=await client.query("SELECT province,district,sector,cell,village,address_line,province_id,district_id,sector_id,cell_id,village_id,ST_Y(geom::geometry) lat,ST_X(geom::geometry) lng FROM property_locations WHERE property_id=$1",[id]);
         const current=location.rows[0];
         let fields={
           province:patch.province ?? current?.province,district:patch.district ?? current?.district,sector:patch.sector ?? current?.sector,
           cell:patch.cell ?? current?.cell,village:patch.village ?? current?.village,addressLine:patch.addressLine ?? current?.address_line,
-          provinceId:patch.provinceId ?? null,districtId:patch.districtId ?? null,sectorId:patch.sectorId ?? null,cellId:patch.cellId ?? null,villageId:patch.villageId ?? null,
+          provinceId:patch.provinceId ?? current?.province_id ?? null,districtId:patch.districtId ?? current?.district_id ?? null,sectorId:patch.sectorId ?? current?.sector_id ?? null,cellId:patch.cellId ?? current?.cell_id ?? null,villageId:patch.villageId ?? current?.village_id ?? null,
           latitude:patch.latitude ?? current?.lat,longitude:patch.longitude ?? current?.lng,
         };
         if (patch.provinceId || patch.districtId || patch.sectorId || patch.cellId || patch.villageId) {
