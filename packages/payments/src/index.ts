@@ -1,5 +1,5 @@
 import type { Money, PaymentStatus } from "@imizi/types";
-import { createHmac, randomUUID } from "crypto";
+import { createHmac, randomUUID, timingSafeEqual } from "crypto";
 
 export interface PaymentChargeRequest {
   amount: Money;
@@ -29,6 +29,12 @@ export interface PaymentProvider {
   parseWebhook(rawBody: string): { providerReference: string; status: PaymentStatus };
   getStatus?(providerReference: string): Promise<PaymentStatus>;
   refund?(providerReference:string,amountMinor:number,currency:string,reason:string):Promise<{providerReference:string}>;
+}
+
+function secretsEqual(a:string,b:string){
+  const aa=Buffer.from(a);
+  const bb=Buffer.from(b);
+  return aa.length===bb.length&&timingSafeEqual(aa,bb);
 }
 
 function normalizeMsisdn(value:string) {
@@ -117,10 +123,10 @@ export class MtnMoMoProvider implements PaymentProvider {
     const configured=process.env.MTN_MOMO_CALLBACK_SECRET;
     if(!configured)return false;
     const value=headers["x-callback-secret"];
-    return value===configured;
+    return typeof value==="string"&&secretsEqual(value,configured);
   }
 
-  parseWebhook(rawBody:string){
+  parseWebhook(rawBody:string):{providerReference:string;status:PaymentStatus}{
     const body=JSON.parse(rawBody) as {referenceId?:string;status?:string;reference?:string;financialTransactionId?:string};
     const providerReference=body.referenceId ?? body.reference ?? body.financialTransactionId ?? "";
     const status=(body.status ?? "").toUpperCase();
@@ -160,7 +166,10 @@ export class FlutterwaveProvider implements PaymentProvider {
     const body=await response.json() as {status?:string;data?:{status?:string}};
     if(!response.ok)throw new Error("Flutterwave verify failed: "+response.status);
     const state=(body.data?.status||body.status||"").toLowerCase();
-    return state==="successful"?"SUCCEEDED":state==="failed"||state==="cancelled"?"FAILED":"PENDING_PROVIDER";
+    if(state==="successful")return "SUCCEEDED";
+    if(state==="failed"||state==="cancelled")return "FAILED";
+    if(state==="pending"||state==="processing"||state==="queued")return "PENDING_PROVIDER";
+    return "PENDING_PROVIDER";
   }
   async refund(providerReference:string,amountMinor:number,currency:string,reason:string){
     const response=await fetch("https://api.flutterwave.com/v3/transactions/"+encodeURIComponent(providerReference)+"/refund",{method:"POST",headers:this.headers(),body:JSON.stringify({amount:amountMinor,currency,comments:reason})});
@@ -173,14 +182,15 @@ export class FlutterwaveProvider implements PaymentProvider {
     const signature=headers["flutterwave-signature"];
     if(typeof signature==="string"){
       const digest=createHmac("sha256",this.webhookSecret).update(rawBody).digest("hex");
-      if(digest===signature)return true;
+      if(secretsEqual(digest,signature))return true;
     }
     const legacy=headers["verif-hash"];
-    return typeof legacy==="string"&&legacy===this.webhookSecret;
+    return typeof legacy==="string"&&secretsEqual(legacy,this.webhookSecret);
   }
-  parseWebhook(rawBody:string){
+  parseWebhook(rawBody:string):{providerReference:string;status:PaymentStatus}{
     const body=JSON.parse(rawBody) as {data?:{tx_ref?:string;status?:string;id?:number}};
-    return {providerReference:String(body.data?.id ?? body.data?.tx_ref ?? ""),status:body.data?.status==="successful"?"SUCCEEDED":"FAILED" as PaymentStatus};
+    const state=String(body.data?.status??"").toLowerCase();
+    return {providerReference:String(body.data?.id ?? body.data?.tx_ref ?? ""),status:state==="successful"?"SUCCEEDED":state==="failed"||state==="cancelled"?"FAILED":"PENDING_PROVIDER"};
   }
 }
 
@@ -189,7 +199,7 @@ export class CardProvider implements PaymentProvider {
   constructor(private readonly flutterwave:FlutterwaveProvider){}
   charge(request:PaymentChargeRequest){return this.flutterwave.charge({...request,paymentOptions:"card"});}
   verifyWebhook(headers:Record<string,string|string[]|undefined>,rawBody:string){return this.flutterwave.verifyWebhook(headers,rawBody);}
-  parseWebhook(rawBody:string){return this.flutterwave.parseWebhook(rawBody);}
+  parseWebhook(rawBody:string):{providerReference:string;status:PaymentStatus}{return this.flutterwave.parseWebhook(rawBody);}
   getStatus(providerReference:string){return this.flutterwave.getStatus?.(providerReference);}
   refund(providerReference:string,amountMinor:number,currency:string,reason:string){return this.flutterwave.refund(providerReference,amountMinor,currency,reason);}
 }

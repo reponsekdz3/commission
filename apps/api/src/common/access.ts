@@ -1,7 +1,7 @@
 import { ForbiddenException } from "@nestjs/common";
 import { canReadProperty, hasPermission, type Permission } from "@imizi/domain";
-import type { UserRecord } from "../store/platform.store";
-import type { PropertyRecord } from "../store/platform.store";
+import type { UserRecord } from "../store/records";
+import type { PropertyRecord } from "../store/records";
 
 export function assertPermission(user: UserRecord, permission: Permission) {
   if (!hasPermission(user.roles, permission)) {

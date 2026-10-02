@@ -1,10 +1,11 @@
 import { Body, Controller, ForbiddenException, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { hasPermission } from "@imizi/domain";
 import { FeatureService } from "../../infra/feature.service";
 import { DatabaseService } from "../../infra/database.service";
+import { z } from "zod";
 
 @ApiTags("admin")
 @ApiBearerAuth()
@@ -16,7 +17,15 @@ export class AdminController {
   @Get("users") users(@CurrentUser() user:UserRecord){this.gate(user);return this.features.adminUsers();}
   @Get("properties") properties(@CurrentUser() user:UserRecord){this.gate(user);return this.features.adminProperties();}
   @Get("audit") audit(@CurrentUser() user:UserRecord){this.gate(user);return this.db.query("SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 500").then((r)=>r.rows);}
-  @Post("reports") report(@CurrentUser() user:UserRecord,@Body() body:{subjectType:string;subjectId:string;reason:string}){this.gate(user);return this.features.report(user.id,body);}
+  @Post("reports") report(@CurrentUser() user:UserRecord,@Body() body:unknown){
+    this.gate(user);
+    const d=z.object({subjectType:z.enum(["PROPERTY","LISTING","USER","BOOKING","PAYMENT"]),subjectId:z.string().uuid(),reason:z.string().trim().min(5).max(1000)}).parse(body);
+    return this.features.report(user.id,d);
+  }
   @Get("moderation") moderation(@CurrentUser() user:UserRecord){this.gate(user);return this.features.adminModeration();}
-  @Post("properties/:id/risk") risk(@CurrentUser() user:UserRecord,@Param("id") id:string,@Body() body:{level:string}){this.gate(user);return this.features.setRisk(user.id,id,body.level);}
+  @Post("properties/:id/risk") risk(@CurrentUser() user:UserRecord,@Param("id") id:string,@Body() body:unknown){
+    this.gate(user);
+    const d=z.object({level:z.enum(["LOW","MEDIUM","HIGH","BLOCKED"])}).parse(body);
+    return this.features.setRisk(user.id,id,d.level);
+  }
 }

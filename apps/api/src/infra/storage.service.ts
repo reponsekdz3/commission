@@ -11,7 +11,7 @@ export class StorageService{
   private readonly config=loadConfig();
   private assertConfigured(){if(!this.config.s3Endpoint||!this.config.s3AccessKey||!this.config.s3SecretKey)throw new BadRequestException("S3-compatible storage is not configured");}
 
-  private presign(method:"GET"|"PUT"|"HEAD",key:string,contentType?:string,expiresSeconds=900){
+  private presign(method:"GET"|"PUT"|"HEAD"|"DELETE",key:string,contentType?:string,expiresSeconds=900){
     this.assertConfigured();
     if(key.includes(".."))throw new BadRequestException("Invalid storage key");
     const endpoint=new URL(this.config.s3Endpoint!);
@@ -49,11 +49,26 @@ export class StorageService{
     return {contentLength:Number(response.headers.get("content-length")??0),contentType:response.headers.get("content-type")??undefined};
   }
 
+  async deleteObject(key:string){
+    const signed=this.presign("DELETE",key,undefined,300);
+    const response=await fetch(signed.url,{method:"DELETE"});
+    if(!response.ok&&response.status!==404)throw new Error("Object DELETE failed: "+response.status);
+    return {deleted:true};
+  }
+
   async putBuffer(key:string,contentType:string,data:Buffer){
     const signed=this.presignedPut(key,contentType,900);
     const response=await fetch(signed.uploadUrl,{method:"PUT",headers:{"Content-Type":contentType},body:data});
     if(!response.ok)throw new Error("Object upload failed: "+response.status);
     return {bucket:signed.bucket,key:signed.key};
+  }
+
+  async readPrefix(key:string,bytes=64){
+    if(!Number.isInteger(bytes)||bytes<1||bytes>1024)throw new BadRequestException("Invalid prefix length");
+    const signed=this.presignedGet(key,300);
+    const response=await fetch(signed.downloadUrl,{headers:{Range:"bytes=0-"+(bytes-1)}});
+    if(!(response.ok||response.status===206))throw new Error("Object prefix read failed: "+response.status);
+    return Buffer.from(await response.arrayBuffer());
   }
 
   async readBuffer(key:string){

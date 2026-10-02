@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { loadConfig } from "@imizi/config";
 import type { Role, RiskLevel } from "@imizi/types";
 import { matchesSavedSearch } from "@imizi/domain";
-import type { UserRecord, PropertyRecord, ListingRecord, BookingRecord, PaymentIntentRecord } from "../store/platform.store";
+import type { UserRecord, PropertyRecord, ListingRecord, BookingRecord, PaymentIntentRecord } from "../store/records";
 
 @Injectable()
 export class DatabaseService implements OnModuleInit, OnModuleDestroy {
@@ -144,6 +144,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return result.rows[0]?.user_id as string | undefined;
   }
 
+  async revokeRefreshToken(refreshHash:string){
+    await this.query("UPDATE sessions SET revoked_at=now() WHERE refresh_token_hash=$1 AND revoked_at IS NULL",[refreshHash]);
+  }
+
   async createProperty(input: Record<string, any>, ownerId: string, organizationId: string | undefined, risk: { level: RiskLevel; score: number }) {
     const id = randomUUID();
     await this.transaction(async (client) => {
@@ -178,7 +182,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return this.getProperty(id);
   }
 
-  async getProperty(id: string): Promise<PropertyRecord | undefined> {
+  async getProperty(id: string, publicView=false): Promise<PropertyRecord | undefined> {
     const base = await this.query(
       "SELECT p.*,pl.province,pl.district,pl.sector,pl.cell,pl.village, " +
       "ST_Y(pl.geom::geometry) latitude,ST_X(pl.geom::geometry) longitude " +
@@ -203,22 +207,28 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       parking:row.parking == null ? undefined : Number(row.parking),
       areaValue:row.area_value == null ? undefined : Number(row.area_value),areaUnit:String(row.area_unit),
       amenities:amenities.rows.map((x:any)=>String(x.amenity)),
-      media:media.rows.map((x:any)=>{const variants=(x.variants ?? {}) as Record<string,string>;const source=String(x.kind)==="VIDEO" ? (variants.video ?? x.storage_key) : String(x.kind)==="PHOTO" ? (variants.large ?? variants.medium ?? x.storage_key) : String(x.kind)==="TOUR_360" ? (variants.panorama ?? x.storage_key) : x.storage_key;const toUrl=(key:string)=>String(key).startsWith("http") ? String(key) : (config.cdnBaseUrl ? config.cdnBaseUrl.replace(/\/$/,"")+"/"+String(key).split("/").map(encodeURIComponent).join("/") : new URL("/"+String(key),config.s3Endpoint ?? "http://localhost:9000").toString());return {id:String(x.id),kind:String(x.kind),url:toUrl(String(source)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(x.sort_order)};}),
+      media:media.rows.flatMap((x:any)=>{const variants=(x.variants ?? {}) as Record<string,string>;const kind=String(x.kind);const source=kind==="VIDEO" ? variants.video : kind==="PHOTO" ? (variants.large ?? variants.medium ?? variants.small) : kind==="TOUR_360" ? variants.panorama : variants.original;const legacyPublic=!String(x.storage_key).startsWith("private/")&&!String(x.storage_key).startsWith("quarantine/");if(!source&&!legacyPublic)return [];const safeSource=source??String(x.storage_key);const toUrl=(key:string)=>String(key).startsWith("http") ? String(key) : (config.cdnBaseUrl ? config.cdnBaseUrl.replace(/\/$/,"")+"/"+String(key).replace(/^public\//,"").split("/").map(encodeURIComponent).join("/") : new URL("/"+String(key).replace(/^public\//,""),config.s3Endpoint ?? "http://localhost:9000").toString());return [{id:String(x.id),kind,url:toUrl(String(safeSource)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(x.sort_order)}];}),
       createdAt:new Date(row.created_at).toISOString(),updatedAt:new Date(row.updated_at).toISOString(),
     };
   }
 
-  async hydrateProperty(id: string) {
-    const property = await this.getProperty(id);
+  async hydrateProperty(id: string, publicView=false) {
+    const property = await this.getProperty(id,publicView);
     if (!property) return undefined;
     const [units,listings,views] = await Promise.all([
-      this.query("SELECT id,property_id,label,bedrooms,bathrooms,parking,status FROM property_units WHERE property_id=$1 ORDER BY label",[id]),
+      this.query(
+        "SELECT id,property_id,label,bedrooms,bathrooms,parking,status FROM property_units WHERE property_id=$1 " +
+        (publicView ? "AND status='AVAILABLE' " : "") +
+        "ORDER BY label",[id],
+      ),
       this.query(
         "SELECT pl.id,pl.property_id,pl.unit_id,pl.listing_type,pl.status,pl.available_from,pl.created_at,pl.updated_at," +
         "COALESCE(pp.amount_minor,0) price_minor,COALESCE(pp.currency,'RWF') currency " +
         "FROM property_listings pl LEFT JOIN LATERAL " +
         "(SELECT amount_minor,currency FROM property_prices WHERE listing_id=pl.id AND effective_to IS NULL ORDER BY effective_from DESC LIMIT 1) pp ON TRUE " +
-        "WHERE pl.property_id=$1 ORDER BY pl.created_at DESC",[id],
+        "WHERE pl.property_id=$1 " +
+        (publicView ? "AND pl.status='ACTIVE' " : "") +
+        "ORDER BY pl.created_at DESC",[id],
       ),
       this.query("SELECT COUNT(*)::int count FROM property_views WHERE property_id=$1",[id]),
     ]);
@@ -251,12 +261,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
         await client.query("UPDATE properties SET "+column+"=$2,updated_at=now() WHERE id=$1",[id,value]);
       }
       if (["province","district","sector","cell","village","provinceId","districtId","sectorId","cellId","villageId","addressLine","latitude","longitude"].some((x)=>patch[x] !== undefined)) {
-        const location=await client.query("SELECT province,district,sector,cell,village,address_line,ST_Y(geom::geometry) lat,ST_X(geom::geometry) lng FROM property_locations WHERE property_id=$1",[id]);
+        const location=await client.query("SELECT province,district,sector,cell,village,address_line,province_id,district_id,sector_id,cell_id,village_id,ST_Y(geom::geometry) lat,ST_X(geom::geometry) lng FROM property_locations WHERE property_id=$1",[id]);
         const current=location.rows[0];
         let fields={
           province:patch.province ?? current?.province,district:patch.district ?? current?.district,sector:patch.sector ?? current?.sector,
           cell:patch.cell ?? current?.cell,village:patch.village ?? current?.village,addressLine:patch.addressLine ?? current?.address_line,
-          provinceId:patch.provinceId ?? null,districtId:patch.districtId ?? null,sectorId:patch.sectorId ?? null,cellId:patch.cellId ?? null,villageId:patch.villageId ?? null,
+          provinceId:patch.provinceId ?? current?.province_id ?? null,districtId:patch.districtId ?? current?.district_id ?? null,sectorId:patch.sectorId ?? current?.sector_id ?? null,cellId:patch.cellId ?? current?.cell_id ?? null,villageId:patch.villageId ?? current?.village_id ?? null,
           latitude:patch.latitude ?? current?.lat,longitude:patch.longitude ?? current?.lng,
         };
         if (patch.provinceId || patch.districtId || patch.sectorId || patch.cellId || patch.villageId) {
@@ -307,6 +317,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async createListing(input:{propertyId:string;unitId?:string;listingType:string;priceMinor:number;currency:string;availableFrom:string}) {
     const id=randomUUID();
     await this.transaction(async(client)=>{
+      if(input.unitId){
+        const unit=await client.query("SELECT property_id FROM property_units WHERE id=$1",[input.unitId]);
+        if(!unit.rows[0] || String(unit.rows[0].property_id)!==input.propertyId) throw new Error("Unit does not belong to listing property");
+      }
       await client.query(
         "INSERT INTO property_listings(id,property_id,unit_id,listing_type,status,available_from) VALUES($1,$2,$3,$4,'ACTIVE',$5)",
         [id,input.propertyId,input.unitId ?? null,input.listingType,input.availableFrom],
@@ -512,18 +526,78 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async refundPayment(intentId:string,amountMinor:number,reason:string){
+  async reserveRefund(intentId:string,amountMinor:number,reason:string,requestKey:string){
     return this.transaction(async(client)=>{
+      const existing=await client.query("SELECT * FROM payment_refunds WHERE request_key=$1 FOR UPDATE",[requestKey]);
+      if(existing.rows[0]){
+        if(String(existing.rows[0].status)==="FAILED"){
+          const retry=await client.query("UPDATE payment_refunds SET status='PENDING',reason=$2,provider_reference=NULL WHERE id=$1 RETURNING *",[existing.rows[0].id,reason]);
+          return {created:false,refund:retry.rows[0]};
+        }
+        return {created:false,refund:existing.rows[0]};
+      }
       const r=await client.query("SELECT * FROM payment_intents WHERE id=$1 FOR UPDATE",[intentId]);
       if(!r.rows[0]) return undefined;
       const current=this.mapPayment(r.rows[0]);
       if(current.status!=="SUCCEEDED" && current.status!=="PARTIALLY_REFUNDED") throw new Error("Only successful payments can be refunded");
+      if(!Number.isInteger(amountMinor)||amountMinor<=0) throw new Error("Refund amount must be positive");
       const already=await client.query("SELECT COALESCE(SUM(amount_minor),0)::bigint total FROM payment_refunds WHERE intent_id=$1 AND status IN ('PENDING','COMPLETED')",[intentId]);
       const refunded=Number(already.rows[0].total);
       if(refunded+amountMinor>current.amountMinor) throw new Error("Refund exceeds remaining captured amount");
-      await client.query("INSERT INTO payment_refunds(intent_id,amount_minor,reason,status) VALUES($1,$2,$3,'PENDING')",[intentId,amountMinor,reason]);
-      const nextStatus=refunded+amountMinor>=current.amountMinor ? "REFUNDED" : "PARTIALLY_REFUNDED";
+      const inserted=await client.query(
+        "INSERT INTO payment_refunds(intent_id,amount_minor,reason,status,request_key) VALUES($1,$2,$3,'PENDING',$4) RETURNING *",
+        [intentId,amountMinor,reason,requestKey],
+      );
+      return {created:true,refund:inserted.rows[0]};
+    });
+  }
+
+  async failRefund(refundId:string){
+    await this.query("UPDATE payment_refunds SET status='FAILED' WHERE id=$1 AND status='PENDING'",[refundId]);
+    return {failed:true};
+  }
+
+  async refundPayment(intentId:string,refundId:string,providerReference:string){
+    return this.transaction(async(client)=>{
+      const refund=await client.query("SELECT * FROM payment_refunds WHERE id=$1 AND intent_id=$2 FOR UPDATE",[refundId,intentId]);
+      if(!refund.rows[0]) return undefined;
+      if(String(refund.rows[0].status)==="COMPLETED") return this.mapPayment((await client.query("SELECT * FROM payment_intents WHERE id=$1",[intentId])).rows[0]);
+      if(String(refund.rows[0].status)!=="PENDING") throw new Error("Refund is not pending");
+      const intentRow=await client.query("SELECT * FROM payment_intents WHERE id=$1 FOR UPDATE",[intentId]);
+      if(!intentRow.rows[0]) return undefined;
+      const intent=this.mapPayment(intentRow.rows[0]);
+      await client.query("UPDATE payment_refunds SET provider_reference=$2,status='COMPLETED' WHERE id=$1",[refundId,providerReference]);
+      const totals=await client.query("SELECT COALESCE(SUM(amount_minor),0)::bigint total FROM payment_refunds WHERE intent_id=$1 AND status='COMPLETED'",[intentId]);
+      const refundedTotal=Number(totals.rows[0].total);
+      const nextStatus=refundedTotal>=intent.amountMinor ? "REFUNDED" : "PARTIALLY_REFUNDED";
       await client.query("UPDATE payment_intents SET status=$2 WHERE id=$1",[intentId,nextStatus]);
+
+      if(intent.bookingId){
+        const bookingRow=await client.query("SELECT * FROM bookings WHERE id=$1 FOR UPDATE",[intent.bookingId]);
+        const booking=bookingRow.rows[0] ? this.mapBooking(bookingRow.rows[0]) : undefined;
+        if(booking){
+          const owner=await client.query("SELECT p.owner_id FROM property_listings pl JOIN properties p ON p.id=pl.property_id WHERE pl.id=$1",[booking.listingId]);
+          const ownerId=owner.rows[0]?.owner_id as string|undefined;
+          const platform=Math.floor(Number(refund.rows[0].amount_minor)*loadConfig().commissionBps/10000);
+          const landlord=Number(refund.rows[0].amount_minor)-platform;
+          await this.ensureLedgerAccount(client,booking.tenantId,"CUSTOMER",booking.currency);
+          await this.ensureLedgerAccount(client,null,"PLATFORM_HOLDING",booking.currency);
+          await this.ensureLedgerAccount(client,null,"PLATFORM_REVENUE",booking.currency);
+          if(ownerId) await this.ensureLedgerAccount(client,ownerId,"LANDLORD",booking.currency);
+          await this.ledger(client,booking.tenantId,"CUSTOMER","CREDIT",Number(refund.rows[0].amount_minor),booking.currency,refundId);
+          await this.ledger(client,null,"PLATFORM_HOLDING","DEBIT",Number(refund.rows[0].amount_minor),booking.currency,refundId);
+          await this.ledger(client,null,"PLATFORM_REVENUE","DEBIT",platform,booking.currency,refundId);
+          if(ownerId) await this.ledger(client,ownerId,"LANDLORD","DEBIT",landlord,booking.currency,refundId);
+          await client.query(
+            "INSERT INTO payment_transactions(intent_id,provider,provider_reference,amount_minor,currency,status) VALUES($1,$2,$3,$4,$5,'REFUNDED')",
+            [intentId,intent.provider,providerReference,Number(refund.rows[0].amount_minor),intent.currency],
+          );
+          await client.query(
+            "INSERT INTO notifications(user_id,channel,event_type,title,body) VALUES($1,'in_app','PAYMENT_REFUNDED','Refund completed',$2)",
+            [booking.tenantId,"Your payment refund of "+Number(refund.rows[0].amount_minor)+" "+booking.currency+" has completed."],
+          );
+        }
+      }
       const fresh=await client.query("SELECT * FROM payment_intents WHERE id=$1",[intentId]);
       return this.mapPayment(fresh.rows[0]);
     });
@@ -536,6 +610,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     );
     return r.rows[0];
   }
+
+  async deleteMedia(id:string){await this.query("DELETE FROM property_media WHERE id=$1",[id]);return {deleted:true};}
 
   async addMedia(propertyId:string,kind:string,key:string){
     const id=randomUUID();

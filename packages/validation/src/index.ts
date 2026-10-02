@@ -99,6 +99,8 @@ export const createBookingSchema = z.object({
   idempotencyKey: z.string().min(16).max(128),
 });
 
+export const refundSchema = z.object({intentId:z.string().uuid(),amountMinor:z.number().int().positive().max(10_000_000_000_000),reason:z.string().trim().max(500).optional(),reauthToken:z.string().min(32).max(128).optional()});
+
 export const initiatePaymentSchema = z.object({
   bookingId: z.string().uuid(),
   provider: z.enum(["MTN_MOMO", "FLUTTERWAVE", "CARD"]),
@@ -171,6 +173,10 @@ export const viewingDecisionSchema = z.object({
   accept: z.boolean(),
 });
 
+export const unitCreateSchema = z.object({label:z.string().trim().min(1).max(120),bedrooms:z.number().int().min(0).max(50).optional()});
+
+export const reviewSchema = z.object({bookingId:z.string().uuid(),rating:z.number().int().min(1).max(5),body:z.string().trim().max(4000).optional()});
+
 export const maintenanceCreateSchema = z.object({
   propertyId: z.string().uuid(),
   title: z.string().min(3).max(160),
@@ -201,10 +207,10 @@ export const searchSchema = paginationSchema.extend({
   radiusKm: z.coerce.number().positive().max(100).optional(),
   lat: z.coerce.number().gte(-90).lte(90).optional(),
   lng: z.coerce.number().gte(-180).lte(180).optional(),
-  north: z.coerce.number().optional(),
-  south: z.coerce.number().optional(),
-  east: z.coerce.number().optional(),
-  west: z.coerce.number().optional(),
+  north: z.coerce.number().gte(-90).lte(90).optional(),
+  south: z.coerce.number().gte(-90).lte(90).optional(),
+  east: z.coerce.number().gte(-180).lte(180).optional(),
+  west: z.coerce.number().gte(-180).lte(180).optional(),
   polygon: z.string().max(5000).optional(),
   verifiedOnly: z.coerce.boolean().optional(),
   availableFrom: z.string().optional(),

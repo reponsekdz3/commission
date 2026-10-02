@@ -1,11 +1,11 @@
 import { Body, Controller, Headers, Param, Post, Req, type RawBodyRequest } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
-import { initiatePaymentSchema } from "@imizi/validation";
+import { initiatePaymentSchema, refundSchema } from "@imizi/validation";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { Public } from "../../common/public.decorator";
 import { PaymentsService } from "./payments.service";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import type { Request } from "express";
 import { requiresReauth } from "@imizi/domain";
 import { AuthService } from "../auth/auth.service";
@@ -32,12 +32,13 @@ export class PaymentsController {
 
   @ApiBearerAuth()
   @Post("refunds")
-  async refund(@CurrentUser() user:UserRecord,@Body() body:{intentId:string;amountMinor:number;reason?:string;reauthToken?:string}){
+  async refund(@CurrentUser() user:UserRecord,@Body() body:unknown){
     if(!user.roles.includes("FINANCE_ADMIN")&&!user.roles.includes("SUPER_ADMIN"))return{error:"forbidden"};
+    const d=refundSchema.parse(body);
     if(requiresReauth("payment:refund")){
-      if(!body.reauthToken)return{requiresReauth:true};
-      if(!(await this.auth.consumeReauth(user,"payment:refund",body.reauthToken)))return{error:"invalid_reauth"};
+      if(!d.reauthToken)return{requiresReauth:true,action:"payment:refund"};
+      if(!(await this.auth.consumeReauth(user,"payment:refund",d.reauthToken)))return{error:"invalid_reauth"};
     }
-    return this.payments.refund(body.intentId,body.amountMinor,body.reason ?? "admin_refund");
+    return this.payments.refund(d.intentId,d.amountMinor,d.reason ?? "admin_refund");
   }
 }

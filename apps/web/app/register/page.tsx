@@ -130,9 +130,9 @@ export default function Register() {
         </div>
 
         <div className="auth-social-proof">
-          <div className="auth-proof-item"><strong>Free</strong><span>Always</span></div>
-          <div className="auth-proof-item"><strong>60s</strong><span>Setup time</span></div>
-          <div className="auth-proof-item"><strong>5k+</strong><span>Members</span></div>
+          <div className="auth-proof-item"><strong>RW</strong><span>Rwanda-first</span></div>
+          <div className="auth-proof-item"><strong>RWF</strong><span>Native pricing</span></div>
+          <div className="auth-proof-item"><strong>LIVE</strong><span>Backend connected</span></div>
         </div>
       </div>
 

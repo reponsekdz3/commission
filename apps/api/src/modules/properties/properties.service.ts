@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { scoreFraud, shouldQueueForModeration } from "@imizi/domain";
-import { UserRecord, PropertyRecord } from "../../store/platform.store";
+import type { UserRecord, PropertyRecord } from "../../store/records";
 import { assertPermission, assertPropertyAccess } from "../../common/access";
 import { DatabaseService } from "../../infra/database.service";
 import { FeatureService } from "../../infra/feature.service";
@@ -34,14 +34,30 @@ export class PropertiesService {
     assertPropertyAccess(user, property, false);
     await this.db.insertView(id, user?.id);
     await this.features.track("property_viewed", user?.id, id);
-    return this.db.hydrateProperty(id);
+    const privileged=Boolean(user&&(
+      user.id===property.ownerId ||
+      (property.organizationId&&property.organizationId===user.organizationId) ||
+      user.roles.some(r=>["SUPER_ADMIN","ADMIN","MODERATOR","VERIFICATION_AGENT"].includes(r))
+    ));
+    return this.db.hydrateProperty(id,!privileged);
   }
 
   async update(id:string,user:UserRecord,patch:Record<string,any>) {
     const property=await this.db.getProperty(id);
     if(!property) throw new NotFoundException();
     assertPropertyAccess(user,property,true);
-    if ((patch.countryCode ?? property.countryCode) === "RW" && ["provinceId","districtId","sectorId","cellId","villageId"].some(k => patch[k] !== undefined)) await this.locations.validate(patch);
+    const locationIds=["provinceId","districtId","sectorId","cellId","villageId"];
+    const locationLabels=["province","district","sector","cell","village"];
+    const nextCountry=patch.countryCode ?? property.countryCode;
+    const touchingLabels=locationLabels.some(k=>patch[k]!==undefined);
+    const touchingIds=locationIds.some(k=>patch[k]!==undefined);
+    if(nextCountry==="RW"){
+      if(touchingLabels&&!touchingIds) throw new ForbiddenException("Rwanda location labels must come from the canonical location IDs");
+      if(touchingIds||patch.countryCode==="RW"&&property.countryCode!=="RW"){
+        await this.locations.validate(patch);
+        if(!patch.provinceId||!patch.districtId||!patch.sectorId||!patch.cellId) throw new ForbiddenException("Complete Rwanda location hierarchy is required");
+      }
+    }
     const result=await this.db.updateProperty(id,patch);
     for (const listing of (result?.listings ?? [])) await this.db.enqueueJob("search.index",{listingId:listing.id});
     await this.features.audit(user.id,"PROPERTY_UPDATED","property",id,undefined,patch);

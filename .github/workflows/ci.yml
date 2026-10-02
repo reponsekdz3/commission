@@ -65,6 +65,8 @@ jobs:
       DEFAULT_CURRENCY: RWF
     steps:
       - uses: actions/checkout@v4
+      - name: Production integrity scan
+        run: npm run integrity:production
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -1,26 +1,18 @@
-import { Inject, Injectable } from "@nestjs/common";
-import { clampLimit, parseNaturalSearch, rankListing, freshnessFromUpdatedAt, listingQualityScore } from "@imizi/domain";
-import { haversineMeters } from "@imizi/maps";
+import { Injectable } from "@nestjs/common";
+import { clampLimit, parseNaturalSearch } from "@imizi/domain";
 import { DatabaseService } from "../../infra/database.service";
 import { Dependencies } from "../../infra/dependencies";
-import { PlatformStore } from "../../store/platform.store";
 import { loadConfig } from "@imizi/config";
 
 @Injectable()
 export class SearchService {
-  constructor(@Inject(DatabaseService) private readonly source:DatabaseService|PlatformStore,private readonly deps?:Dependencies){}
+  constructor(private readonly db:DatabaseService,private readonly deps:Dependencies){}
 
-  search(query:Record<string,any>){
-    if(this.source instanceof DatabaseService) return this.searchProduction(query);
-    return this.searchLegacy(this.source as PlatformStore,query);
-  }
-
-  private async searchProduction(query:Record<string,any>){
-    const db=this.source as DatabaseService;
+  async search(query:Record<string,any>){
     const parsed=query.q ? parseNaturalSearch(String(query.q)) : undefined;
     const limit=clampLimit(query.limit ? Number(query.limit) : 20);
     const cacheKey="search:"+JSON.stringify({...query,limit});
-    const cached=await this.deps?.cacheGet<any>(cacheKey);
+    const cached=await this.deps.cacheGet<any>(cacheKey);
     if(cached)return cached;
 
     const listingType=query.listingType ?? parsed?.listingType;
@@ -50,7 +42,8 @@ export class SearchService {
         {_score:"desc"},{updatedAt:"desc"},{listingId:"desc"}
       ]
     };
-    const os=await this.deps?.searchListings(body);
+
+    const os=await this.deps.searchListings(body);
     if(os && !query.polygon && (os.hits?.hits?.length ?? 0) > 0){
       const items=(os.hits?.hits ?? []).map((hit:any)=>{
         const s=hit._source;
@@ -61,13 +54,14 @@ export class SearchService {
           property:{id:s.id,title:s.title,description:s.description,district:s.district,province:s.province,sector:s.sector,propertyType:s.propertyType,bedrooms:s.bedrooms,bathrooms:s.bathrooms,parking:s.parking,verificationStatus:s.verificationStatus,amenities:s.amenities ?? [],media:s.media ?? [],latitude:s.location?.lat,longitude:s.location?.lon}
         };
       });
-      const hydrated=await this.attachMedia(db,items);
+      const hydrated=await this.attachMedia(items);
       const last=hydrated.length===limit ? (os.hits?.hits ?? [])[hydrated.length-1]?.sort : undefined;
       const payload={items:hydrated,nextCursor:last?Buffer.from(JSON.stringify(last)).toString("base64url"):null,engine:"opensearch"};
-      await this.deps?.cacheSet(cacheKey,payload,15);
+      await this.deps.cacheSet(cacheKey,payload,15);
       return payload;
     }
-    const result=await db.searchListings({
+
+    const result=await this.db.searchListings({
       q:query.q,listingType,propertyType,province:query.province,district,sector:query.sector,
       bedroomsMin:query.bedroomsMin ?? parsed?.bedrooms,bedroomsMax:query.bedroomsMax,bathroomsMin:query.bathroomsMin,
       minPriceMinor:query.minPriceMinor,maxPriceMinor:query.maxPriceMinor ?? parsed?.maxPrice,currency:query.currency,
@@ -78,17 +72,17 @@ export class SearchService {
     });
     const last=result.length===limit ? result[result.length-1]?.listing : undefined;
     const nextCursor=last?.id&&last?.createdAt ? Buffer.from(JSON.stringify({createdAt:last.createdAt,id:last.id})).toString("base64url") : null;
-    const hydrated=await this.attachMedia(db,result);
+    const hydrated=await this.attachMedia(result);
     const payload={items:hydrated,nextCursor,engine:"postgres-postgis"};
-    await this.deps?.cacheSet(cacheKey,payload,10);
+    await this.deps.cacheSet(cacheKey,payload,10);
     return payload;
   }
 
-  private async attachMedia(db:DatabaseService,items:any[]){
+  private async attachMedia(items:any[]){
     if(!items.length)return items;
     const ids=[...new Set(items.map((item:any)=>String(item.property?.id)).filter(Boolean))];
     if(!ids.length)return items;
-    const rows=await db.query(
+    const rows=await this.db.query(
       "SELECT property_id,id,kind,storage_key,variants,sort_order FROM property_media WHERE property_id=ANY($1::uuid[]) ORDER BY property_id,sort_order,id",
       [ids],
     );
@@ -98,56 +92,25 @@ export class SearchService {
     for(const row of rows.rows){
       const variants=(row.variants ?? {}) as Record<string,string>;
       const kind=String(row.kind);
-      const source=kind==="VIDEO" ? (variants.video ?? row.storage_key) : kind==="PHOTO" ? (variants.large ?? variants.medium ?? row.storage_key) : kind==="TOUR_360" ? (variants.panorama ?? row.storage_key) : row.storage_key;
-      const media={id:String(row.id),kind,url:toUrl(String(source)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(row.sort_order)};
+      const source=kind==="VIDEO" ? variants.video : kind==="PHOTO" ? (variants.large ?? variants.medium ?? variants.small) : kind==="TOUR_360" ? variants.panorama : variants.original;
+      const legacyPublic=!String(row.storage_key).startsWith("private/")&&!String(row.storage_key).startsWith("quarantine/");
+      if(!source&&!legacyPublic)continue;
+      const media={id:String(row.id),kind,url:toUrl(String(source??row.storage_key)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(row.sort_order)};
       const key=String(row.property_id); if(!grouped.has(key))grouped.set(key,[]); grouped.get(key)!.push(media);
     }
     return items.map((item:any)=>({...item,property:{...item.property,media:grouped.get(String(item.property.id)) ?? item.property.media ?? []}}));
   }
 
-  private searchLegacy(store:PlatformStore,query:Record<string,any>){
-    const parsed=query.q ? parseNaturalSearch(String(query.q)) : undefined;
-    const listingType=query.listingType ?? parsed?.listingType;
-    const propertyType=query.propertyType ?? parsed?.type;
-    const district=query.district ?? parsed?.locationText;
-    const maxPrice=query.maxPriceMinor ?? parsed?.maxPrice;
-    const limit=clampLimit(query.limit ? Number(query.limit) : 20);
-    const items:any[]=[];
-    for(const listing of store.listings.values()){
-      const property=store.properties.get(listing.propertyId);
-      if(!property||property.status!=="PUBLISHED"||listing.status!=="ACTIVE")continue;
-      if(listingType&&listing.listingType!==listingType)continue;
-      if(propertyType&&property.propertyType!==propertyType)continue;
-      if(district&&!((property.district+" "+property.province).toLowerCase().includes(String(district).toLowerCase())))continue;
-      if(query.bedroomsMin&&Number(property.bedrooms??0)<Number(query.bedroomsMin))continue;
-      if(maxPrice&&listing.priceMinor>Number(maxPrice))continue;
-      if(query.minPriceMinor&&listing.priceMinor<Number(query.minPriceMinor))continue;
-      if(query.verifiedOnly&&property.verificationStatus!=="VERIFIED")continue;
-      const distanceMeters=query.lat!=null&&query.lng!=null
-        ? Math.round(haversineMeters({latitude:Number(query.lat),longitude:Number(query.lng)},{latitude:property.latitude,longitude:property.longitude}))
-        : undefined;
-      const score=rankListing({
-        textRelevance:query.q ? (property.title+" "+property.description).toLowerCase().includes(String(query.q).slice(0,12).toLowerCase()) ? 1 : .5 : .5,
-        locationRelevance:district ? .8 : .4,filterMatch:.9,availability:1,verified:property.verificationStatus==="VERIFIED"?1:0,
-        listingQuality:listingQualityScore({photoCount:property.media.length,hasDescription:property.description.length>40,hasVideo:property.media.some((m)=>m.kind==="VIDEO"),amenityCount:property.amenities.length}),
-        freshness:freshnessFromUpdatedAt(new Date(property.updatedAt)),
-      });
-      items.push({score,distanceMeters,listing,property});
-    }
-    items.sort((a,b)=>b.score-a.score);
-    return {items:items.slice(0,limit),nextCursor:null,engine:"legacy-test-store"};
-  }
-
   suggest(q:string){
-    if(this.source instanceof DatabaseService){
-      if(!this.deps) return this.createSuggestion(q);
-      return this.deps.cacheGet<any>("suggest:"+q.toLowerCase()).then((cached)=>cached ?? this.createSuggestion(q));
-    }
-    return this.createSuggestion(q);
+    return this.deps.cacheGet<any>("suggest:"+q.toLowerCase()).then((cached)=>cached ?? this.createSuggestion(q));
   }
 
-  private createSuggestion(q:string){
+  private async createSuggestion(q:string){
     const parsed=parseNaturalSearch(q);
-    return {parsed,suggestions:["Kigali","Kicukiro","Gasabo","Musanze","Rubavu","Huye"]};
+    const term=String(q??"").trim().toLowerCase();
+    const result=term
+      ? await this.db.query("SELECT id,name,level FROM rwanda_admin_units WHERE active=true AND lower(name) LIKE $1 ORDER BY CASE level WHEN 'DISTRICT' THEN 0 WHEN 'SECTOR' THEN 1 WHEN 'CELL' THEN 2 WHEN 'VILLAGE' THEN 3 ELSE 4 END,normalized_name LIMIT 12",["%"+term+"%"])
+      : await this.db.query("SELECT id,name,level FROM rwanda_admin_units WHERE active=true AND level='DISTRICT' ORDER BY normalized_name LIMIT 12");
+    return {parsed,suggestions:result.rows.map((row:any)=>({id:String(row.id),name:String(row.name),level:String(row.level)}))};
   }
 }

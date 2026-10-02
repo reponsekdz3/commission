@@ -1,6 +1,7 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
 import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import * as Location from "expo-location";
 import { api } from "../src/lib/api";
 import { pickAndUploadPropertyDocument,pickAndUploadPropertyMedia } from "../src/lib/media";
 import { Button, Chip, Input } from "../src/components/ui";

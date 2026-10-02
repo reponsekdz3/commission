@@ -1,7 +1,7 @@
 import { Controller, Get } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
-import { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { Public } from "../../common/public.decorator";
 import { FeatureService } from "../../infra/feature.service";
 

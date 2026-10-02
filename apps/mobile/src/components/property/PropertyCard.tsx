@@ -39,7 +39,7 @@ export function PropertyCard({ item, onPress, variant = "default", saved = false
       {/* Media */}
       <View style={[s.mediaWrap, { height: imgHeight, backgroundColor: c.surface3 }, isCompact && s.compactMedia]}>
         {uri
-          ? <RemoteImage uri={uri} style={StyleSheet.absoluteFillObject} accessibilityLabel={p.title} />
+          ? <RemoteImage uri={uri} style={StyleSheet.absoluteFill} accessibilityLabel={p.title} />
           : (
             <View style={s.noMediaWrap}>
               <Ionicons name="home-outline" size={28} color={c.subtle} />

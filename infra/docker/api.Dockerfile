@@ -11,13 +11,13 @@ COPY packages/database/package.json packages/database/package.json
 COPY packages/config/package.json packages/config/package.json
 COPY packages/auth/package.json packages/auth/package.json
 COPY packages/ui/package.json packages/ui/package.json
-RUN npm install --omit=dev=false
+RUN npm ci --include=dev
 
 FROM node:20-alpine AS build
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
-RUN npm run build -w @imizi/domain && npm run build -w @imizi/api
+RUN npm run build:packages && npm run build -w @imizi/api && npm prune --omit=dev
 
 FROM node:20-alpine
 WORKDIR /app

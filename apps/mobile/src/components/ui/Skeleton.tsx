@@ -1,5 +1,5 @@
-import React from "react"; import { View,StyleSheet,ViewStyle,StyleProp } from "react-native"; import { useTheme } from "../../stores/theme";
-export function Skeleton({width,height,radius=12,style}:{width?:number|string;height?:number|string;radius?:number;style?:StyleProp<ViewStyle>}){const c=useTheme(s=>s.palette);return <View style={[{width,height,borderRadius:radius,backgroundColor:c.border},style]}/>;}
+import React from "react"; import { View,StyleSheet,ViewStyle,StyleProp,DimensionValue } from "react-native"; import { useTheme } from "../../stores/theme";
+export function Skeleton({width,height,radius=12,style}:{width?:DimensionValue;height?:DimensionValue;radius?:number;style?:StyleProp<ViewStyle>}){const c=useTheme(s=>s.palette);return <View style={[{width,height,borderRadius:radius,backgroundColor:c.border},style]}/>;}
 export function PropertyCardSkeleton(){return <View style={s.card}><Skeleton height={180}/><Skeleton width="70%" height={18} style={s.line}/><Skeleton width="48%" height={13} style={s.line}/><Skeleton width="35%" height={18} style={s.line}/></View>;}
 export function ChatRowSkeleton(){return <View style={s.row}><Skeleton width={48} height={48} radius={24}/><View style={{flex:1}}><Skeleton width="60%" height={15}/><Skeleton width="82%" height={12} style={s.line}/></View></View>;}
 export function DashboardStatSkeleton(){return <View style={s.stat}><Skeleton width="45%" height={12}/><Skeleton width="55%" height={24} style={s.line}/></View>;}

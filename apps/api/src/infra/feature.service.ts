@@ -55,13 +55,17 @@ export class FeatureService {
   }
 
   async favorites(userId:string) {
-    const rows=await this.db.query("SELECT property_id FROM favorites WHERE user_id=$1 ORDER BY created_at DESC",[userId]);
+    const rows=await this.db.query(
+      "SELECT f.property_id FROM favorites f JOIN properties p ON p.id=f.property_id WHERE f.user_id=$1 AND (p.status='PUBLISHED' OR p.owner_id=$1) ORDER BY f.created_at DESC",
+      [userId],
+    );
     return (await Promise.all(rows.rows.map((x:any)=>this.db.hydrateProperty(x.property_id)))).filter(Boolean);
   }
 
   async favoriteAdd(userId:string,propertyId:string) {
     const property=await this.db.getProperty(propertyId);
     if(!property) return {error:"not_found"};
+    if(property.status!=="PUBLISHED" && property.ownerId!==userId) return {error:"not_found"};
     await this.db.query("INSERT INTO favorites(user_id,property_id) VALUES($1,$2) ON CONFLICT DO NOTHING",[userId,propertyId]);
     await this.track("property_saved",userId,propertyId);
     return {saved:true};
@@ -75,6 +79,35 @@ export class FeatureService {
   async conversation(userId:string,recipientId:string|undefined,propertyId?:string,bookingId?:string,offerId?:string) {
     const memberIds=[userId,recipientId].filter(Boolean) as string[];
     if(memberIds.length<2) throw new Error("recipientId is required");
+    if(propertyId){
+      const property=await this.db.getProperty(propertyId);
+      if(!property) throw new Error("Property not found");
+      const recipientIsOwner=String(property.ownerId)===String(recipientId);
+      const recipientInOrg=Boolean(property.organizationId&&recipientId&&(
+        await this.db.query("SELECT 1 FROM organization_members WHERE organization_id=$1 AND user_id=$2",[property.organizationId,recipientId])
+      ).rows[0]);
+      const actorCanContext=String(property.ownerId)===String(userId)||Boolean(property.organizationId&&(
+        await this.db.query("SELECT 1 FROM organization_members WHERE organization_id=$1 AND user_id=$2",[property.organizationId,userId])
+      ).rows[0]);
+      if(property.status!=="PUBLISHED"&&!actorCanContext) throw new Error("Property context unavailable");
+      if(!recipientIsOwner&&!recipientInOrg) throw new Error("Conversation recipient not authorized for property");
+    }
+    if(bookingId){
+      const booking=await this.db.query(
+        "SELECT b.tenant_id,p.owner_id,p.organization_id FROM bookings b JOIN property_listings pl ON pl.id=b.listing_id JOIN properties p ON p.id=pl.property_id WHERE b.id=$1",[bookingId],
+      );
+      if(!booking.rows[0])throw new Error("Booking not found");
+      const row=booking.rows[0];
+      const actorMember=String(row.tenant_id)===String(userId)||String(row.owner_id)===String(userId);
+      const recipientMember=String(row.tenant_id)===String(recipientId)||String(row.owner_id)===String(recipientId);
+      if(!actorMember||!recipientMember)throw new Error("Booking conversation unauthorized");
+    }
+    if(offerId){
+      const offer=await this.db.query("SELECT o.buyer_id,p.owner_id FROM offers o JOIN property_listings pl ON pl.id=o.listing_id JOIN properties p ON p.id=pl.property_id WHERE o.id=$1",[offerId]);
+      if(!offer.rows[0])throw new Error("Offer not found");
+      const row=offer.rows[0];
+      if(![String(row.buyer_id),String(row.owner_id)].includes(String(userId))||![String(row.buyer_id),String(row.owner_id)].includes(String(recipientId)))throw new Error("Offer conversation unauthorized");
+    }
     const existing=await this.db.query(
       "SELECT c.id FROM conversations c " +
       "WHERE ($2::uuid IS NULL OR c.property_id=$2) AND ($3::uuid IS NULL OR c.booking_id=$3) " +
@@ -191,7 +224,7 @@ export class FeatureService {
       if(!existing.rows[0]) return undefined;
       const status=accept?"VERIFIED":"REJECTED";
       const updated=await client.query("UPDATE verification_requests SET status=$2,reviewer_id=$3,updated_at=now() WHERE id=$1 RETURNING *",[id,status,actorId]);
-      if(existing.rows[0].subject_type==="property" && accept) {
+      if(String(existing.rows[0].subject_type).toUpperCase()==="PROPERTY" && accept) {
         await client.query("UPDATE properties SET verification_status='VERIFIED',updated_at=now() WHERE id=$1",[existing.rows[0].subject_id]);
       }
       return updated.rows[0];
@@ -206,9 +239,9 @@ export class FeatureService {
 
   async createOffer(userId:string,input:{listingId:string;amountMinor:number;currency:string;message?:string}) {
     const listing=await this.db.getListing(input.listingId);
-    if(!listing || listing.listingType!=="SALE") return {error:"sale_listing_required"};
+    if(!listing || listing.listingType!=="SALE" || listing.status!=="ACTIVE") return {error:"sale_listing_required"};
     const property=await this.db.getProperty(listing.propertyId);
-    if(!property) return {error:"not_found"};
+    if(!property || property.status!=="PUBLISHED") return {error:"listing_not_available"};
     if(property.ownerId===userId) return {error:"owner_cannot_offer_on_own_listing"};
     const result=await this.db.query(
       "INSERT INTO offers(id,listing_id,buyer_id,amount_minor,currency,status,message) VALUES($1,$2,$3,$4,$5,'SELLER_REVIEWING',$6) RETURNING *",
@@ -257,6 +290,12 @@ export class FeatureService {
   }
 
   async requestViewing(userId:string,listingId:string,slotStart:string) {
+    const listing=await this.db.getListing(listingId);
+    if(!listing || listing.status!=="ACTIVE") return {error:"viewing_not_available"};
+    const property=await this.db.getProperty(listing.propertyId);
+    if(!property || property.status!=="PUBLISHED") return {error:"viewing_not_available"};
+    const requested=new Date(slotStart);
+    if(!Number.isFinite(requested.getTime()) || requested.getTime()<=Date.now()) return {error:"invalid_viewing_time"};
     const duplicate=await this.db.query("SELECT 1 FROM viewing_appointments WHERE listing_id=$1 AND slot_start=$2::timestamptz AND status IN('REQUESTED','CONFIRMED')",[listingId,slotStart]);
     if(duplicate.rows[0]) return {error:"slot_unavailable"};
     const result=await this.db.query(

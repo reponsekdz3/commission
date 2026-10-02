@@ -6,7 +6,7 @@ import LottieView from"lottie-react-native";
 import{success}from"../../lib/haptics";
 import{useTheme}from"../../stores/theme";
 const AP=Animated.createAnimatedComponent(Path);
-export function SuccessOverlay({title="Payment successful",onDone}:{title?:string;onDone?:()=>void}){
+export function SuccessOverlay({title="Payment successful",subtitle,onDone}:{title?:string;subtitle?:string;onDone?:()=>void}){
  const c=useTheme(s=>s.palette),p=useSharedValue(90);
  useEffect(()=>{p.value=withTiming(0,{duration:600});success()},[]);
  const a=useAnimatedProps(()=>({strokeDashoffset:p.value}));
@@ -17,4 +17,4 @@ export function SuccessOverlay({title="Payment successful",onDone}:{title?:strin
    {subtitle&&<Text style={[s.sub,{color:c.primaryFg}]}>{subtitle}</Text>}{onDone&&<Pressable accessibilityRole="button" onPress={onDone} style={[s.done,{borderColor:c.primaryFg}]}><Text style={{color:c.primaryFg,fontWeight:"800"}}>Continue</Text></Pressable>}
  </View>
 }
-const s=StyleSheet.create({sub:{maxWidth:320,textAlign:"center",marginTop:8,lineHeight:20},wrap:{...StyleSheet.absoluteFillObject,alignItems:"center",justifyContent:"center"},confetti:{...StyleSheet.absoluteFillObject},t:{fontSize:24,fontWeight:"800",marginTop:20},done:{marginTop:24,borderWidth:1,borderRadius:14,paddingHorizontal:22,paddingVertical:12}});
+const s=StyleSheet.create({sub:{maxWidth:320,textAlign:"center",marginTop:8,lineHeight:20},wrap:{...StyleSheet.absoluteFill,alignItems:"center",justifyContent:"center"},confetti:{...StyleSheet.absoluteFill},t:{fontSize:24,fontWeight:"800",marginTop:20},done:{marginTop:24,borderWidth:1,borderRadius:14,paddingHorizontal:22,paddingVertical:12}});

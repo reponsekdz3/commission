@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Post, Query } from "@nestjs/commo
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
-import { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { FeatureService } from "../../infra/feature.service";
 import { estimateMonthlyPayment, hasPermission } from "@imizi/domain";
 import { LocationsService } from "./locations.service";

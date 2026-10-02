@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { MapboxClient } from "../map/mapbox-client";
@@ -10,7 +10,7 @@ import { PropertyCardSkeleton } from "../../components/ui";
 import { SavedSearchChip } from "../../components/saved-search-chip";
 import { EmptyState } from "../../components/empty-state";
 import { trackEvent } from "../../lib/analytics";
-import { Map, SlidersHorizontal, LayoutGrid } from "lucide-react";
+import { Map, SlidersHorizontal, LayoutGrid, Search, X } from "lucide-react";
 
 function SearchContent() {
   const params   = useSearchParams();
@@ -23,6 +23,8 @@ function SearchContent() {
   const listRef  = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId]   = useState<string>();
   const [showFilters, setFilters] = useState(false);
+  const [showMobileMap, setShowMobileMap] = useState(false);
+  const [queryText, setQueryText] = useState(params.get("q") || "");
 
   useEffect(() => { trackEvent("search", { query: q }); }, [q]);
 
@@ -63,9 +65,11 @@ function SearchContent() {
   }, [items]);
 
   const currentType = params.get("listingType");
+  const activeFilterCount = ["district","propertyType","bedroomsMin","minPriceMinor","maxPriceMinor","verifiedOnly"].filter(key => Boolean(params.get(key))).length;
+  const submitSearch = (event: FormEvent) => { event.preventDefault(); const p = new URLSearchParams(params.toString()); if (queryText.trim()) p.set("q", queryText.trim()); else p.delete("q"); router.replace(pathname + (p.toString() ? "?" + p.toString() : ""), { scroll: false }); };
 
   return (
-    <main className="searchSplit" style={{animationName:'fadeIn',animationDuration:'.4s',animationFillMode:'both'}}>
+    <main className={"searchSplit " + (showMobileMap ? "mobileMapOpen" : "")} style={{animationName:'fadeIn',animationDuration:'.4s',animationFillMode:'both'}}>
       {/* ── List side ── */}
       <section className="searchList" ref={listRef}>
         {/* Header */}
@@ -74,8 +78,19 @@ function SearchContent() {
             <div className="eyebrow mb-1">Discovery engine</div>
             <h1 className="search-title">Find your next property.</h1>
             <p className="search-sub">
-              Live Rwanda inventory — verified listings with maps and real-time availability.
+              Live Rwanda inventory with map sync, verified records and real availability.
             </p>
+            <form onSubmit={submitSearch} className="search-querybar mt-4">
+              <Search size={16} className="text-[var(--color-fg-muted)]" aria-hidden />
+              <input
+                value={queryText}
+                onChange={e => setQueryText(e.target.value)}
+                placeholder='Try "3 bedroom Kigali" or "land Musanze"'
+                aria-label="Search live properties"
+              />
+              {queryText && <button type="button" aria-label="Clear search" onClick={() => setQueryText("")}><X size={14}/></button>}
+              <button type="submit" className="btn" style={{minHeight:40,padding:"8px 13px"}}>Search</button>
+            </form>
           </div>
           <div className="search-head-actions">
             <button
@@ -84,11 +99,20 @@ function SearchContent() {
               style={{ fontSize: 13 }}
             >
               <SlidersHorizontal size={14} />
-              Filters
+              Filters{activeFilterCount ? ` · ${activeFilterCount}` : ""}
             </button>
-            <Link href="/map" className="btn ghost flex items-center gap-2" style={{ fontSize: 13 }}>
+            <Link href="/map" className="btn ghost flex items-center gap-2 mapOnlyLink" style={{ fontSize: 13 }}>
               <Map size={14} /> Map only
             </Link>
+            <button
+              type="button"
+              className="btn ghost flex items-center gap-2 mobileMapToggle"
+              style={{ fontSize: 13 }}
+              aria-pressed={showMobileMap}
+              onClick={() => setShowMobileMap(v => !v)}
+            >
+              <Map size={14} /> {showMobileMap ? "List" : "Map"}
+            </button>
           </div>
         </div>
 

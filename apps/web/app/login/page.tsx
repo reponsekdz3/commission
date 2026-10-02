@@ -8,7 +8,7 @@ import {
   Building2, Lock, Mail, ShieldCheck, Eye, EyeOff,
   ArrowRight, Sparkles, MapPin, TrendingUp, Users,
 } from "lucide-react";
-import { api } from "../../lib/api";
+import { api, signInSession } from "../../lib/api";
 import { Input, Button } from "../../components/ui";
 
 const schema = z.object({
@@ -19,16 +19,16 @@ const schema = z.object({
 type F = z.infer<typeof schema>;
 
 const FEATURES = [
-  { icon: MapPin,      label: "200+ verified properties across Rwanda" },
-  { icon: ShieldCheck, label: "End-to-end secure RWF payments" },
-  { icon: TrendingUp,  label: "Real-time booking & analytics dashboard" },
-  { icon: Users,       label: "Connect with 5,000+ landlords & agents" },
+  { icon: MapPin,      label: "Canonical Rwanda location catalog" },
+  { icon: ShieldCheck, label: "Secure RWF-first payment integrations" },
+  { icon: TrendingUp,  label: "Realtime booking and owner analytics" },
+  { icon: Users,       label: "Persisted messaging and notifications" },
 ];
 
 const SOCIAL_PROOF = [
-  { stat: "12k+", label: "Active users" },
-  { stat: "98%",  label: "Satisfaction" },
-  { stat: "200+", label: "Listings" },
+  { stat: "RW", label: "Rwanda-first" },
+  { stat: "RWF", label: "Native pricing" },
+  { stat: "LIVE", label: "Backend data" },
 ];
 
 export default function Login() {
@@ -60,12 +60,11 @@ export default function Login() {
         password: v.password,
       };
       if (v.mfaCode && /^\d{6}$/.test(v.mfaCode)) payload.mfaCode = v.mfaCode;
-      const d = await api<{ accessToken: string; refreshToken: string; user: unknown }>(
-        "/auth/login", { method: "POST", body: JSON.stringify(payload) }
+      const d = await api<{ accessToken: string; user: unknown }>(
+        "/auth/login",
+        { method: "POST", headers: { "X-Imizi-Client": "web" }, body: JSON.stringify(payload) }
       );
-      localStorage.setItem("imizi_token",   d.accessToken);
-      localStorage.setItem("imizi_refresh",  d.refreshToken);
-      localStorage.setItem("imizi_user",     JSON.stringify(d.user));
+      await signInSession(d.accessToken,d.user);
       location.href = "/dashboard";
     } catch (e) {
       const text = e instanceof Error ? e.message : "Sign in failed. Please try again.";
@@ -96,7 +95,7 @@ export default function Login() {
         <div className="auth-brand-body">
           <div className="auth-eyebrow-pill">
             <Sparkles size={11} />
-            <span>Rwanda&apos;s #1 Property Platform</span>
+            <span>Rwanda-first property platform</span>
           </div>
           <h2 className="auth-brand-h2">
             Your next home is{" "}

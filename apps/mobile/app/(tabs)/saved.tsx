@@ -19,7 +19,16 @@ export default function Saved() {
   const q = useQuery({ queryKey: ["favorites"], queryFn: () => api<any[]>("/favorites", {}, true) });
   const remove = useMutation({
     mutationFn: (id: string) => api("/favorites/" + id, { method: "DELETE" }, true),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["favorites"] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["favorites"] });
+      const previous = qc.getQueryData<any[]>(["favorites"]) ?? [];
+      qc.setQueryData(["favorites"], previous.filter((x:any) => String(x.propertyId || x.id) !== String(id)));
+      return { previous };
+    },
+    onError: (_error, _id, ctx) => {
+      if (ctx?.previous) qc.setQueryData(["favorites"], ctx.previous);
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["favorites"] }),
   });
   const items = q.data ?? [];
 

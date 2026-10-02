@@ -5,7 +5,7 @@ import { createHash, randomBytes, randomInt, randomUUID } from "crypto";
 import type { Role } from "@imizi/types";
 import { generateTotpSecret, otpauthUrl, verifyTotp } from "@imizi/auth";
 
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { DatabaseService } from "../../infra/database.service";
 import { FeatureService } from "../../infra/feature.service";
 
@@ -111,6 +111,12 @@ export class AuthService {
   async sessions(user:UserRecord){return this.db.listSessions(user.id);}
   async revokeSession(user:UserRecord,id:string){return this.db.revokeSession(user.id,id);}
     
+  async logout(refreshToken:string){
+    const hash=createHash("sha256").update(refreshToken).digest("hex");
+    await this.db.revokeRefreshToken(hash);
+    return {ok:true};
+  }
+
   async refresh(refreshToken: string) {
     const hash = createHash("sha256").update(refreshToken).digest("hex");
     const userId = await this.db.consumeRefreshToken(hash);
