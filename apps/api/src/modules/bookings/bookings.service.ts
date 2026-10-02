@@ -50,14 +50,26 @@ export class BookingsService {
     const db=this.db();
     const listing=await db.getListing(input.listingId);
     if(!listing)throw new NotFoundException("Listing not found");
+    if(listing.status!=="ACTIVE")throw new BadRequestException("Listing is not active");
     if(listing.listingType==="SALE")throw new BadRequestException("Sale listings require an offer, not a rental booking.");
     if(new Date(input.startDate)<new Date(listing.availableFrom))throw new BadRequestException("Selected start date is before listing availability.");
+    if(input.unitId){
+      const unit=await db.getUnit(input.unitId);
+      if(!unit || unit.propertyId!==listing.propertyId)throw new BadRequestException("Selected unit does not belong to this listing property");
+      if(listing.unitId && listing.unitId!==input.unitId)throw new BadRequestException("Selected unit does not match listing");
+      if(unit.status!=="AVAILABLE")throw new BadRequestException("Selected unit is not available");
+    }else if(listing.unitId){
+      input={...input,unitId:listing.unitId};
+    }
+    const start=new Date(input.startDate),end=new Date(input.endDate);
+    if(!(end>start)||!Number.isFinite(start.getTime())||!Number.isFinite(end.getTime()))throw new BadRequestException("Invalid date range");
+    if(start.getTime()<Date.now()-60_000)throw new BadRequestException("Booking cannot start in the past");
     const quote=await this.quoteProduction(input.listingId,input.startDate,input.endDate);
     let booking;
     try{
       booking=await db.createBooking({listingId:listing.id,unitId:input.unitId,tenantId:user.id,startDate:input.startDate,endDate:input.endDate,amountMinor:quote.total.amountMinor,depositMinor:quote.deposit.amountMinor,currency:listing.currency,idempotencyKey:input.idempotencyKey});
     }catch(error){
-      if((error as {code?:string}).code==="23P01")throw new BadRequestException("Dates overlap an existing reservation");
+      if((error as {code?:string}).code==="23P01" || String((error as Error)?.message)==="listing_unit_property_mismatch")throw new BadRequestException("Dates overlap an existing reservation or invalid unit");
       throw error;
     }
     return {booking,quote};
@@ -75,7 +87,7 @@ export class BookingsService {
       if((sameUnit||sameListing)&&datesOverlap(start,end,new Date(booking.startDate),new Date(booking.endDate)))throw new BadRequestException("Dates overlap an existing reservation");
     }
     const quote=this.quote(input.listingId,input.startDate,input.endDate) as any;
-    const booking:any={id:store.id(),listingId:listing.id,unitId:input.unitId,tenantId:user.id,status:"PENDING",startDate:input.startDate,endDate:input.endDate,amountMinor:quote.total.amountMinor,depositMinor:quote.deposit.amountMinor,currency:listing.currency,idempotencyKey:input.idempotencyKey,createdAt:store.now()};
+    const booking:any={id:store.id(),listingId:listing.id,unitId:input.unitId ?? listing.unitId,tenantId:user.id,status:"PENDING",startDate:input.startDate,endDate:input.endDate,amountMinor:quote.total.amountMinor,depositMinor:quote.deposit.amountMinor,currency:listing.currency,idempotencyKey:input.idempotencyKey,createdAt:store.now()};
     store.bookings.set(booking.id,booking);
     return {booking,quote};
   }
