@@ -59,9 +59,9 @@ export default function Login() {
       const d = await api<{ accessToken: string; refreshToken: string; user: unknown }>(
         "/auth/login", { method: "POST", body: JSON.stringify(payload) }
       );
-      localStorage.setItem("imizi_token",   d.accessToken);
-      localStorage.setItem("imizi_refresh",  d.refreshToken);
-      localStorage.setItem("imizi_user",     JSON.stringify(d.user));
+      localStorage.removeItem("imizi_token");
+      localStorage.removeItem("imizi_refresh");
+      localStorage.setItem("imizi_user", JSON.stringify(d.user));
       location.href = "/dashboard";
     } catch (e) {
       const text = e instanceof Error ? e.message : "Sign in failed. Please try again.";
