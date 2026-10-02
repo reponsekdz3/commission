@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { UserRecord } from "../../store/platform.store";
+import { reviewSchema } from "@imizi/validation";
 import { FeatureService } from "../../infra/feature.service";
 
 @ApiTags("reviews")
@@ -9,6 +10,6 @@ import { FeatureService } from "../../infra/feature.service";
 export class ReviewsController {
   constructor(private readonly features:FeatureService){}
   @ApiBearerAuth()
-  @Post() create(@CurrentUser() user:UserRecord,@Body() body:{bookingId:string;rating:number;body?:string}){return this.features.createReview(user.id,body.bookingId,Number(body.rating),body.body ?? "");}
+  @Post() create(@CurrentUser() user:UserRecord,@Body() body:unknown){const d=reviewSchema.parse(body);return this.features.createReview(user.id,d.bookingId,d.rating,d.body ?? "");}
   @Get("property/:propertyId") list(@Param("propertyId") propertyId:string){return this.features.reviews(propertyId);}
 }
