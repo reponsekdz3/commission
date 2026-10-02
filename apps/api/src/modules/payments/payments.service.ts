@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from "@nestjs/common";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { createPaymentGateway } from "@imizi/payments";
 import { paymentIsAuthoritative, transitionPayment } from "@imizi/domain";
 import type { UserRecord } from "../../store/platform.store";
@@ -88,8 +88,22 @@ export class PaymentsService {
     const provider=this.gateway.resolve(intent.provider);
     if(!intent.providerReference)throw new BadRequestException("This provider does not support automated refunds");
     if(!provider.refund)throw new BadRequestException("This provider does not support automated refunds");
-    const external=await provider.refund!(intent.providerReference,amountMinor,intent.currency,reason);
-    return this.db.refundPayment(intentId,amountMinor,reason);
+    const requestKey=createHash("sha256").update(JSON.stringify({intentId,amountMinor,reason:reason.trim()})).digest("hex");
+    const reservation=await this.db.reserveRefund(intentId,amountMinor,reason.trim().slice(0,500),requestKey);
+    if(!reservation)throw new NotFoundException("Payment not found");
+    if(!reservation.created){
+      const status=String(reservation.refund.status);
+      if(status==="COMPLETED")return this.db.getPaymentIntent(intentId);
+      if(status==="PENDING"&&reservation.refund.provider_reference)return this.db.refundPayment(intentId,String(reservation.refund.id),String(reservation.refund.provider_reference));
+      if(status==="PENDING")throw new BadRequestException("An identical refund is already processing");
+    }
+    try{
+      const external=await provider.refund!(intent.providerReference,amountMinor,intent.currency,reason.trim().slice(0,500));
+      return this.db.refundPayment(intentId,String(reservation.refund.id),external.providerReference);
+    }catch(error){
+      await this.db.failRefund(String(reservation.refund.id)).catch(()=>undefined);
+      throw error;
+    }
   }
 }
 
