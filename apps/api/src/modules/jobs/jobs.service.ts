@@ -180,7 +180,7 @@ export class JobsService implements OnModuleInit {
               [attachmentId,scan.clean?"CLEAN":"INFECTED",scan.result],
             );
             if(!scan.clean){
-              await this.db.query("DELETE FROM message_attachments WHERE id=$1 AND message_id IS NULL",[attachmentId]);
+              await this.db.query("DELETE FROM message_attachments WHERE id=$1",[attachmentId]);
             }
           }
         }
