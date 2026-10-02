@@ -32,7 +32,7 @@ This repository now contains the production-oriented real-estate core requested 
 
 21. Anti-fraud — fraud scoring, risk levels, reports and moderation queues are implemented as a core foundation.
 22. Reviews — review creation is tied to completed/eligible bookings.
-23. API security — validation, throttling, Helmet, RBAC, object access checks, refresh tokens, audit logging and upload controls are implemented.
+23. API security — validation, throttling, Helmet, fail-closed authentication, HTTP-only browser sessions, RBAC, object access checks, refresh rotation/revocation, encrypted MFA secrets, audit logging, upload quarantine and malware gates are implemented.
 24. Resource authorization — server-side ownership/access checks are enforced for protected resources.
 25. API versioning — API is exposed under /api/v1.
 26. API modules — auth, users, properties, listings, search, maps, favorites, bookings, payments, offers, messages, reviews, verification, notifications, agencies, admin, media, maintenance, analytics, privacy, viewings, leases, recommendations and catalog modules exist.
@@ -57,7 +57,7 @@ This repository now contains the production-oriented real-estate core requested 
 ## 41-50: events, storage, testing and delivery
 
 41. Event-driven design — current implementation uses modular events/jobs and can move to a dedicated event bus later.
-42. Storage — signed object-storage uploads and private/public key separation are implemented.
+42. Storage — signed object-storage uploads, private/public key separation, property-media quarantine and malware-gated publication are implemented.
 43. API docs — Swagger/OpenAPI is enabled at /docs.
 44. Testing — domain and API tests plus DB smoke/migration tests exist; a full mobile/browser E2E matrix still needs expansion.
 45. CI/CD — GitHub Actions runs database migration, seed, smoke, domain tests, API tests, typecheck and web/API builds.
