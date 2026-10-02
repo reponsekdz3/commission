@@ -118,7 +118,10 @@ jobs:
       - name: Install dependencies
         run: npm install --frozen-lockfile
 
-      - name: Build packages
+      - name: Build workspace type packages
+        run: npm run build -w @imizi/types
+
+      - name: Build domain package
         run: npm run build -w @imizi/domain
 
       - name: Run tests
