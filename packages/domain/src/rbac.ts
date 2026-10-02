@@ -18,6 +18,7 @@ export type Permission =
   | "review:create"
   | "maintenance:manage"
   | "account:change-contact"
+  | "account:delete"
   | "mfa:manage";
 
 const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
@@ -87,6 +88,7 @@ export const SENSITIVE_ACTIONS = [
   "account:change-phone",
   "account:change-email",
   "account:change-contact",
+  "account:delete",
   "ownership:change",
   "mfa:manage",
 ] as const;
