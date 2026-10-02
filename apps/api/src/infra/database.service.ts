@@ -194,7 +194,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     const config=loadConfig();
     const [amenities,media] = await Promise.all([
       this.query("SELECT amenity FROM property_amenities WHERE property_id=$1 ORDER BY amenity",[id]),
-      this.query("SELECT id,kind,storage_key,variants,sort_order FROM property_media WHERE property_id=$1 ORDER BY sort_order,id",[id]),
+      this.query("SELECT id,kind,storage_key,variants,sort_order FROM property_media WHERE property_id=$1 AND scan_status='CLEAN' ORDER BY sort_order,id",[id]),
     ]);
     return {
       id:String(row.id),ownerId:String(row.owner_id),organizationId:row.organization_id ?? undefined,title:String(row.title),
@@ -730,9 +730,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return r.rows[0];
   }
 
-  async updateMediaVariants(id:string,variants:Record<string,string>,checksum?:string){
-    const r=await this.query("UPDATE property_media SET variants=$2::jsonb,checksum=COALESCE($3,checksum) WHERE id=$1 RETURNING *",[id,JSON.stringify(variants),checksum ?? null]);
+  async updateMediaVariants(id:string,variants:Record<string,string>,checksum?:string,scanStatus="CLEAN",scanResult?:string){
+    const r=await this.query("UPDATE property_media SET variants=$2::jsonb,checksum=COALESCE($3,checksum),scan_status=$4,scan_result=$5,scanned_at=now() WHERE id=$1 RETURNING *",[id,JSON.stringify(variants),checksum ?? null,scanStatus,scanResult ?? null]);
     return r.rows[0];
+  }
+
+  async markMediaScan(id:string,status:"CLEAN"|"INFECTED",result:string){
+    return this.query("UPDATE property_media SET scan_status=$2,scan_result=$3,scanned_at=now() WHERE id=$1 RETURNING *",[id,status,result]).then(r=>r.rows[0]);
   }
 
   async addDocument(propertyId:string,kind:string,key:string,expiresAt?:string){
