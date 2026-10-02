@@ -424,8 +424,9 @@ export class FeatureService {
     );
     const orgId=org.rows[0]?.organization_id;
     if(!orgId)return {error:"agency_admin_required"};
-    const target=await this.db.query("SELECT id FROM users WHERE id=$1",[targetUserId]);
+    const target=await this.db.query("SELECT id,organization_id FROM users WHERE id=$1",[targetUserId]);
     if(!target.rows[0])return {error:"user_not_found"};
+    if(target.rows[0].organization_id && String(target.rows[0].organization_id)!==String(orgId))return {error:"user_already_belongs_to_another_organization"};
     await this.db.transaction(async(client)=>{
       await client.query("INSERT INTO organization_members(organization_id,user_id,role) VALUES($1,$2,$3) ON CONFLICT(organization_id,user_id) DO UPDATE SET role=EXCLUDED.role",[orgId,targetUserId,role]);
       await client.query("UPDATE users SET organization_id=$2 WHERE id=$1",[targetUserId,orgId]);
@@ -440,8 +441,19 @@ export class FeatureService {
     if(!orgId)return {error:"not_an_agent"};
     const admin=await this.db.query("SELECT 1 FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role='AGENCY_ADMIN'",[orgId,actorId]);
     if(!admin.rows[0])return {error:"agency_admin_required"};
-    await this.db.query("DELETE FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role<>'AGENCY_ADMIN'",[orgId,targetUserId]);
-    await this.db.query("UPDATE users SET organization_id=NULL WHERE id=$1 AND id<>$2 AND organization_id=$3",[targetUserId,actorId,orgId]);
+    await this.db.transaction(async(client)=>{
+      await client.query("DELETE FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role<>'AGENCY_ADMIN'",[orgId,targetUserId]);
+      const other=await client.query("SELECT organization_id,role FROM organization_members WHERE user_id=$1 ORDER BY created_at LIMIT 1",[targetUserId]);
+      if(other.rows[0]){
+        await client.query("UPDATE users SET organization_id=$2 WHERE id=$1",[targetUserId,other.rows[0].organization_id]);
+      }else{
+        await client.query("UPDATE users SET organization_id=NULL WHERE id=$1 AND id<>$2 AND organization_id=$3",[targetUserId,actorId,orgId]);
+      }
+      const still=await client.query("SELECT 1 FROM organization_members WHERE user_id=$1 AND role=$2 LIMIT 1",[targetUserId,"AGENT"]);
+      const stillManager=await client.query("SELECT 1 FROM organization_members WHERE user_id=$1 AND role=$2 LIMIT 1",[targetUserId,"PROPERTY_MANAGER"]);
+      if(!still.rows[0]) await client.query("DELETE FROM user_roles WHERE user_id=$1 AND role='AGENT'",[targetUserId]);
+      if(!stillManager.rows[0]) await client.query("DELETE FROM user_roles WHERE user_id=$1 AND role='PROPERTY_MANAGER'",[targetUserId]);
+    });
     return {ok:true};
   }
 
