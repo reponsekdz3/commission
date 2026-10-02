@@ -6,7 +6,7 @@ import { CurrentUser } from "../../common/current-user.decorator";
 import { Public } from "../../common/public.decorator";
 import { BookingsService } from "./bookings.service";
 import { DatabaseService } from "../../infra/database.service";
-import { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 
 @ApiTags("bookings")
 @Controller("bookings")
