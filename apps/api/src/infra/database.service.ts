@@ -307,6 +307,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async createListing(input:{propertyId:string;unitId?:string;listingType:string;priceMinor:number;currency:string;availableFrom:string}) {
     const id=randomUUID();
     await this.transaction(async(client)=>{
+      if(input.unitId){
+        const unit=await client.query("SELECT property_id FROM property_units WHERE id=$1",[input.unitId]);
+        if(!unit.rows[0] || String(unit.rows[0].property_id)!==input.propertyId) throw new Error("Unit does not belong to listing property");
+      }
       await client.query(
         "INSERT INTO property_listings(id,property_id,unit_id,listing_type,status,available_from) VALUES($1,$2,$3,$4,'ACTIVE',$5)",
         [id,input.propertyId,input.unitId ?? null,input.listingType,input.availableFrom],
