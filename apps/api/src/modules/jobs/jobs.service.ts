@@ -17,24 +17,11 @@ export class JobsService implements OnModuleInit {
   constructor(private readonly db: DatabaseService, private readonly deps: Dependencies, private readonly storage: StorageService, private readonly malware: MalwareScanner) {}
   async onModuleInit() {
     setInterval(() => void this.drain(), 5000).unref();
-    // Wait for database to be ready
-    await this.waitForDatabase();
-    void this.db.enqueueJob("saved-search.match", {}, 5).catch(() => undefined);
+    void this.db?.enqueueJob("saved-search.match", {}, 5).catch(() => undefined);
     void this.drain();
   }
-  private async waitForDatabase(): Promise<void> {
-    for (let i = 0; i < 30; i++) {
-      try {
-        await this.db.query("SELECT 1");
-        return;
-      } catch {
-        await new Promise((r) => setTimeout(r, 1000));
-      }
-    }
-    this.log.warn("Database not ready after 30s, jobs may not start correctly");
-  }
   async drain(){
-    if(!this.deps.databaseOk)return;
+    if(!this.deps?.databaseOk)return;
     const jobs=await this.db.transaction(async(client)=>{
       const r=await client.query(
         "SELECT id,name,payload FROM background_jobs WHERE status='PENDING' AND run_at<=now() ORDER BY created_at LIMIT 20 FOR UPDATE SKIP LOCKED"

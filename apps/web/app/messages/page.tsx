@@ -92,9 +92,7 @@ export default function Messages() {
 
       {err && <div className="alert alert-error mb-4">{err}</div>}
 
-      {/* Split layout */}
-      <div className="grid gap-0 overflow-hidden rounded-2xl border border-[var(--color-border)] shadow-[var(--shadow-2)]"
-        style={{ gridTemplateColumns: active ? "300px 1fr" : "1fr", minHeight: 560 }}>
+      <div className={`inbox-shell ${active ? "" : "is-list"}`}>
 
         {/* Conversations sidebar */}
         <div className={`
@@ -142,14 +140,14 @@ export default function Messages() {
           {active ? (
             <>
               {/* Thread header */}
-              <div className="flex items-center gap-3 px-4 py-3 bg-[var(--color-surface-1)] border-b border-[var(--color-border)]">
+              <div className="inbox-thread-header">
                 <button
                   onClick={() => setActive(undefined)}
                   className="sm:hidden flex h-9 w-9 items-center justify-center rounded-xl hover:bg-[var(--color-surface-3)] transition-colors"
                 >
                   <ArrowLeft size={18} />
                 </button>
-                <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full bg-[var(--color-primary)] text-[var(--color-primary-fg)] font-[800] text-sm">
+                <div className="inbox-avatar">
                   {(active.title || "C")[0].toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
@@ -173,12 +171,7 @@ export default function Messages() {
                         {isMe ? "Me" : "P"}
                       </span>
                       <div className={`max-w-[70%] ${isMe ? "items-end" : "items-start"} flex flex-col gap-1`}>
-                        <div className={`
-                          rounded-2xl px-4 py-2.5 text-sm leading-relaxed
-                          ${isMe
-                            ? "bg-[var(--color-primary)] text-[var(--color-primary-fg)] rounded-tr-sm"
-                            : "bg-[var(--color-surface-1)] text-[var(--color-fg)] rounded-tl-sm border border-[var(--color-border)]"}
-                        `}>
+                        <div className={`px-4 py-2.5 text-sm leading-relaxed ${isMe ? "inbox-msg-me" : "inbox-msg-them"}`}>
                           {m.body}
                           {(m.attachments || []).map((a: Attachment) => (
                             <button key={a.id}
@@ -213,7 +206,7 @@ export default function Messages() {
               )}
 
               {/* Compose */}
-              <div className="flex items-center gap-2 p-3 bg-[var(--color-surface-1)] border-t border-[var(--color-border)]">
+              <div className="inbox-compose">
                 <input ref={fileRef} hidden type="file" multiple onChange={e => void upload(e.target.files)} />
                 <button
                   className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl hover:bg-[var(--color-surface-3)] transition-colors text-[var(--color-fg-muted)]"
@@ -224,15 +217,15 @@ export default function Messages() {
                   {uploading ? <span className="spinner" /> : <Paperclip size={18} />}
                 </button>
                 <input
-                  className="field flex-1"
+                  className="field"
                   value={body}
                   onChange={e => setBody(e.target.value)}
                   onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void send(); } }}
                   placeholder="Write a message…"
-                  style={{ minHeight: 44 }}
+                  style={{ minHeight: 44, flex: 1, borderRadius: 22 }}
                 />
                 <button
-                  className="btn flex h-10 w-10 flex-shrink-0 items-center justify-center p-0"
+                  className="inbox-send-btn"
                   disabled={sending || (!body.trim() && !attachments.length)}
                   onClick={() => void send()}
                   aria-label={sending ? "Sending…" : "Send message"}

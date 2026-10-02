@@ -1,3 +1,76 @@
-import{useQuery,useMutation,useQueryClient}from"@tanstack/react-query";import{FlatList,StyleSheet,Text,View}from"react-native";import{api,money}from"../src/lib/api";import{Button}from"../src/components/ui";import{useTheme}from"../src/stores/theme";import{fonts,spacing}from"../src/theme";
-export default function Offers(){const c=useTheme(s=>s.palette);const qc=useQueryClient();const q=useQuery({queryKey:["offers"],queryFn:()=>api<any[]>("/offers",{},true)});const respond=useMutation({mutationFn:({id,action}:{id:string;action:string})=>api("/offers/"+id+"/respond",{method:"POST",body:JSON.stringify({action})},true),onSuccess:()=>qc.invalidateQueries({queryKey:["offers"]})});return <View style={[s.root,{backgroundColor:c.bg}]}><FlatList data={q.data||[]} contentContainerStyle={s.pad} keyExtractor={x=>x.id} refreshing={q.isRefetching} onRefresh={()=>void q.refetch()} ListHeaderComponent={<View><Text style={[s.eyebrow,{color:c.primary,fontFamily:fonts.sansBold}]}>NEGOTIATION</Text><Text style={[s.title,{color:c.text,fontFamily:fonts.displayStrong}]}>Offers</Text></View>} renderItem={({item})=><View style={[s.card,{backgroundColor:c.surface,borderColor:c.border}]}><Text style={[s.amount,{color:c.text}]}>{money(item.amountMinor??item.amount_minor??0)}</Text><Text style={{color:c.muted,marginTop:4}}>{item.status} · Listing {String(item.listingId??item.listing_id??"").slice(0,8)}…</Text><View style={s.row}>{String(item.status).includes("PENDING")&&<><Button title="Withdraw" variant="ghost" size="sm" onPress={()=>respond.mutate({id:item.id,action:"WITHDRAW"})}/><Button title="Refresh" size="sm" onPress={()=>void q.refetch()}/></>}</View></View>} ListEmptyComponent={<Text style={{color:c.muted,textAlign:"center",padding:40}}>No offers yet.</Text>}/></View>}
-const s=StyleSheet.create({root:{flex:1},pad:{padding:spacing.lg,paddingBottom:110},eyebrow:{fontSize:11,letterSpacing:2,marginTop:8},title:{fontSize:34,marginTop:5,marginBottom:18},card:{borderWidth:1,borderRadius:18,padding:15,marginBottom:10},amount:{fontSize:22,fontWeight:"900"},row:{flexDirection:"row",gap:8,marginTop:12}});
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { FlatList, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { api, money } from "../src/lib/api";
+import { Button } from "../src/components/ui";
+import { useTheme } from "../src/stores/theme";
+import { fonts, spacing } from "../src/theme";
+
+export default function Offers() {
+  const c = useTheme(s => s.palette);
+  const qc = useQueryClient();
+  const q = useQuery({ queryKey: ["offers"], queryFn: () => api<any[]>("/offers", {}, true) });
+  const respond = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: string }) =>
+      api("/offers/" + id + "/respond", { method: "POST", body: JSON.stringify({ action }) }, true),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["offers"] }),
+  });
+
+  return (
+    <View style={[s.root, { backgroundColor: c.bg }]}>
+      <FlatList
+        data={q.data || []}
+        contentContainerStyle={s.pad}
+        keyExtractor={x => x.id}
+        refreshing={q.isRefetching}
+        onRefresh={() => void q.refetch()}
+        ListHeaderComponent={
+          <View>
+            <Text style={[s.eyebrow, { color: c.primary, fontFamily: fonts.sansBold }]}>NEGOTIATION</Text>
+            <Text style={[s.title, { color: c.text, fontFamily: fonts.displayStrong }]}>Offers.</Text>
+            <Text style={[s.sub, { color: c.muted }]}>Track submitted and received offers on live listings.</Text>
+          </View>
+        }
+        renderItem={({ item }) => (
+          <View style={[s.card, { backgroundColor: c.surface, borderColor: c.border }]}>
+            <View style={s.head}>
+              <Text style={[s.amount, { color: c.text }]}>{money(item.amountMinor ?? item.amount_minor ?? 0)}</Text>
+              <View style={[s.pill, { backgroundColor: c.accentSoft }]}>
+                <Text style={{ color: c.accentText, fontSize: 10, fontFamily: fonts.sansBold }}>{item.status}</Text>
+              </View>
+            </View>
+            <Text style={{ color: c.muted, marginTop: 6, fontSize: 12 }}>
+              Listing {String(item.listingId ?? item.listing_id ?? "").slice(0, 8)}…
+            </Text>
+            {String(item.status).includes("PENDING") && (
+              <View style={s.row}>
+                <Button title="Withdraw" variant="ghost" size="sm" onPress={() => respond.mutate({ id: item.id, action: "WITHDRAW" })} />
+                <Button title="Refresh" size="sm" onPress={() => void q.refetch()} />
+              </View>
+            )}
+          </View>
+        )}
+        ListEmptyComponent={
+          <View style={s.empty}>
+            <Ionicons name="pricetag-outline" size={32} color={c.subtle} />
+            <Text style={{ color: c.muted, marginTop: 10 }}>No offers yet.</Text>
+          </View>
+        }
+      />
+    </View>
+  );
+}
+
+const s = StyleSheet.create({
+  root: { flex: 1 },
+  pad: { padding: spacing.lg, paddingBottom: 110 },
+  eyebrow: { fontSize: 11, letterSpacing: 2, marginTop: 8 },
+  title: { fontSize: 34, marginTop: 5, letterSpacing: -1 },
+  sub: { fontSize: 14, lineHeight: 21, marginTop: 6, marginBottom: 18 },
+  card: { borderWidth: 1, borderRadius: 18, padding: 15, marginBottom: 10 },
+  head: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  amount: { fontSize: 22, fontWeight: "900" },
+  pill: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 4 },
+  row: { flexDirection: "row", gap: 8, marginTop: 12 },
+  empty: { alignItems: "center", padding: 40 },
+});

@@ -48,18 +48,14 @@ export default function Notifications() {
 
   return (
     <main className="wrap section">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
+      <div className="row-between mb-8">
         <div>
           <div className="eyebrow mb-2">Updates</div>
-          <div className="flex items-center gap-3 mb-2">
-            <h1 className="text-[clamp(2rem,5vw,3.2rem)] font-[900] tracking-[-0.05em] leading-tight">
-              Notifications.
-            </h1>
-            {unreadCount > 0 && (
-              <span className="badge badge-green text-sm">{unreadCount} new</span>
-            )}
+          <div className="row-gap mb-2">
+            <h1 className="page-heading">Notifications.</h1>
+            {unreadCount > 0 && <span className="badge badge-green">{unreadCount} new</span>}
           </div>
-          <p className="text-[var(--color-fg-muted)] text-[15px]">
+          <p className="page-sub">
             Booking updates, messages, search matches and platform activity. Auto-refreshes every 30 s.
           </p>
         </div>
@@ -99,27 +95,22 @@ export default function Notifications() {
 
             const inner = (
               <div
-                className={`
-                  panel flex items-start gap-4 p-4 cursor-pointer transition-all
-                  ${!isRead ? "border-[var(--color-primary)] shadow-[0_0_0_1px_var(--color-primary)]/20" : "opacity-75"}
-                `}
+                className={`notif-item${!isRead ? " unread" : ""}`}
                 onClick={() => { if (!isRead) void readOne.mutate(n.id); }}
               >
-                <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-[var(--color-surface-3)] text-xl leading-none">
-                  {icon}
-                </span>
+                <span className="notif-icon text-xl leading-none">{icon}</span>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="row-between mb-1">
                     <div className="font-[700] text-sm leading-tight">
                       {n.title ?? n.type ?? "Notification"}
                     </div>
-                    <div className="flex items-center gap-2 flex-shrink-0">
+                    <div className="row-gap flex-shrink-0">
                       {!isRead && <span className="badge badge-green">New</span>}
                       {href && <ExternalLink size={13} className="text-[var(--color-fg-subtle)]" />}
                     </div>
                   </div>
                   {(n.body || n.message) && (
-                    <p className="text-xs text-[var(--color-fg-muted)] mt-1 leading-relaxed">
+                    <p className="text-xs text-[var(--color-fg-muted)] leading-relaxed">
                       {n.body ?? n.message}
                     </p>
                   )}

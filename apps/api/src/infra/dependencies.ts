@@ -16,9 +16,10 @@ export class Dependencies implements OnModuleInit, OnModuleDestroy {
 
   async onModuleInit() {
     const config=loadConfig();
-    if(config.databaseUrl){
+    const databaseUrl=config.databaseUrl ?? (config.env==="development" ? "postgresql://imizi:imizi_dev@127.0.0.1:5433/imizi" : undefined);
+    if(databaseUrl){
       try{
-        this.db=new Pool({connectionString:config.databaseUrl,max:10,idleTimeoutMillis:30000});
+        this.db=new Pool({connectionString:databaseUrl,max:10,idleTimeoutMillis:30000});
         await this.db.query("SELECT 1");
         this.databaseOk=true;
       }catch(error){this.log.error("PostgreSQL unavailable: "+String(error));}

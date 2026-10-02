@@ -67,9 +67,9 @@ export default function Maintenance() {
     <main className="wrap section">
       <div className="sectionHead">
         <div>
-          <div className="eyebrow">Property operations</div>
-          <h1>Maintenance</h1>
-          <p className="muted">
+          <div className="eyebrow mb-2">Property operations</div>
+          <h1 className="page-heading">Maintenance.</h1>
+          <p className="page-sub">
             Create and track property maintenance requests. Status transitions are persisted
             and visible to all parties.
           </p>

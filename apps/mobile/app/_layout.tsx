@@ -60,6 +60,7 @@ function AppStack() {
       >
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="login" />
+        <Stack.Screen name="register" />
       </Stack>
     </>
   );

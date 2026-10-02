@@ -48,9 +48,9 @@ export default function Offers() {
     <main className="wrap section">
       <div className="sectionHead">
         <div>
-          <div className="eyebrow">Negotiation</div>
-          <h1>Offers</h1>
-          <p className="muted">
+          <div className="eyebrow mb-2">Negotiation</div>
+          <h1 className="page-heading">Offers.</h1>
+          <p className="page-sub">
             Submitted and received offers on property listings. Respond to incoming offers
             or track the status of offers you have submitted.
           </p>

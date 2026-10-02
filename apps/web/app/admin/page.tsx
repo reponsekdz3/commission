@@ -109,9 +109,9 @@ export default function Admin() {
     <main className="wrap section">
       <div className="sectionHead">
         <div>
-          <div className="eyebrow">Platform control</div>
-          <h1>Admin console</h1>
-          <p className="muted">Protected platform administration. Admin or Moderator role required.</p>
+          <div className="eyebrow mb-2">Platform control</div>
+          <h1 className="page-heading">Admin console.</h1>
+          <p className="page-sub">Protected platform administration. Admin or Moderator role required.</p>
         </div>
         <button
           className="btn ghost"
@@ -129,11 +129,11 @@ export default function Admin() {
       )}
 
       {/* Tab bar */}
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="tab-bar mt-6 mb-2 overflow-x-auto">
         {tabs.map((t) => (
           <button
             key={t.key}
-            className={"btn " + (tab === t.key ? "" : "ghost")}
+            className={"tab-btn " + (tab === t.key ? "active" : "")}
             onClick={() => setTab(t.key)}
           >
             {t.label}
@@ -147,7 +147,7 @@ export default function Admin() {
           {overview.isLoading && <div className="notice">Loading platform metrics…</div>}
           {overview.data && (
             <>
-              <div className="stats">
+              <div className="stats-grid mb-6">
                 {[
                   ["Total users", overview.data.users?.total ?? "—"],
                   ["Published properties", overview.data.properties?.published ?? "—"],
@@ -155,9 +155,9 @@ export default function Admin() {
                   ["Revenue", overview.data.bookings?.revenue != null ? formatRwf(overview.data.bookings.revenue) : "—"],
                   ["Payments succeeded", overview.data.payments?.succeeded ?? "—"],
                 ].map(([label, value]) => (
-                  <div className="stat" key={String(label)}>
-                    <span className="muted">{label}</span>
-                    <b>{String(value)}</b>
+                  <div className="stat-card" key={String(label)}>
+                    <span className="stat-label">{label}</span>
+                    <div className="stat-value">{String(value)}</div>
                   </div>
                 ))}
               </div>

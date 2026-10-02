@@ -82,7 +82,7 @@ export default function Profile() {
         <Pressable style={[styles.signInBtn, { backgroundColor: c.primary }]} onPress={() => { selection(); router.push("/login"); }}>
           <Text style={[styles.signInBtnText, { color: c.primaryFg, fontFamily: fonts.sansBold }]}>Sign in</Text>
         </Pressable>
-        <Pressable style={[styles.registerBtn, { borderColor: c.border }]} onPress={() => { selection(); router.push("/register" as any); }}>
+        <Pressable style={[styles.registerBtn, { borderColor: c.border }]} onPress={() => { selection(); router.push("/register"); }}>
           <Text style={[styles.registerBtnText, { color: c.text, fontFamily: fonts.sansMedium }]}>Create account</Text>
         </Pressable>
       </View>
@@ -106,6 +106,13 @@ export default function Profile() {
         <View style={styles.profileInfo}>
           <Text style={[styles.profileName, { color: c.text, fontFamily: fonts.displayStrong }]}>{u.fullName || "Account"}</Text>
           <Text style={[styles.profileMeta, { color: c.muted, fontFamily: fonts.sans }]}>{u.email || u.phone}</Text>
+          {(u.roles ?? []).length > 0 && (
+            <View style={[styles.roleInline, { backgroundColor: c.primarySoft }]}>
+              <Text style={[styles.roleInlineText, { color: c.primary, fontFamily: fonts.sansBold }]}>
+                {ROLE_LABELS[u.roles[0]] ?? u.roles[0]}
+              </Text>
+            </View>
+          )}
         </View>
         {unread > 0 && (
           <View style={[styles.badge, { backgroundColor: c.danger }]}>
@@ -205,6 +212,8 @@ const styles = StyleSheet.create({
   rolesRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
   roleChip: { borderWidth: 1, borderRadius: radius.pill, paddingHorizontal: 10, paddingVertical: 5 },
   roleText: { fontSize: 11 },
+  roleInline: { alignSelf: "flex-start", paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill, marginTop: 5 },
+  roleInlineText: { fontSize: 10 },
   statsGrid: { flexDirection: "row", gap: spacing.sm },
   statCard: { flex: 1, borderWidth: 1, borderRadius: radius.md, padding: 14, alignItems: "center", gap: 4, ...shadows.card },
   statValue: { fontSize: 24, letterSpacing: -0.6 },

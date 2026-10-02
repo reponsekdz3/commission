@@ -100,8 +100,7 @@ export default function Workspace() {
   return (
     <main className="wrap section">
       <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
-        {/* Sidebar */}
-        <aside className="flex flex-col gap-4">
+        <aside className="workspace-aside flex flex-col gap-4">
           {/* Profile card */}
           <div className="panel p-5">
             <div className="flex items-center gap-3 mb-4">

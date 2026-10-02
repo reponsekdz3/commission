@@ -33,7 +33,12 @@ export default function MapScreen() {
   if (!region) return <View style={[styles.loading, { backgroundColor: c.bg }]}><ActivityIndicator color={c.primary} /></View>;
   return <View style={styles.root}><MapView style={styles.map} region={region} onRegionChangeComplete={setRegion}>
     {(query.data?.items ?? []).map((item) => <Marker key={item.listing.id} coordinate={{ latitude: item.property.latitude, longitude: item.property.longitude }} title={item.property.title} description={item.property.district} onCalloutPress={() => router.push({ pathname: "/property/[id]", params: { id: item.property.id } })} />)}
-  </MapView><View style={[styles.overlay, { backgroundColor: c.glass, borderColor: c.border }]}><Text style={[styles.overlayText, { color: c.text, fontFamily: fonts.sansBold }]}>{query.isFetching ? "Updating…" : (query.data?.items.length ?? 0) + " nearby properties"}</Text></View>
-  {query.isError && <Pressable onPress={() => void query.refetch()} style={[styles.retry, { backgroundColor: c.surface, borderColor: c.border }]}><Text style={{ color: c.primary, fontWeight: "800" }}>Retry map search</Text></Pressable>}</View>;
+  </MapView>
+  <View style={[styles.overlay, { backgroundColor: c.glass, borderColor: c.border }]}>
+    <Text style={[styles.overlayKicker, { color: c.primary, fontFamily: fonts.sansBold }]}>LIVE MAP</Text>
+    <Text style={[styles.overlayText, { color: c.text, fontFamily: fonts.sansBold }]}>{query.isFetching ? "Updating nearby listings…" : (query.data?.items.length ?? 0) + " nearby properties"}</Text>
+  </View>
+  {query.isError && <Pressable onPress={() => void query.refetch()} style={[styles.retry, { backgroundColor: c.surface, borderColor: c.border }]}><Text style={{ color: c.primary, fontWeight: "800" }}>Retry map search</Text></Pressable>}
+  </View>;
 }
-const styles=StyleSheet.create({root:{flex:1},loading:{flex:1,alignItems:"center",justifyContent:"center"},map:{flex:1},overlay:{position:"absolute",top:60,left:20,right:20,padding:12,borderRadius:14,borderWidth:1},overlayText:{textAlign:"center"},retry:{position:"absolute",bottom:40,alignSelf:"center",padding:12,borderRadius:14,borderWidth:1}});
+const styles=StyleSheet.create({root:{flex:1},loading:{flex:1,alignItems:"center",justifyContent:"center"},map:{flex:1},overlay:{position:"absolute",top:56,left:16,right:16,padding:14,borderRadius:18,borderWidth:1,gap:4},overlayKicker:{fontSize:10,letterSpacing:1.4,textAlign:"center"},overlayText:{textAlign:"center",fontSize:14},retry:{position:"absolute",bottom:40,alignSelf:"center",padding:12,borderRadius:14,borderWidth:1}});

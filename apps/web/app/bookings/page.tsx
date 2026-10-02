@@ -51,13 +51,11 @@ export default function Bookings() {
   return (
     <main className="wrap section">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between mb-8">
+      <div className="row-between mb-8">
         <div>
           <div className="eyebrow mb-2">Transactions</div>
-          <h1 className="text-[clamp(2rem,5vw,3.2rem)] font-[900] tracking-[-0.05em] leading-tight mb-2">
-            Bookings.
-          </h1>
-          <p className="text-[var(--color-fg-muted)] text-[15px]">
+          <h1 className="page-heading mb-2">Bookings.</h1>
+          <p className="page-sub">
             Track upcoming and historical reservations from the live booking service.
           </p>
         </div>

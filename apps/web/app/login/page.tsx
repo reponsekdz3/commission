@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -33,25 +33,44 @@ const SOCIAL_PROOF = [
 
 export default function Login() {
   const [msg, setMsg] = useState("");
+  const [info, setInfo] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [showMfa, setShowMfa] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<F>({
+  const { register, handleSubmit, setValue, formState: { errors, isSubmitting } } = useForm<F>({
     resolver: zodResolver(schema),
   });
+
+  useEffect(() => {
+    try {
+      if (new URLSearchParams(window.location.search).get("reset") === "1") {
+        setInfo("Password updated. Sign in with your new password.");
+      }
+      const last = localStorage.getItem("imizi_last_identifier");
+      if (last) setValue("identifier", last);
+    } catch { /* ignore */ }
+  }, [setValue]);
 
   async function submit(v: F) {
     setMsg("");
     try {
+      localStorage.setItem("imizi_last_identifier", v.identifier.trim());
+      const payload: Record<string, string> = {
+        identifier: v.identifier.trim(),
+        password: v.password,
+      };
+      if (v.mfaCode && /^\d{6}$/.test(v.mfaCode)) payload.mfaCode = v.mfaCode;
       const d = await api<{ accessToken: string; refreshToken: string; user: unknown }>(
-        "/auth/login", { method: "POST", body: JSON.stringify(v) }
+        "/auth/login", { method: "POST", body: JSON.stringify(payload) }
       );
       localStorage.setItem("imizi_token",   d.accessToken);
       localStorage.setItem("imizi_refresh",  d.refreshToken);
       localStorage.setItem("imizi_user",     JSON.stringify(d.user));
       location.href = "/dashboard";
     } catch (e) {
-      setMsg(e instanceof Error ? e.message : "Sign in failed. Please try again.");
+      const text = e instanceof Error ? e.message : "Sign in failed. Please try again.";
+      if (/mfa|multi-factor|authenticator/i.test(text)) setShowMfa(true);
+      setMsg(text);
     }
   }
 

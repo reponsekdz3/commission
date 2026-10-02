@@ -102,21 +102,22 @@ function PaymentsContent() {
 
   return (
     <main className="wrap section max-w-2xl">
-      <div className="eyebrow">Secure checkout</div>
-      <h1>Complete payment</h1>
+      <div className="eyebrow mb-2">Secure checkout</div>
+      <h1 className="page-heading">Complete payment.</h1>
+      <p className="page-sub mb-6">Provider credentials stay on the backend. You only confirm method and details here.</p>
       <Progress value={step * 25} />
       <div className="mt-6 panel">
         {step === 1 && (
           <div className="space-y-3">
             <h2>Choose method</h2>
             {["MTN_MOMO", "FLUTTERWAVE", "CARD"].map((x) => (
-              <label
-                key={x}
-                className="flex cursor-pointer items-center gap-3 rounded-xl border border-[var(--color-border)] p-4"
-              >
+              <label key={x} className="pay-method">
                 <input type="radio" value={x} {...register("provider")} />
                 <span className="font-bold">
                   {x === "MTN_MOMO" ? "MTN MoMo" : x === "FLUTTERWAVE" ? "Flutterwave" : "Card"}
+                </span>
+                <span className="ml-auto text-xs text-[var(--color-fg-muted)]">
+                  {x === "MTN_MOMO" ? "Instant mobile money" : x === "FLUTTERWAVE" ? "Cards & local rails" : "Visa / Mastercard"}
                 </span>
               </label>
             ))}

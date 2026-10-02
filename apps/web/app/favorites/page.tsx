@@ -10,14 +10,13 @@ export default function Favorites() {
   return (
     <main className="wrap section">
       {/* Header */}
-      <div className="mb-8">
-        <div className="eyebrow mb-2">Shortlist</div>
-        <h1 className="text-[clamp(2rem,5vw,3.2rem)] font-[900] tracking-[-0.05em] leading-tight mb-2">
-          Saved properties.
-        </h1>
-        <p className="text-[var(--color-fg-muted)] text-[15px]">
-          Your account-backed shortlist syncs across all your devices.
-        </p>
+      <div className="row-between mb-8">
+        <div>
+          <div className="eyebrow mb-2">Shortlist</div>
+          <h1 className="page-heading mb-2">Saved properties.</h1>
+          <p className="page-sub">Your account-backed shortlist syncs across all your devices.</p>
+        </div>
+        <Link href="/search" className="btn ghost flex-shrink-0" style={{ fontSize: 13 }}>Browse more</Link>
       </div>
 
       {isError && (

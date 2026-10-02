@@ -13,23 +13,29 @@ const ITEMS = [
 
 export function MobileNav() {
   const pathname = usePathname();
-  const hideOnAuth = ["/login", "/register", "/forgot", "/verify"].some(
+  const hide = ["/login", "/register", "/forgot", "/verify"].some(
     p => pathname === p || pathname.startsWith(p + "/")
   );
-  if (hideOnAuth) return null;
+  if (hide) return null;
 
   return (
     <nav
       aria-label="Mobile navigation"
-      className="
-        fixed bottom-0 left-0 right-0 z-40
-        grid grid-cols-5
-        border-t border-[var(--color-border)]
-        bg-[var(--color-glass)]
-        backdrop-blur-xl
-        pb-[env(safe-area-inset-bottom)]
-        md:hidden
-      "
+      style={{
+        position: "fixed",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        zIndex: 40,
+        display: "grid",
+        gridTemplateColumns: "repeat(5,1fr)",
+        borderTop: "1px solid var(--color-border)",
+        background: "var(--color-glass)",
+        backdropFilter: "blur(20px)",
+        WebkitBackdropFilter: "blur(20px)",
+        paddingBottom: "env(safe-area-inset-bottom,0px)",
+      }}
+      className="lg:hidden"
     >
       {ITEMS.map(({ href, label, Icon }) => {
         const active = pathname === href || (href !== "/" && pathname.startsWith(href));
@@ -39,18 +45,34 @@ export function MobileNav() {
             href={href}
             aria-label={label}
             aria-current={active ? "page" : undefined}
-            className={`
-              flex min-h-[56px] flex-col items-center justify-center gap-[3px]
-              px-1 py-2 text-[10px] font-[700] transition-colors duration-150
-              ${active
-                ? "text-[var(--color-primary)]"
-                : "text-[var(--color-fg-subtle)] hover:text-[var(--color-fg-muted)]"}
-            `}
+            style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 3,
+              minHeight: 56,
+              padding: "8px 4px",
+              fontSize: 10,
+              fontWeight: 700,
+              color: active ? "var(--color-primary)" : "var(--color-fg-subtle)",
+              textDecoration: "none",
+              transition: "color .15s",
+            }}
           >
-            <span className={`
-              flex h-[28px] w-[28px] items-center justify-center rounded-[8px] transition-all duration-150
-              ${active ? "bg-[var(--color-primary-soft)] scale-110" : ""}
-            `}>
+            <span
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: 32,
+                height: 28,
+                borderRadius: 8,
+                background: active ? "var(--color-primary-soft)" : "transparent",
+                transform: active ? "scale(1.1)" : "scale(1)",
+                transition: "all .15s",
+              }}
+            >
               <Icon size={active ? 20 : 18} strokeWidth={active ? 2.5 : 2} />
             </span>
             <span>{label}</span>

@@ -1,211 +1,400 @@
 import Link from "next/link";
 import { AppImage } from "../components/app-image";
 import { api, formatRwf } from "../lib/api";
-import { MapPin, BedDouble, Bath, CheckCircle, ArrowRight, Search, Map, Building2, TrendingUp } from "lucide-react";
+import {
+  MapPin, BedDouble, Bath, CheckCircle, ArrowRight,
+  Search, Map, Building2, TrendingUp, Zap, ShieldCheck,
+  Star, Users, Home as HomeIcon, Calendar, CreditCard, ChevronRight,
+  Sparkles, BarChart3,
+} from "lucide-react";
 
 export const dynamic = "force-dynamic";
-
-type R = { items: any[] };
 
 const TYPE_LABELS: Record<string, string> = {
   HOUSE: "House", APARTMENT: "Apartment", APARTMENT_BUILDING: "Apt Building",
   VILLA: "Villa", LAND: "Land", SHOP: "Shop", WAREHOUSE: "Warehouse",
+  OFFICE: "Office", COMMERCIAL: "Commercial",
 };
 
-export default async function Home() {
-  let data: R = { items: [] };
-  try { data = await api<R>("/search?listingType=RENT&limit=8"); } catch {}
+const WORKFLOW = [
+  { step: "01", icon: Search,    title: "Discover",    desc: "Search verified homes, land and commercial spaces with smart filters and live map." },
+  { step: "02", icon: Calendar,  title: "Book viewing", desc: "Request a viewing in seconds. Owners confirm in real time." },
+  { step: "03", icon: CreditCard,title: "Pay securely", desc: "MTN MoMo and card payments with full ledger and receipts." },
+  { step: "04", icon: HomeIcon,      title: "Move in",      desc: "Digital lease, maintenance requests and portfolio management — all in one place." },
+];
+
+const CAPABILITIES = [
+  { icon: ShieldCheck, label: "Verified listings",    sub: "Every property checked",  accent: false },
+  { icon: Map,       label: "Live map search",       sub: "PostGIS geographic data", accent: false },
+  { icon: Zap,       label: "Instant bookings",      sub: "Real-time availability",  accent: true  },
+  { icon: BarChart3, label: "Owner analytics",       sub: "Revenue & performance",   accent: false },
+  { icon: Users,     label: "5,000+ members",        sub: "Landlords & seekers",     accent: false },
+  { icon: Star,      label: "RWF native pricing",    sub: "Local currency first",    accent: false },
+  { icon: TrendingUp,label: "Offers & negotiation",  sub: "Buyer-seller flow",       accent: false },
+  { icon: Building2, label: "Portfolio management",  sub: "Leases & maintenance",    accent: true  },
+];
+
+export default async function HomePage() {
+  let items: any[] = [];
+  try { const d = await api<{ items: any[] }>("/search?listingType=RENT&limit=8"); items = d.items ?? []; } catch {}
+
+  let saleItems: any[] = [];
+  try { const d = await api<{ items: any[] }>("/search?listingType=SALE&limit=4"); saleItems = d.items ?? []; } catch {}
+
   let districts: { id: string; name: string }[] = [];
-  try { districts = await api<{ id: string; name: string }[]>("/locations/rwanda?level=DISTRICT"); } catch { districts = []; }
+  try { districts = await api<{ id: string; name: string }[]>("/locations/rwanda?level=DISTRICT"); } catch {}
 
   return (
-    <main className="homePage">
-      {/* ── Hero ── */}
-      <section className="wrap homeHero">
-        <div className="heroGlow heroGlowOne" />
-        <div className="heroGlow heroGlowTwo" />
-        <div style={{ maxWidth: 860 }}>
-          <div className="heroEyebrow" style={{ marginBottom: 20 }}>
-            <span className="statusDot" />
-            <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: ".1em", color: "var(--color-fg-muted)" }}>RWANDA&apos;S PROPERTY MARKETPLACE</span>
+    <main className="hp-root">
+
+      {/* ══════════════════════════════════════════
+          HERO
+      ══════════════════════════════════════════ */}
+      <section className="hp-hero">
+        <div className="hp-hero-glow hp-hero-glow-a" />
+        <div className="hp-hero-glow hp-hero-glow-b" />
+        <div className="wrap hp-hero-inner">
+          <div className="hp-hero-copy">
+            <div className="hp-eyebrow">
+              <span className="hp-live-dot" />
+              <span>Rwanda&apos;s #1 Property Marketplace</span>
+            </div>
+            <h1 className="hp-h1">
+              Find a place<br />
+              <span className="hp-h1-accent">that fits your life.</span>
+            </h1>
+            <p className="hp-lead">
+              Search verified homes, land and commercial spaces across Rwanda.
+              Book viewings, make offers, pay securely and manage everything from one connected account.
+            </p>
+
+            {/* Search bar */}
+            <form className="hp-search" action="/search">
+              <div className="hp-search-field">
+                <Search size={16} className="hp-search-icon" />
+                <input
+                  name="q"
+                  className="hp-search-input"
+                  placeholder='Try "3 bedroom Kigali" or "land Musanze"'
+                  aria-label="Search properties"
+                />
+              </div>
+              <select name="listingType" className="hp-search-select" defaultValue="RENT">
+                <option value="RENT">For rent</option>
+                <option value="SALE">For sale</option>
+                <option value="SHORT_STAY">Short stay</option>
+              </select>
+              <button className="hp-search-btn" type="submit">
+                Search <ArrowRight size={16} />
+              </button>
+            </form>
+
+            {/* Quick chips */}
+            <div className="hp-chips">
+              {[
+                ["All rentals",    "/search?listingType=RENT"],
+                ["Buy property",   "/search?listingType=SALE"],
+                ["Short stay",     "/search?listingType=SHORT_STAY"],
+                ["Land",           "/search?propertyType=LAND"],
+                ["Verified only",  "/search?verifiedOnly=true"],
+                ["Map search",     "/map"],
+              ].map(([label, href]) => (
+                <Link key={label} href={href} className="hp-chip">{label}</Link>
+              ))}
+            </div>
+
+            {/* Trust row */}
+            <div className="hp-trust">
+              {[
+                [CheckCircle, "Verified listings"],
+                [Map,         "Live map search"],
+                [TrendingUp,  "Real bookings & payments"],
+                [Building2,   "RWF native pricing"],
+              ].map(([Icon, label]: any) => (
+                <span key={label} className="hp-trust-item">
+                  <Icon size={13} /> {label}
+                </span>
+              ))}
+            </div>
           </div>
-          <h1 style={{ fontSize: "clamp(3.2rem,7.5vw,7rem)", fontWeight: 900, letterSpacing: "-.065em", lineHeight: 1.02, margin: "0 0 18px" }}>
-            Find a place that fits your life.
-          </h1>
-          <p className="lead" style={{ marginBottom: 32 }}>
-            Search verified homes, land and commercial spaces across Rwanda. Book viewings, make offers, pay securely and manage your property from one connected platform.
-          </p>
 
-          {/* Search bar */}
-          <form className="searchbox" action="/search">
-            <input className="field" name="q" placeholder='Try "3 bedroom near Kigali CBD"' aria-label="Search properties" />
-            <select className="field" name="listingType" defaultValue="RENT">
-              <option value="RENT">For rent</option>
-              <option value="SALE">For sale</option>
-              <option value="SHORT_STAY">Short stay</option>
-            </select>
-            <select className="field" name="propertyType" defaultValue="">
-              <option value="">Any type</option>
-              <option value="HOUSE">House</option>
-              <option value="APARTMENT">Apartment</option>
-              <option value="VILLA">Villa</option>
-              <option value="LAND">Land</option>
-              <option value="SHOP">Shop</option>
-            </select>
-            <button className="btn" style={{ whiteSpace: "nowrap" }}>Search <ArrowRight size={16} /></button>
-          </form>
-
-          {/* Quick category chips */}
-          <div className="chipRow" style={{ marginTop: 18 }}>
-            {[
-              ["All rentals", "/search?listingType=RENT"],
-              ["Buy property", "/search?listingType=SALE"],
-              ["Short stay", "/search?listingType=SHORT_STAY"],
-              ["Land", "/search?propertyType=LAND"],
-              ["Commercial", "/search?propertyType=COMMERCIAL"],
-              ["Verified only", "/search?verifiedOnly=true"],
-            ].map(([label, href]) => (
-              <Link key={label} href={href} className="chip">{label}</Link>
-            ))}
-          </div>
-
-          {/* Trust stats */}
-          <div className="heroStats" style={{ marginTop: 28 }}>
-            <span><CheckCircle size={14} style={{ color: "var(--color-primary)" }} /> <strong>Verified listings</strong></span>
-            <span><Map size={14} style={{ color: "var(--color-primary)" }} /> <strong>Live map search</strong></span>
-            <span><TrendingUp size={14} style={{ color: "var(--color-primary)" }} /> <strong>Real bookings &amp; payments</strong></span>
-            <span><Building2 size={14} style={{ color: "var(--color-primary)" }} /> <strong>RWF native pricing</strong></span>
+          {/* Hero product card */}
+          <div className="hp-hero-card">
+            <div className="hp-card-chrome">
+              <div className="hp-chrome-dots"><i /><i /><i /></div>
+              <span>imizi.rw</span>
+              <span className="hp-live-badge"><span className="hp-live-dot" /> Live</span>
+            </div>
+            <div className="hp-card-map">
+              <div className="hp-map-grid" />
+              <div className="hp-map-road hp-road-a" />
+              <div className="hp-map-road hp-road-b" />
+              <div className="hp-map-road hp-road-c" />
+              <div className="hp-map-pin hp-pin-1" />
+              <div className="hp-map-pin hp-pin-2" />
+              <div className="hp-map-pin hp-pin-3" />
+              <div className="hp-map-pin hp-pin-4" />
+              <div className="hp-map-float">
+                <MapPin size={16} style={{ color: "var(--color-primary)", gridRow: "span 2" }} />
+                <b>Kigali CBD</b>
+                <small>48 active listings</small>
+              </div>
+            </div>
+            <div className="hp-card-stats">
+              <div className="hp-mini-stat">
+                <small>Active listings</small>
+                <strong>{items.length + saleItems.length || "—"}</strong>
+                <span>Live now</span>
+              </div>
+              <div className="hp-mini-stat">
+                <small>Districts</small>
+                <strong>{districts.length || "30"}</strong>
+                <span>Covered</span>
+              </div>
+              <div className="hp-mini-action">
+                <Zap size={18} />
+                <b>Instant booking</b>
+                <span>Confirm in seconds</span>
+              </div>
+            </div>
+            <div className="hp-card-footer">
+              <span><CheckCircle size={12} /> Verified</span>
+              <span><Map size={12} /> PostGIS maps</span>
+              <span><CreditCard size={12} /> MTN MoMo</span>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* ── Quick actions ── */}
-      <section className="wrap" style={{ paddingBottom: 10 }}>
-        <div className="quickActions">
+      {/* ══════════════════════════════════════════
+          QUICK ACTIONS
+      ══════════════════════════════════════════ */}
+      <section className="wrap hp-section" style={{ paddingTop: 0, paddingBottom: 16 }}>
+        <div className="hp-actions">
           {[
-            { icon: "🔍", label: "Discover", sub: "Search all listings", href: "/search", accent: false },
-            { icon: "🗺️", label: "Live map", sub: "Map-based search", href: "/map", accent: false },
-            { icon: "📋", label: "List property", sub: "Reach thousands", href: "/manage", accent: true },
-            { icon: "📊", label: "Dashboard", sub: "Manage your portfolio", href: "/dashboard", accent: false },
-          ].map(item => (
-            <Link key={item.label} href={item.href} className={"quickAction " + (item.accent ? "accent" : "")}>
-              <span>{item.icon}</span>
-              <strong style={{ fontSize: 14, fontWeight: 900 }}>{item.label}</strong>
-              <small>{item.sub}</small>
+            { icon: Search,    label: "Discover",       sub: "Search all listings",   href: "/search",    accent: false },
+            { icon: Map,       label: "Live map",        sub: "Map-based search",      href: "/map",       accent: false },
+            { icon: Building2, label: "List property",   sub: "Reach thousands",       href: "/manage",    accent: true  },
+            { icon: BarChart3, label: "Dashboard",       sub: "Manage your portfolio", href: "/dashboard", accent: false },
+          ].map(({ icon: Icon, label, sub, href, accent }) => (
+            <Link key={label} href={href} className={`hp-action-card${accent ? " hp-action-accent" : ""}`}>
+              <span className="hp-action-icon"><Icon size={20} /></span>
+              <strong>{label}</strong>
+              <small>{sub}</small>
+              <ChevronRight size={14} className="hp-action-arrow" />
             </Link>
           ))}
         </div>
       </section>
 
-      {/* ── Districts ── */}
+      {/* ══════════════════════════════════════════
+          CAPABILITIES STRIP
+      ══════════════════════════════════════════ */}
+      <section className="wrap hp-section" style={{ paddingTop: 8, paddingBottom: 32 }}>
+        <div className="hp-caps">
+          {CAPABILITIES.map(({ icon: Icon, label, sub, accent }) => (
+            <div key={label} className={`hp-cap${accent ? " hp-cap-accent" : ""}`}>
+              <span className="hp-cap-icon"><Icon size={16} /></span>
+              <span className="hp-cap-body">
+                <b>{label}</b>
+                <small>{sub}</small>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          DISTRICTS
+      ══════════════════════════════════════════ */}
       {districts.length > 0 && (
-        <section className="wrap section" style={{ paddingTop: 48, paddingBottom: 24 }}>
-          <div className="sectionLabel" style={{ marginBottom: 20 }}>
+        <section className="wrap hp-section">
+          <div className="hp-section-head">
             <div>
               <div className="eyebrow">Explore Rwanda</div>
-              <h2 style={{ margin: "6px 0 0" }}>Search by district</h2>
+              <h2 className="hp-section-title">Search by district</h2>
             </div>
-            <Link href="/map" className="btn ghost">Open live map <ArrowRight size={14} /></Link>
+            <Link href="/map" className="btn ghost hp-see-all">
+              Open live map <ArrowRight size={14} />
+            </Link>
           </div>
-          <div className="districtRail">
-            {districts.slice(0, 12).map(d => (
-              <Link key={d.id} href={"/search?district=" + encodeURIComponent(d.name)} className="districtCard">
-                <span><MapPin size={16} /></span>
-                <strong style={{ fontWeight: 800, fontSize: 14 }}>{d.name}</strong>
-                <small>Browse listings</small>
+          <div className="hp-districts">
+            {districts.slice(0, 12).map((d, i) => (
+              <Link key={d.id} href={"/search?district=" + encodeURIComponent(d.name)} className="hp-district-card">
+                <span className="hp-district-idx">{String(i + 1).padStart(2, "0")}</span>
+                <span className="hp-district-body">
+                  <b>{d.name}</b>
+                  <small>Browse listings</small>
+                </span>
+                <ChevronRight size={14} className="hp-district-arrow" />
               </Link>
             ))}
           </div>
         </section>
       )}
 
-      {/* ── Featured listings ── */}
-      <section className="wrap section">
-        <div className="sectionHead" style={{ marginBottom: 8 }}>
+      {/* ══════════════════════════════════════════
+          FEATURED RENTALS
+      ══════════════════════════════════════════ */}
+      <section className="wrap hp-section">
+        <div className="hp-section-head">
           <div>
             <div className="eyebrow">Live inventory</div>
-            <h2 style={{ margin: "6px 0 4px" }}>Featured homes</h2>
-            <p className="muted" style={{ margin: 0, fontSize: 14 }}>Real results returned by the backend search engine.</p>
+            <h2 className="hp-section-title">Featured rentals</h2>
+            <p className="hp-section-sub">Real results from the backend search engine — updated live.</p>
           </div>
-          <Link href="/search" className="btn ghost">View all listings <ArrowRight size={14} /></Link>
+          <Link href="/search?listingType=RENT" className="btn ghost hp-see-all">
+            View all <ArrowRight size={14} />
+          </Link>
         </div>
 
-        {data.items.length > 0 ? (
-          <div className="grid">
-            {data.items.map((x: any) => (
-              <Link className="card block" href={"/properties/" + x.property.id} key={x.listing.id}>
-                <div style={{ position: "relative", aspectRatio: "4/3", overflow: "hidden" }}>
+        {items.length > 0 ? (
+          <div className="hp-grid">
+            {items.map((x: any) => (
+              <Link key={x.listing.id} href={"/properties/" + x.property.id} className="hp-prop-card">
+                <div className="hp-prop-media">
                   {x.property.media?.[0]?.url
-                    ? <AppImage className="cardImg" src={x.property.media[0].url} alt={x.property.title} fill sizes="(max-width:768px) 100vw, 25vw" style={{ objectFit: "cover" }} />
-                    : <div className="cardImg" style={{ background: "var(--color-surface-3)", display: "grid", placeItems: "center", color: "var(--color-fg-muted)", fontSize: 13 }}>No media</div>
+                    ? <AppImage src={x.property.media[0].url} alt={x.property.title} fill sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,25vw" className="hp-prop-img" />
+                    : <div className="hp-prop-no-media"><Building2 size={28} /><span>No media</span></div>
                   }
-                  {x.property.verificationStatus === "VERIFIED" && (
-                    <span style={{ position: "absolute", top: 10, left: 10, display: "inline-flex", alignItems: "center", gap: 4, background: "rgba(255,255,255,.9)", borderRadius: 999, padding: "4px 9px", fontSize: 11, fontWeight: 800, color: "#065f46" }}>
-                      <CheckCircle size={12} /> Verified
-                    </span>
-                  )}
-                  {x.property.propertyType && (
-                    <span style={{ position: "absolute", top: 10, right: 10, background: "rgba(0,0,0,.65)", borderRadius: 999, padding: "4px 9px", fontSize: 11, fontWeight: 800, color: "#fff" }}>
-                      {TYPE_LABELS[x.property.propertyType] ?? x.property.propertyType}
-                    </span>
-                  )}
+                  <div className="hp-prop-badges">
+                    {x.property.verificationStatus === "VERIFIED" && (
+                      <span className="hp-badge-verified"><CheckCircle size={11} /> Verified</span>
+                    )}
+                    {x.property.propertyType && (
+                      <span className="hp-badge-type">{TYPE_LABELS[x.property.propertyType] ?? x.property.propertyType}</span>
+                    )}
+                  </div>
+                  <div className="hp-prop-overlay" />
                 </div>
-                <div className="cardBody">
-                  <div className="price">{formatRwf(x.listing.priceMinor)}<span className="muted" style={{ fontSize: 13, fontWeight: 600 }}>{x.listing.listingType === "RENT" ? " /mo" : x.listing.listingType === "SHORT_STAY" ? " /night" : ""}</span></div>
-                  <div style={{ fontWeight: 800, marginTop: 6, lineHeight: 1.3 }} className="line-clamp-2">{x.property.title}</div>
-                  <div className="meta" style={{ display: "flex", alignItems: "center", gap: 4 }}><MapPin size={11} />{x.property.district}</div>
-                  <div className="meta" style={{ display: "flex", gap: 12, marginTop: 6, borderTop: "1px solid var(--color-border)", paddingTop: 8 }}>
-                    {x.property.bedrooms != null && <span style={{ display: "flex", alignItems: "center", gap: 3 }}><BedDouble size={12} />{x.property.bedrooms}</span>}
-                    {x.property.bathrooms != null && <span style={{ display: "flex", alignItems: "center", gap: 3 }}><Bath size={12} />{x.property.bathrooms}</span>}
+                <div className="hp-prop-body">
+                  <div className="hp-prop-location">
+                    <MapPin size={10} /> {x.property.district || "Rwanda"}
+                  </div>
+                  <div className="hp-prop-title">{x.property.title}</div>
+                  <div className="hp-prop-price">
+                    {formatRwf(x.listing.priceMinor)}
+                    <small>{x.listing.listingType === "RENT" ? " /mo" : x.listing.listingType === "SHORT_STAY" ? " /night" : ""}</small>
+                  </div>
+                  <div className="hp-prop-specs">
+                    {x.property.bedrooms != null && <span><BedDouble size={11} /> {x.property.bedrooms} bd</span>}
+                    {x.property.bathrooms != null && <span><Bath size={11} /> {x.property.bathrooms} ba</span>}
                   </div>
                 </div>
               </Link>
             ))}
           </div>
         ) : (
-          <div className="empty" style={{ marginTop: 24 }}>
-            <Search size={32} style={{ color: "var(--color-fg-subtle)", margin: "0 auto 12px", display: "block" }} />
-            <h3 style={{ margin: "0 0 8px" }}>No live listings yet</h3>
-            <p style={{ margin: "0 0 20px", color: "var(--color-fg-muted)" }}>The API returned no published active inventory right now.</p>
+          <div className="hp-empty">
+            <Search size={36} />
+            <h3>No live listings yet</h3>
+            <p>The API returned no published active inventory right now.</p>
             <Link className="btn" href="/manage">List a property</Link>
           </div>
         )}
       </section>
 
-      {/* ── For seekers / owners CTA ── */}
-      <section className="wrap section" style={{ paddingTop: 0 }}>
-        <div className="trustPanel">
-          <div>
-            <div className="eyebrow">One platform</div>
-            <h2 style={{ fontSize: "clamp(1.6rem,4vw,2.6rem)", letterSpacing: "-.04em" }}>From discovery to keys — and beyond.</h2>
+      {/* ══════════════════════════════════════════
+          FOR SALE (if any)
+      ══════════════════════════════════════════ */}
+      {saleItems.length > 0 && (
+        <section className="wrap hp-section" style={{ paddingTop: 0 }}>
+          <div className="hp-section-head">
+            <div>
+              <div className="eyebrow">Buy property</div>
+              <h2 className="hp-section-title">Properties for sale</h2>
+            </div>
+            <Link href="/search?listingType=SALE" className="btn ghost hp-see-all">
+              View all <ArrowRight size={14} />
+            </Link>
           </div>
-          <div className="trustItems">
-            {["Search & compare", "Book viewings", "Make offers", "Pay securely", "Sign leases", "Manage maintenance"].map(x => (
-              <span key={x}>{x}</span>
+          <div className="hp-grid hp-grid-4">
+            {saleItems.map((x: any) => (
+              <Link key={x.listing.id} href={"/properties/" + x.property.id} className="hp-prop-card">
+                <div className="hp-prop-media">
+                  {x.property.media?.[0]?.url
+                    ? <AppImage src={x.property.media[0].url} alt={x.property.title} fill sizes="(max-width:640px) 100vw,25vw" className="hp-prop-img" />
+                    : <div className="hp-prop-no-media"><Building2 size={28} /><span>No media</span></div>
+                  }
+                  <div className="hp-prop-badges">
+                    {x.property.verificationStatus === "VERIFIED" && (
+                      <span className="hp-badge-verified"><CheckCircle size={11} /> Verified</span>
+                    )}
+                    <span className="hp-badge-sale">For sale</span>
+                  </div>
+                  <div className="hp-prop-overlay" />
+                </div>
+                <div className="hp-prop-body">
+                  <div className="hp-prop-location"><MapPin size={10} /> {x.property.district || "Rwanda"}</div>
+                  <div className="hp-prop-title">{x.property.title}</div>
+                  <div className="hp-prop-price">{formatRwf(x.listing.priceMinor)}</div>
+                  <div className="hp-prop-specs">
+                    {x.property.bedrooms != null && <span><BedDouble size={11} /> {x.property.bedrooms} bd</span>}
+                    {x.property.bathrooms != null && <span><Bath size={11} /> {x.property.bathrooms} ba</span>}
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* ══════════════════════════════════════════
+          HOW IT WORKS
+      ══════════════════════════════════════════ */}
+      <section className="wrap hp-section hp-workflow-section">
+        <div className="hp-section-head">
+          <div>
+            <div className="eyebrow">How it works</div>
+            <h2 className="hp-section-title">From search to keys in 4 steps.</h2>
+          </div>
+          <p className="hp-section-sub" style={{ maxWidth: 380 }}>
+            One connected journey — no switching between apps or platforms.
+          </p>
         </div>
-        <div className="two" style={{ gap: 16 }}>
-          <div className="panel featurePanel">
-            <div className="eyebrow">For seekers</div>
-            <h2 style={{ fontSize: "clamp(1.4rem,3vw,2rem)", letterSpacing: "-.04em", margin: "10px 0 8px" }}>From discovery to keys.</h2>
-            <p className="muted">Search, compare, save, message owners, request a viewing, book and pay — all connected to one account.</p>
-            <div className="featureSteps">
+        <div className="hp-workflow">
+          {WORKFLOW.map(({ step, icon: Icon, title, desc }) => (
+            <div key={step} className="hp-workflow-card">
+              <span className="hp-workflow-step">{step}</span>
+              <Icon size={26} className="hp-workflow-icon" />
+              <h3>{title}</h3>
+              <p>{desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          DUAL CTA — SEEKERS + OWNERS
+      ══════════════════════════════════════════ */}
+      <section className="wrap hp-section" style={{ paddingTop: 0 }}>
+        <div className="hp-dual">
+          <div className="hp-dual-card hp-dual-seeker">
+            <div className="hp-dual-glow" />
+            <div className="eyebrow" style={{ color: "#a7f3d0" }}>For seekers</div>
+            <h2 className="hp-dual-title">From discovery to keys.</h2>
+            <p className="hp-dual-sub">
+              Search, compare, save, message owners, request a viewing, book and pay — all connected to one account.
+            </p>
+            <div className="hp-dual-steps">
               {["Search", "Save", "View", "Book", "Pay"].map(s => <span key={s}>{s}</span>)}
             </div>
-            <div className="actions" style={{ marginTop: 16 }}>
-              <Link className="btn" href="/search">Start exploring</Link>
-              <Link className="btn ghost" href="/compare">Compare homes</Link>
+            <div className="hp-dual-actions">
+              <Link className="btn" style={{ background: "#fff", color: "#064E3B" }} href="/search">Start exploring</Link>
+              <Link className="btn" style={{ background: "rgba(255,255,255,.1)", color: "#fff", border: "1px solid rgba(255,255,255,.22)" }} href="/compare">Compare homes</Link>
             </div>
           </div>
-          <div className="panel featurePanel owner">
-            <div className="eyebrow">For owners</div>
-            <h2 style={{ fontSize: "clamp(1.4rem,3vw,2rem)", letterSpacing: "-.04em", margin: "10px 0 8px" }}>Operate your portfolio.</h2>
-            <p className="muted">Create listings, publish when eligible, track bookings, leases, maintenance, payments and performance.</p>
-            <div className="featureSteps">
+          <div className="hp-dual-card hp-dual-owner">
+            <div className="hp-dual-glow hp-dual-glow-amber" />
+            <div className="eyebrow" style={{ color: "var(--color-accent-text)" }}>For owners</div>
+            <h2 className="hp-dual-title" style={{ color: "var(--color-fg)" }}>Operate your portfolio.</h2>
+            <p className="hp-dual-sub" style={{ color: "var(--color-fg-muted)" }}>
+              Create listings, publish when eligible, track bookings, leases, maintenance, payments and performance.
+            </p>
+            <div className="hp-dual-steps hp-dual-steps-amber">
               {["List", "Verify", "Publish", "Earn", "Track"].map(s => <span key={s}>{s}</span>)}
             </div>
-            <div className="actions" style={{ marginTop: 16 }}>
+            <div className="hp-dual-actions">
               <Link className="btn" href="/dashboard">Open dashboard</Link>
               <Link className="btn ghost" href="/manage">List a property</Link>
             </div>
@@ -213,10 +402,61 @@ export default async function Home() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="wrap footer">
-        <strong>IMIZI</strong> · Property discovery, transactions and operations · Rwanda ·{" "}
-        <Link href="/legal">Legal &amp; privacy</Link>
+      {/* ══════════════════════════════════════════
+          OWNER BANNER
+      ══════════════════════════════════════════ */}
+      <section className="wrap hp-section" style={{ paddingTop: 0 }}>
+        <div className="hp-owner-banner">
+          <div className="hp-owner-glow" />
+          <div className="hp-owner-copy">
+            <div className="eyebrow" style={{ color: "#a7f3d0" }}>
+              <Sparkles size={12} /> Ready to list?
+            </div>
+            <h2 className="hp-owner-title">
+              Reach thousands of verified seekers across Rwanda.
+            </h2>
+            <p className="hp-owner-sub">
+              Free to list. Publish in minutes. Manage bookings, leases and payments from your dashboard.
+            </p>
+          </div>
+          <div className="hp-owner-actions">
+            <Link className="btn" style={{ background: "#fff", color: "#064E3B", fontWeight: 800 }} href="/manage">
+              List a property <ArrowRight size={15} />
+            </Link>
+            <Link className="btn" style={{ background: "rgba(255,255,255,.1)", color: "#fff", border: "1px solid rgba(255,255,255,.22)" }} href="/dashboard">
+              View dashboard
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* ══════════════════════════════════════════
+          FOOTER
+      ══════════════════════════════════════════ */}
+      <footer className="wrap hp-footer">
+        <div className="hp-footer-brand">
+          <span className="hp-footer-logo"><Building2 size={16} /></span>
+          <strong>IMIZI</strong>
+          <span className="hp-footer-tag">Rwanda</span>
+        </div>
+        <p className="hp-footer-desc">
+          Property discovery, transactions and operations across Rwanda.
+        </p>
+        <div className="hp-footer-links">
+          {[
+            ["/search",    "Search"],
+            ["/map",       "Map"],
+            ["/dashboard", "Dashboard"],
+            ["/manage",    "List property"],
+            ["/legal",     "Legal & privacy"],
+          ].map(([href, label]) => (
+            <Link key={href} href={href}>{label}</Link>
+          ))}
+        </div>
+        <div className="hp-footer-bottom">
+          <span>© {new Date().getFullYear()} Imizi. All rights reserved.</span>
+          <span>Built for Rwanda 🇷🇼</span>
+        </div>
       </footer>
     </main>
   );

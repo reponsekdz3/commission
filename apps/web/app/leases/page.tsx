@@ -44,9 +44,9 @@ export default function Leases() {
     <main className="wrap section">
       <div className="sectionHead">
         <div>
-          <div className="eyebrow">Rental lifecycle</div>
-          <h1>Leases</h1>
-          <p className="muted">
+          <div className="eyebrow mb-2">Rental lifecycle</div>
+          <h1 className="page-heading">Leases.</h1>
+          <p className="page-sub">
             Sign and manage tenancy agreements from the live lease service. Each party signs independently
             with their authenticated account.
           </p>
