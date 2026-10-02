@@ -24,7 +24,7 @@ const ROLE_PERMISSIONS: Record<Role, Permission[]> = {
   SUPER_ADMIN: [
     "property:create","property:update","property:delete","listing:publish","booking:create","booking:manage",
     "payment:refund","payout:change","verification:review","moderation:queue","admin:access","finance:access",
-    "agency:manage","message:send","review:create","maintenance:manage","account:change-contact","mfa:manage",
+    "agency:manage","message:send","review:create","maintenance:manage","account:change-contact","account:delete","mfa:manage",
   ],
   ADMIN: [
     "admin:access","moderation:queue","verification:review","property:delete","booking:manage","message:send",
