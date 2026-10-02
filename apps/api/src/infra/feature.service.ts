@@ -291,7 +291,7 @@ export class FeatureService {
 
   async requestViewing(userId:string,listingId:string,slotStart:string) {
     const listing=await this.db.getListing(listingId);
-    if(!listing || listing.status!=="ACTIVE" || listing.listingType==="SALE") return {error:"viewing_not_available"};
+    if(!listing || listing.status!=="ACTIVE") return {error:"viewing_not_available"};
     const property=await this.db.getProperty(listing.propertyId);
     if(!property || property.status!=="PUBLISHED") return {error:"viewing_not_available"};
     const requested=new Date(slotStart);
