@@ -46,7 +46,18 @@ export class PropertiesService {
     const property=await this.db.getProperty(id);
     if(!property) throw new NotFoundException();
     assertPropertyAccess(user,property,true);
-    if ((patch.countryCode ?? property.countryCode) === "RW" && ["provinceId","districtId","sectorId","cellId","villageId"].some(k => patch[k] !== undefined)) await this.locations.validate(patch);
+    const locationIds=["provinceId","districtId","sectorId","cellId","villageId"];
+    const locationLabels=["province","district","sector","cell","village"];
+    const nextCountry=patch.countryCode ?? property.countryCode;
+    const touchingLabels=locationLabels.some(k=>patch[k]!==undefined);
+    const touchingIds=locationIds.some(k=>patch[k]!==undefined);
+    if(nextCountry==="RW"){
+      if(touchingLabels&&!touchingIds) throw new ForbiddenException("Rwanda location labels must come from the canonical location IDs");
+      if(touchingIds||patch.countryCode==="RW"&&property.countryCode!=="RW"){
+        await this.locations.validate(patch);
+        if(!patch.provinceId||!patch.districtId||!patch.sectorId||!patch.cellId) throw new ForbiddenException("Complete Rwanda location hierarchy is required");
+      }
+    }
     const result=await this.db.updateProperty(id,patch);
     for (const listing of (result?.listings ?? [])) await this.db.enqueueJob("search.index",{listingId:listing.id});
     await this.features.audit(user.id,"PROPERTY_UPDATED","property",id,undefined,patch);
