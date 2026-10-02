@@ -23,6 +23,7 @@ function SearchContent() {
   const listRef  = useRef<HTMLDivElement>(null);
   const [activeId, setActiveId]   = useState<string>();
   const [showFilters, setFilters] = useState(false);
+  const [showMobileMap, setShowMobileMap] = useState(false);
 
   useEffect(() => { trackEvent("search", { query: q }); }, [q]);
 
@@ -65,7 +66,7 @@ function SearchContent() {
   const currentType = params.get("listingType");
 
   return (
-    <main className="searchSplit" style={{animationName:'fadeIn',animationDuration:'.4s',animationFillMode:'both'}}>
+    <main className={"searchSplit " + (showMobileMap ? "mobileMapOpen" : "")} style={{animationName:'fadeIn',animationDuration:'.4s',animationFillMode:'both'}}>
       {/* ── List side ── */}
       <section className="searchList" ref={listRef}>
         {/* Header */}
@@ -86,9 +87,18 @@ function SearchContent() {
               <SlidersHorizontal size={14} />
               Filters
             </button>
-            <Link href="/map" className="btn ghost flex items-center gap-2" style={{ fontSize: 13 }}>
+            <Link href="/map" className="btn ghost flex items-center gap-2 mapOnlyLink" style={{ fontSize: 13 }}>
               <Map size={14} /> Map only
             </Link>
+            <button
+              type="button"
+              className="btn ghost flex items-center gap-2 mobileMapToggle"
+              style={{ fontSize: 13 }}
+              aria-pressed={showMobileMap}
+              onClick={() => setShowMobileMap(v => !v)}
+            >
+              <Map size={14} /> {showMobileMap ? "List" : "Map"}
+            </button>
           </div>
         </div>
 
