@@ -98,8 +98,10 @@ export class SearchService {
     for(const row of rows.rows){
       const variants=(row.variants ?? {}) as Record<string,string>;
       const kind=String(row.kind);
-      const source=kind==="VIDEO" ? (variants.video ?? row.storage_key) : kind==="PHOTO" ? (variants.large ?? variants.medium ?? row.storage_key) : kind==="TOUR_360" ? (variants.panorama ?? row.storage_key) : row.storage_key;
-      const media={id:String(row.id),kind,url:toUrl(String(source)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(row.sort_order)};
+      const source=kind==="VIDEO" ? variants.video : kind==="PHOTO" ? (variants.large ?? variants.medium ?? variants.small) : kind==="TOUR_360" ? variants.panorama : variants.original;
+      const legacyPublic=!String(row.storage_key).startsWith("private/")&&!String(row.storage_key).startsWith("quarantine/");
+      if(!source&&!legacyPublic)continue;
+      const media={id:String(row.id),kind,url:toUrl(String(source??row.storage_key)),posterUrl:variants.poster ? toUrl(variants.poster) : undefined,sortOrder:Number(row.sort_order)};
       const key=String(row.property_id); if(!grouped.has(key))grouped.set(key,[]); grouped.get(key)!.push(media);
     }
     return items.map((item:any)=>({...item,property:{...item.property,media:grouped.get(String(item.property.id)) ?? item.property.media ?? []}}));
