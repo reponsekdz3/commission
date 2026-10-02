@@ -878,3 +878,42 @@ body:has(.auth-page){padding-bottom:0!important}
   .hp-districts{grid-template-columns:1fr 1fr}
   .hp-footer-bottom{flex-direction:column;align-items:flex-start}
 }
+
+/* ===== Responsive discovery experience ===== */
+.mobileMapToggle{display:none}
+.mapOnlyLink{display:inline-flex}
+.searchToolbar{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.search-list-head{position:sticky;top:0;z-index:18;background:color-mix(in srgb,var(--color-bg) 92%,transparent);backdrop-filter:blur(16px);padding-bottom:14px}
+.search-results-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:112px;z-index:14;padding:10px 0;background:color-mix(in srgb,var(--color-bg) 90%,transparent);backdrop-filter:blur(12px)}
+.search-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.searchMap{min-width:0}
+@media(max-width:900px){
+  .mobileMapToggle{display:inline-flex}
+  .mapOnlyLink{display:none}
+  .searchSplit{display:block;height:auto;min-height:calc(100vh - 64px);overflow:visible}
+  .searchList{height:auto;min-height:calc(100vh - 64px);padding:14px 12px 80px}
+  .searchMap{display:none;position:fixed;inset:64px 0 0;z-index:45;background:var(--color-bg)}
+  .searchMap.mobileMapVisible{display:block}
+  .searchSplit.mobileMapOpen .searchList{display:none}
+  .searchSplit.mobileMapOpen .searchMap{display:block}
+  .searchMap .realMap{height:100%;min-height:calc(100vh - 64px);border-radius:0}
+  .search-results-bar{top:0}
+  .search-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+  .search-list-head{padding-top:4px}
+}
+@media(max-width:620px){
+  .searchGrid{grid-template-columns:1fr}
+  .search-grid{grid-template-columns:1fr;gap:12px}
+  .search-list-head{position:relative;top:auto;background:transparent;backdrop-filter:none}
+  .search-results-bar{top:0}
+  .search-title{font-size:clamp(2rem,9vw,2.8rem)}
+  .search-head-actions{display:flex;flex-wrap:wrap}
+  .search-filters-panel{margin-inline:-2px}
+  .searchList .card{border-radius:18px}
+}
+@media(min-width:901px){
+  .searchList{scrollbar-gutter:stable}
+}
+@media(prefers-reduced-motion:reduce){
+  .searchMap,.searchList{scroll-behavior:auto}
+}
