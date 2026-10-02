@@ -25,7 +25,8 @@
     "db:migrate": "npm run migrate -w @imizi/database",
     "db:seed": "npm run seed -w @imizi/database",
     "db:sync:locations": "npm run locations:sync -w @imizi/database",
-    "db:smoke": "npm run smoke -w @imizi/database"
+    "db:smoke": "npm run smoke -w @imizi/database",
+    "integrity:production": "node scripts/production-integrity.mjs"
   },
   "engines": {
     "node": ">=20.18.0"
