@@ -99,6 +99,8 @@ export const createBookingSchema = z.object({
   idempotencyKey: z.string().min(16).max(128),
 });
 
+export const refundSchema = z.object({intentId:z.string().uuid(),amountMinor:z.number().int().positive().max(10_000_000_000_000),reason:z.string().trim().max(500).optional(),reauthToken:z.string().min(32).max(128).optional()});
+
 export const initiatePaymentSchema = z.object({
   bookingId: z.string().uuid(),
   provider: z.enum(["MTN_MOMO", "FLUTTERWAVE", "CARD"]),
@@ -170,6 +172,10 @@ export const viewingRequestSchema = z.object({
 export const viewingDecisionSchema = z.object({
   accept: z.boolean(),
 });
+
+export const unitCreateSchema = z.object({label:z.string().trim().min(1).max(120),bedrooms:z.number().int().min(0).max(50).optional()});
+
+export const reviewSchema = z.object({bookingId:z.string().uuid(),rating:z.number().int().min(1).max(5),body:z.string().trim().max(4000).optional()});
 
 export const maintenanceCreateSchema = z.object({
   propertyId: z.string().uuid(),
