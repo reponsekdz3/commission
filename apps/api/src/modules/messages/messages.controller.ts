@@ -2,7 +2,7 @@ import { Body, Controller, Get, Param, Post, BadRequestException } from "@nestjs
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { messageSchema } from "@imizi/validation";
 import { CurrentUser } from "../../common/current-user.decorator";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { FeatureService } from "../../infra/feature.service";
 import { WebSocketGateway, WebSocketServer, SubscribeMessage, MessageBody, ConnectedSocket } from "@nestjs/websockets";
 import { Server, Socket } from "socket.io";
