@@ -6,11 +6,13 @@ import { assertPropertyAccess } from "../../common/access";
 import { DatabaseService } from "../../infra/database.service";
 import { StorageService } from "../../infra/storage.service";
 import { z } from "zod";
+import { matchesMagic } from "../../infra/file-validation";
+import { MalwareScanner } from "../../infra/malware.service";
 const documentCreateSchema=z.object({propertyId:z.string().uuid(),filename:z.string().trim().min(1).max(180),contentType:z.string().trim().toLowerCase().max(100),kind:z.string().trim().min(1).max(80),expiresAt:z.string().date().optional()});
 const documentCompleteSchema=z.object({propertyId:z.string().uuid(),kind:z.string().trim().min(1).max(80),key:z.string().min(20).max(1000),expiresAt:z.string().date().optional()});
 @ApiTags("documents") @ApiBearerAuth() @Controller("documents")
 export class DocumentsController{
-  constructor(private readonly db:DatabaseService,private readonly storage:StorageService){}
+  constructor(private readonly db:DatabaseService,private readonly storage:StorageService,private readonly malware:MalwareScanner){}
   @Post("signed-url")
   async signed(@CurrentUser() user:UserRecord,@Body() body:unknown){
     const d=documentCreateSchema.parse(body); const property=await this.db.getProperty(d.propertyId); if(!property)throw new BadRequestException("Property not found");
@@ -29,6 +31,10 @@ export class DocumentsController{
       await this.storage.deleteObject(d.key).catch(()=>undefined);
       throw new BadRequestException("uploaded_content_type_rejected");
     }
+    const input=await this.storage.readBuffer(d.key);
+    if(!matchesMagic(input.subarray(0,64),actualType)){await this.storage.deleteObject(d.key).catch(()=>undefined);throw new BadRequestException("uploaded_file_signature_rejected");}
+    const scan=await this.malware.scan(input);
+    if(!scan.clean){await this.storage.deleteObject(d.key).catch(()=>undefined);throw new BadRequestException("uploaded_file_rejected");}
     if(meta.contentLength<=0||meta.contentLength>25*1024*1024){
       await this.storage.deleteObject(d.key).catch(()=>undefined);
       throw new BadRequestException("uploaded_document_size_rejected");
