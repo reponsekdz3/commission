@@ -1,7 +1,7 @@
 import * as SecureStore from "expo-secure-store";
 
 export const API=process.env.EXPO_PUBLIC_API_URL||"http://localhost:4000/api/v1";
-export type SearchItem={listing:{id:string;listingType:string;priceMinor:number;currency:string;availableFrom?:string;status?:string};property:{id:string;title:string;district:string;province:string;sector?:string;latitude:number;longitude:number;bedrooms?:number;bathrooms?:number;parking?:number;media?:{url:string}[];verificationStatus?:string;propertyType?:string;amenities?:string[]}};
+export type SearchItem={listing:{id:string;listingType:string;priceMinor:number;currency:string;availableFrom?:string;status?:string};property:{id:string;title:string;district:string;province:string;sector?:string;latitude:number;longitude:number;bedrooms?:number;bathrooms?:number;parking?:number;areaValue?:number;areaUnit?:string;media?:{url:string}[];verificationStatus?:string;propertyType?:string;amenities?:string[]}};
 const ACCESS="imizi.access",REFRESH="imizi.refresh",LEGACY_ACCESS="imizi_token",LEGACY_REFRESH="imizi_refresh";
 let refreshPromise:Promise<string|null>|null=null;
 
