@@ -21,8 +21,6 @@ export class MediaController {
     const d=mediaRequestSchema.parse(body); const property=await this.db.getProperty(d.propertyId); if(!property)throw new BadRequestException("Property not found");
     assertPropertyAccess(user,property,true);
     if(!(allowedByKind[d.kind]??[]).includes(d.contentType))throw new BadRequestException("file_type_rejected");
-    const signature=await this.storage.readPrefix(d.key,64);
-    if(!matchesMagic(signature,actualType)){await this.storage.deleteObject(d.key).catch(()=>undefined);throw new BadRequestException("uploaded_file_signature_rejected");}
     const maxBytes=d.kind==="VIDEO"?loadConfig().maxMediaBytes:Math.min(loadConfig().maxMediaBytes,50*1024*1024);
     const safeName=d.filename.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,180);
     const key="private/quarantine/property/"+d.propertyId+"/"+Date.now()+"-"+safeName;
@@ -40,6 +38,11 @@ export class MediaController {
       throw new BadRequestException("uploaded_content_type_rejected");
     }
     const maxBytes=d.kind==="VIDEO"?loadConfig().maxMediaBytes:Math.min(loadConfig().maxMediaBytes,50*1024*1024);
+    const signature=await this.storage.readPrefix(d.key,64);
+    if(!matchesMagic(signature,actualType)){
+      await this.storage.deleteObject(d.key).catch(()=>undefined);
+      throw new BadRequestException("uploaded_file_signature_rejected");
+    }
     if(meta.contentLength<=0||meta.contentLength>maxBytes){
       await this.storage.deleteObject(d.key).catch(()=>undefined);
       throw new BadRequestException("uploaded_media_size_rejected");
