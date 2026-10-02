@@ -2,7 +2,7 @@ import { Body, Controller, ForbiddenException, Get, Post } from "@nestjs/common"
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { FeatureService } from "../../infra/feature.service";
 import { z } from "zod";
 import { Throttle } from "@nestjs/throttler";
