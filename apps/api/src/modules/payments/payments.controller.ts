@@ -1,4 +1,4 @@
-import { Body, Controller, Headers, Param, Post, Req, type RawBodyRequest } from "@nestjs/common";
+import { Body, Controller, Headers, Param, Post, Req, ForbiddenException, type RawBodyRequest } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
 import { initiatePaymentSchema, refundSchema } from "@imizi/validation";
@@ -9,6 +9,7 @@ import type { UserRecord } from "../../store/records";
 import type { Request } from "express";
 import { requiresReauth } from "@imizi/domain";
 import { AuthService } from "../auth/auth.service";
+import { assertPermission } from "../../common/access";
 
 @ApiTags("payments")
 @Controller("payments")
@@ -33,7 +34,7 @@ export class PaymentsController {
   @ApiBearerAuth()
   @Post("refunds")
   async refund(@CurrentUser() user:UserRecord,@Body() body:unknown){
-    if(!user.roles.includes("FINANCE_ADMIN")&&!user.roles.includes("SUPER_ADMIN"))return{error:"forbidden"};
+    assertPermission(user,"payment:refund");
     const d=refundSchema.parse(body);
     if(requiresReauth("payment:refund")){
       if(!d.reauthToken)return{requiresReauth:true,action:"payment:refund"};
