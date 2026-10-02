@@ -13,13 +13,17 @@ export class PropertiesService {
   async create(user: UserRecord, input: Record<string, any>) {
     assertPermission(user, "property:create");
     if ((input.countryCode ?? "RW") === "RW") await this.locations.validate(input);
+    const organizationId=input.organizationId;
+    if(organizationId && organizationId!==user.organizationId){
+      throw new ForbiddenException("You cannot assign a property to another organization");
+    }
     const recent = await this.db.count("properties", "owner_id=$1 AND created_at >= now()-interval '24 hours'", [user.id]);
     const fraud = scoreFraud({
       listingsLast24h: recent, duplicatePhotoHits: 0, priceVsMedianRatio: 1, reportCount: 0,
       accountsFromSameDeviceLastHour: 0, paymentAnomalyScore: 0, fakeContactScore: 0,
       duplicatePropertyScore: 0, locationMismatchScore: 0,
     });
-    const property = await this.db.createProperty(input, user.id, input.organizationId ?? user.organizationId, fraud);
+    const property = await this.db.createProperty(input, user.id, organizationId ?? user.organizationId, fraud);
     if (!property) throw new NotFoundException();
     if (shouldQueueForModeration(fraud.level)) {
       await this.db.query("INSERT INTO fraud_cases(subject_type,subject_id,risk_level,score,signals) VALUES('property',$1,$2,$3,$4::jsonb)", [property.id,fraud.level,fraud.score,JSON.stringify(fraud)]);
@@ -38,6 +42,7 @@ export class PropertiesService {
   }
 
   async update(id:string,user:UserRecord,patch:Record<string,any>) {
+    assertPermission(user,"property:update");
     const property=await this.db.getProperty(id);
     if(!property) throw new NotFoundException();
     assertPropertyAccess(user,property,true);
@@ -49,6 +54,7 @@ export class PropertiesService {
   }
 
   async publish(id:string,user:UserRecord) {
+    assertPermission(user,"listing:publish");
     const property=await this.db.getProperty(id);
     if(!property) throw new NotFoundException();
     assertPropertyAccess(user,property,true);
@@ -65,6 +71,7 @@ export class PropertiesService {
   async owned(user:UserRecord){ return this.db.listOwnedProperties(user.id,user.organizationId); }
 
   async addUnit(id:string,user:UserRecord,input:{label:string;bedrooms?:number}){
+    assertPermission(user,"property:update");
     const property=await this.db.getProperty(id);
     if(!property) throw new NotFoundException();
     assertPropertyAccess(user,property,true);
