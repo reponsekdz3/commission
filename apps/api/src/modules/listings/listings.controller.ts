@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { createListingSchema } from "@imizi/validation";
 import { Public } from "../../common/public.decorator";
@@ -19,6 +19,10 @@ export class ListingsController {
     const property=await this.db.getProperty(data.propertyId);
     if(!property) return {error:"not_found"};
     assertPropertyAccess(user,property,true);
+    if(data.unitId){
+      const unit=await this.db.getUnit(data.unitId);
+      if(!unit || unit.propertyId!==property.id) throw new BadRequestException("Unit does not belong to this property");
+    }
     return this.db.createListing({propertyId:data.propertyId,unitId:data.unitId,listingType:data.listingType,priceMinor:data.priceMinor,currency:data.currency,availableFrom:data.availableFrom ?? new Date().toISOString()});
   }
 
