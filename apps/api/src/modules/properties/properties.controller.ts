@@ -1,6 +1,6 @@
 import { Body, Controller, Get, Param, Patch, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
-import { createPropertySchema, updatePropertySchema } from "@imizi/validation";
+import { createPropertySchema, updatePropertySchema, unitCreateSchema } from "@imizi/validation";
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { PropertiesService } from "./properties.service";
@@ -33,5 +33,5 @@ export class PropertiesController {
 
   @ApiBearerAuth()
   @Post(":id/units")
-  addUnit(@Param("id") id:string,@CurrentUser() user:UserRecord,@Body() body:{label:string;bedrooms?:number}){ return this.properties.addUnit(id,user,body); }
+  addUnit(@Param("id") id:string,@CurrentUser() user:UserRecord,@Body() body:unknown){ return this.properties.addUnit(id,user,unitCreateSchema.parse(body)); }
 }
