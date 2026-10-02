@@ -25,8 +25,14 @@ export class DocumentsController{
     assertPropertyAccess(user,property,true); const prefix="private/property/"+d.propertyId+"/documents/";
     if(!d.key.startsWith(prefix)||d.key.includes(".."))throw new BadRequestException("invalid_key");
     const meta=await this.storage.headObject(d.key); const actualType=meta.contentType?.split(";")[0].trim().toLowerCase();
-    if(!actualType||!["application/pdf","image/jpeg","image/png","image/webp"].includes(actualType))throw new BadRequestException("uploaded_content_type_rejected");
-    if(meta.contentLength<=0||meta.contentLength>25*1024*1024)throw new BadRequestException("uploaded_document_size_rejected");
+    if(!actualType||!["application/pdf","image/jpeg","image/png","image/webp"].includes(actualType)){
+      await this.storage.deleteObject(d.key).catch(()=>undefined);
+      throw new BadRequestException("uploaded_content_type_rejected");
+    }
+    if(meta.contentLength<=0||meta.contentLength>25*1024*1024){
+      await this.storage.deleteObject(d.key).catch(()=>undefined);
+      throw new BadRequestException("uploaded_document_size_rejected");
+    }
     return this.db.addDocument(d.propertyId,d.kind,d.key,d.expiresAt);
   }
   @Get("property/:propertyId")
