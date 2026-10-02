@@ -50,26 +50,26 @@ export default async function HomePage() {
       {/* ══════════════════════════════════════════
           HERO
       ══════════════════════════════════════════ */}
-      <section className="hp-hero">
+      <section className="hp-hero" style={{animationName:'fadeInUp',animationDuration:'.7s',animationFillMode:'both'}}>
         <div className="hp-hero-glow hp-hero-glow-a" />
         <div className="hp-hero-glow hp-hero-glow-b" />
         <div className="wrap hp-hero-inner">
           <div className="hp-hero-copy">
-            <div className="hp-eyebrow">
+            <div className="hp-eyebrow" style={{animationName:'slideInLeft',animationDuration:'.5s',animationDelay:'.1s',animationFillMode:'both'}}>
               <span className="hp-live-dot" />
               <span>Rwanda&apos;s #1 Property Marketplace</span>
             </div>
-            <h1 className="hp-h1">
+            <h1 className="hp-h1" style={{animationName:'slideInLeft',animationDuration:'.6s',animationDelay:'.2s',animationFillMode:'both'}}>
               Find a place<br />
               <span className="hp-h1-accent">that fits your life.</span>
             </h1>
-            <p className="hp-lead">
+            <p className="hp-lead" style={{animationName:'slideInLeft',animationDuration:'.6s',animationDelay:'.3s',animationFillMode:'both'}}>
               Search verified homes, land and commercial spaces across Rwanda.
               Book viewings, make offers, pay securely and manage everything from one connected account.
             </p>
 
             {/* Search bar */}
-            <form className="hp-search" action="/search">
+            <form className="hp-search" action="/search" style={{animationName:'slideInUp',animationDuration:'.6s',animationDelay:'.4s',animationFillMode:'both'}}>
               <div className="hp-search-field">
                 <Search size={16} className="hp-search-icon" />
                 <input
@@ -84,13 +84,13 @@ export default async function HomePage() {
                 <option value="SALE">For sale</option>
                 <option value="SHORT_STAY">Short stay</option>
               </select>
-              <button className="hp-search-btn" type="submit">
+              <button className="hp-search-btn" type="submit" style={{transition:'all .2s cubic-bezier(.22,1,.36,1)'}}>
                 Search <ArrowRight size={16} />
               </button>
             </form>
 
             {/* Quick chips */}
-            <div className="hp-chips">
+            <div className="hp-chips" style={{animationName:'fadeIn',animationDuration:'.5s',animationDelay:'.5s',animationFillMode:'both'}}>
               {[
                 ["All rentals",    "/search?listingType=RENT"],
                 ["Buy property",   "/search?listingType=SALE"],
@@ -104,7 +104,7 @@ export default async function HomePage() {
             </div>
 
             {/* Trust row */}
-            <div className="hp-trust">
+            <div className="hp-trust" style={{animationName:'fadeIn',animationDuration:'.5s',animationDelay:'.6s',animationFillMode:'both'}}>
               {[
                 [CheckCircle, "Verified listings"],
                 [Map,         "Live map search"],
@@ -119,7 +119,7 @@ export default async function HomePage() {
           </div>
 
           {/* Hero product card */}
-          <div className="hp-hero-card">
+          <div className="hp-hero-card" style={{animationName:'scaleIn',animationDuration:'.7s',animationDelay:'.3s',animationFillMode:'both'}}>
             <div className="hp-card-chrome">
               <div className="hp-chrome-dots"><i /><i /><i /></div>
               <span>imizi.rw</span>
@@ -170,14 +170,14 @@ export default async function HomePage() {
           QUICK ACTIONS
       ══════════════════════════════════════════ */}
       <section className="wrap hp-section" style={{ paddingTop: 0, paddingBottom: 16 }}>
-        <div className="hp-actions">
+        <div className="hp-actions" style={{animationName:'fadeInUp',animationDuration:'.5s',animationDelay:'.1s',animationFillMode:'both'}}>
           {[
             { icon: Search,    label: "Discover",       sub: "Search all listings",   href: "/search",    accent: false },
             { icon: Map,       label: "Live map",        sub: "Map-based search",      href: "/map",       accent: false },
             { icon: Building2, label: "List property",   sub: "Reach thousands",       href: "/manage",    accent: true  },
             { icon: BarChart3, label: "Dashboard",       sub: "Manage your portfolio", href: "/dashboard", accent: false },
           ].map(({ icon: Icon, label, sub, href, accent }) => (
-            <Link key={label} href={href} className={`hp-action-card${accent ? " hp-action-accent" : ""}`}>
+            <Link key={label} href={href} className={`hp-action-card${accent ? " hp-action-accent" : ""}`} style={{transition:'all .22s cubic-bezier(.22,1,.36,1)'}}>
               <span className="hp-action-icon"><Icon size={20} /></span>
               <strong>{label}</strong>
               <small>{sub}</small>
@@ -191,9 +191,9 @@ export default async function HomePage() {
           CAPABILITIES STRIP
       ══════════════════════════════════════════ */}
       <section className="wrap hp-section" style={{ paddingTop: 8, paddingBottom: 32 }}>
-        <div className="hp-caps">
+        <div className="hp-caps" style={{animationName:'fadeInUp',animationDuration:'.5s',animationFillMode:'both'}}>
           {CAPABILITIES.map(({ icon: Icon, label, sub, accent }) => (
-            <div key={label} className={`hp-cap${accent ? " hp-cap-accent" : ""}`}>
+            <div key={label} className={`hp-cap${accent ? " hp-cap-accent" : ""}`} style={{transition:'all .2s cubic-bezier(.22,1,.36,1)'}}>
               <span className="hp-cap-icon"><Icon size={16} /></span>
               <span className="hp-cap-body">
                 <b>{label}</b>
@@ -220,7 +220,7 @@ export default async function HomePage() {
           </div>
           <div className="hp-districts">
             {districts.slice(0, 12).map((d, i) => (
-              <Link key={d.id} href={"/search?district=" + encodeURIComponent(d.name)} className="hp-district-card">
+              <Link key={d.id} href={"/search?district=" + encodeURIComponent(d.name)} className="hp-district-card" style={{animationName:'fadeInUp',animationDuration:'.4s',animationDelay:`${i*40}ms`,animationFillMode:'both',transition:'all .2s cubic-bezier(.22,1,.36,1)'}}>
                 <span className="hp-district-idx">{String(i + 1).padStart(2, "0")}</span>
                 <span className="hp-district-body">
                   <b>{d.name}</b>
@@ -249,9 +249,9 @@ export default async function HomePage() {
         </div>
 
         {items.length > 0 ? (
-          <div className="hp-grid">
-            {items.map((x: any) => (
-              <Link key={x.listing.id} href={"/properties/" + x.property.id} className="hp-prop-card">
+          <div className="hp-grid" style={{animationName:'fadeInUp',animationDuration:'.5s',animationFillMode:'both'}}>
+            {items.map((x: any, i: number) => (
+              <Link key={x.listing.id} href={"/properties/" + x.property.id} className="hp-prop-card" style={{animationName:'fadeInUp',animationDuration:'.4s',animationDelay:`${i*60}ms`,animationFillMode:'both'}}>
                 <div className="hp-prop-media">
                   {x.property.media?.[0]?.url
                     ? <AppImage src={x.property.media[0].url} alt={x.property.title} fill sizes="(max-width:640px) 100vw,(max-width:1024px) 50vw,25vw" className="hp-prop-img" />
@@ -309,8 +309,8 @@ export default async function HomePage() {
             </Link>
           </div>
           <div className="hp-grid hp-grid-4">
-            {saleItems.map((x: any) => (
-              <Link key={x.listing.id} href={"/properties/" + x.property.id} className="hp-prop-card">
+            {saleItems.map((x: any, i: number) => (
+              <Link key={x.listing.id} href={"/properties/" + x.property.id} className="hp-prop-card" style={{animationName:'fadeInUp',animationDuration:'.4s',animationDelay:`${i*60}ms`,animationFillMode:'both'}}>
                 <div className="hp-prop-media">
                   {x.property.media?.[0]?.url
                     ? <AppImage src={x.property.media[0].url} alt={x.property.title} fill sizes="(max-width:640px) 100vw,25vw" className="hp-prop-img" />
@@ -353,8 +353,8 @@ export default async function HomePage() {
           </p>
         </div>
         <div className="hp-workflow">
-          {WORKFLOW.map(({ step, icon: Icon, title, desc }) => (
-            <div key={step} className="hp-workflow-card">
+          {WORKFLOW.map(({ step, icon: Icon, title, desc }, i) => (
+            <div key={step} className="hp-workflow-card" style={{animationName:'fadeInUp',animationDuration:'.5s',animationDelay:`${i*80}ms`,animationFillMode:'both',transition:'all .25s cubic-bezier(.22,1,.36,1)'}}>
               <span className="hp-workflow-step">{step}</span>
               <Icon size={26} className="hp-workflow-icon" />
               <h3>{title}</h3>

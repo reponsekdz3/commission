@@ -58,16 +58,16 @@ export default async function Property({ params }: { params: Promise<{ id: strin
   ];
 
   return (
-    <main className="print-page">
+    <main className="print-page" style={{animationName:'fadeInUp',animationDuration:'.5s',animationFillMode:'both'}}>
       {/* Back */}
       <div className="wrap" style={{ paddingTop: 20 }}>
-        <TransitionLink href="/search" className="breadcrumb-modern print-hidden">
+        <TransitionLink href="/search" className="breadcrumb-modern print-hidden" style={{transition:'color .15s'}}>
           <ArrowLeft size={14} /> Back to search
         </TransitionLink>
       </div>
 
       {/* Gallery */}
-      <div className="wrap" style={{ marginTop: 16 }}>
+      <div className="wrap" style={{ marginTop: 16, animationName:'scaleIn', animationDuration:'.5s', animationDelay:'.1s', animationFillMode:'both' }}>
         <PropertyGallery media={media} transitionId={p.id} />
       </div>
 
@@ -76,7 +76,7 @@ export default async function Property({ params }: { params: Promise<{ id: strin
         {/* ── Article ── */}
         <article>
           {/* Badges */}
-          <div className="row-gap" style={{ marginTop: 8 }}>
+          <div className="row-gap" style={{ marginTop: 8, animationName:'fadeIn', animationDuration:'.4s', animationDelay:'.2s', animationFillMode:'both' }}>
             <span className={`badge ${p.verificationStatus === "VERIFIED" ? "badge-green" : "badge-gray"}`}>
               {p.verificationStatus === "VERIFIED" ? <><ShieldCheck size={11} /> Verified</> : "Listed"}
             </span>
@@ -86,21 +86,21 @@ export default async function Property({ params }: { params: Promise<{ id: strin
           {/* Title */}
           <h1
             className="page-heading"
-            style={{ marginTop: 14, marginBottom: 8, viewTransitionName: "property-title-" + p.id } as React.CSSProperties}
+            style={{ marginTop: 14, marginBottom: 8, viewTransitionName: "property-title-" + p.id, animationName:'slideInLeft', animationDuration:'.5s', animationDelay:'.2s', animationFillMode:'both' } as React.CSSProperties}
           >
             {p.title}
           </h1>
 
           {/* Location */}
-          <div className="row-gap" style={{ color: "var(--color-fg-muted)", fontSize: 14, marginBottom: 20 }}>
+          <div className="row-gap" style={{ color: "var(--color-fg-muted)", fontSize: 14, marginBottom: 20, animationName:'fadeIn', animationDuration:'.4s', animationDelay:'.3s', animationFillMode:'both' }}>
             <MapPin size={14} style={{ color: "var(--color-primary)", flexShrink: 0 }} />
             <span>{[p.sector, p.district, p.province, p.countryCode].filter(Boolean).join(", ")}</span>
           </div>
 
           {/* Specs */}
-          <div className="spec-grid">
+          <div className="spec-grid" style={{animationName:'fadeInUp',animationDuration:'.5s',animationDelay:'.3s',animationFillMode:'both'}}>
             {SPECS.map(({ icon: Icon, label, val }) => (
-              <div key={label} className="spec-item">
+              <div key={label} className="spec-item" style={{transition:'all .2s cubic-bezier(.22,1,.36,1)'}}>
                 <div className="spec-icon"><Icon size={20} style={{ color: "var(--color-primary)", margin: "0 auto" }} /></div>
                 <div className="spec-val">{String(val ?? "—")}</div>
                 <div className="spec-lbl">{label}</div>
@@ -141,8 +141,8 @@ export default async function Property({ params }: { params: Promise<{ id: strin
         </article>
 
         {/* ── Aside ── */}
-        <aside className="print-hidden">
-          <div className="booking-card">
+        <aside className="print-hidden" style={{animationName:'slideInRight',animationDuration:'.5s',animationDelay:'.2s',animationFillMode:'both'}}>
+          <div className="booking-card" style={{transition:'box-shadow .2s cubic-bezier(.22,1,.36,1)'}}>
             <div className="eyebrow" style={{ marginBottom: 8 }}>Take the next step</div>
             <div className="booking-price">
               {l ? formatRwf(l.priceMinor) : "Price on request"}
@@ -162,7 +162,7 @@ export default async function Property({ params }: { params: Promise<{ id: strin
           {l ? formatRwf(l.priceMinor) : "Price on request"}
         </strong>
         {l && (
-          <a className="btn" href={"/booking/new?listingId=" + l.id} style={{ minWidth: 120, justifyContent: "center" }}>
+          <a className="btn" href={"/booking/new?listingId=" + l.id} style={{ minWidth: 120, justifyContent: "center", transition:'all .2s cubic-bezier(.22,1,.36,1)' }}>
             Book now
           </a>
         )}

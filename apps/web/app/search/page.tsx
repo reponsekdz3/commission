@@ -65,11 +65,11 @@ function SearchContent() {
   const currentType = params.get("listingType");
 
   return (
-    <main className="searchSplit">
+    <main className="searchSplit" style={{animationName:'fadeIn',animationDuration:'.4s',animationFillMode:'both'}}>
       {/* ── List side ── */}
       <section className="searchList" ref={listRef}>
         {/* Header */}
-        <div className="search-list-head">
+        <div className="search-list-head" style={{animationName:'slideInLeft',animationDuration:'.5s',animationFillMode:'both'}}>
           <div>
             <div className="eyebrow mb-1">Discovery engine</div>
             <h1 className="search-title">Find your next property.</h1>
@@ -93,7 +93,7 @@ function SearchContent() {
         </div>
 
         {/* Listing type tabs */}
-        <div className="search-type-bar">
+        <div className="search-type-bar" style={{animationName:'slideInLeft',animationDuration:'.4s',animationDelay:'.1s',animationFillMode:'both'}}>
           <div className="search-type-chips">
             {[
               { key: null,          label: "All" },
@@ -115,7 +115,7 @@ function SearchContent() {
 
         {/* Filters panel */}
         {showFilters && (
-          <div className="search-filters-panel">
+          <div className="search-filters-panel" style={{animationName:'slideInUp',animationDuration:'.3s',animationFillMode:'both'}}>
             <PropertyFilters />
           </div>
         )}
@@ -145,7 +145,7 @@ function SearchContent() {
             {[1, 2, 3, 4, 5, 6].map(i => <PropertyCardSkeleton key={i} />)}
           </div>
         ) : items.length ? (
-          <div className="search-grid">
+          <div className="search-grid" style={{animationName:'fadeInUp',animationDuration:'.4s',animationFillMode:'both'}}>
             {items.map((item: SearchItem) => (
               <div
                 key={item.listing.id}
