@@ -33,10 +33,10 @@ export class AuthController {
   }
 
   @Public() @Throttle({auth:{limit:10,ttl:60000}}) @Post("register")
-  async register(@Body() body:unknown,@Res({passthrough:true}) res:Response){
+  async register(@Body() body:unknown,@Req() req:Request,@Res({passthrough:true}) res:Response){
     const data=await this.auth.register(registerSchema.parse(body));
     this.setSessionCookies(res,data);
-    return data;
+    return req.headers["x-imizi-session"]==="cookie" ? {user:data.user} : data;
   }
 
   @Public() @Throttle({auth:{limit:10,ttl:60000}}) @Post("login")
@@ -44,7 +44,7 @@ export class AuthController {
     const d=loginSchema.parse(body);
     const data=await this.auth.login(d.identifier,d.password,d.mfaCode,req.ip,req.headers["user-agent"]);
     this.setSessionCookies(res,data);
-    return data;
+    return req.headers["x-imizi-session"]==="cookie" ? {user:data.user} : data;
   }
 
   @Public() @Throttle({auth:{limit:5,ttl:60000}}) @Post("forgot-password") forgotPassword(@Body() body:unknown){return this.auth.forgotPassword(forgotPasswordSchema.parse(body).email);}
@@ -58,7 +58,7 @@ export class AuthController {
     if(!token)throw new UnauthorizedException("Refresh token required");
     const data=await this.auth.refresh(token);
     this.setSessionCookies(res,data);
-    return data;
+    return req.headers["x-imizi-session"]==="cookie" ? {user:data.user} : data;
   }
 
   @Public() @Post("logout")
