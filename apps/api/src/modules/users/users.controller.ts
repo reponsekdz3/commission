@@ -1,4 +1,4 @@
-import { Controller, Get, Patch, Param, ForbiddenException } from "@nestjs/common";
+import { Body, Controller, Get, Patch, Param, ForbiddenException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { profileUpdateSchema } from "@imizi/validation";
 import { CurrentUser } from "../../common/current-user.decorator";
