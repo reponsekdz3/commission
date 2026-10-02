@@ -40,16 +40,17 @@ export class MessagesController {
     const meta=await this.storage.headObject(body.key);
     if(meta.contentLength<=0||meta.contentLength>50*1024*1024)throw new BadRequestException("attachment_too_large");
     const result=await this.db.query(
-      "INSERT INTO message_attachments(id,conversation_id,uploader_id,storage_key,filename,content_type,size_bytes) VALUES($1,$2,$3,$4,$5,$6,$7) RETURNING id,filename,content_type,size_bytes",
+      "INSERT INTO message_attachments(id,conversation_id,uploader_id,storage_key,filename,content_type,size_bytes,scan_status) VALUES($1,$2,$3,$4,$5,$6,$7,'PENDING') RETURNING id,filename,content_type,size_bytes,scan_status",
       [randomUUID(),body.conversationId,user.id,body.key,body.filename.slice(0,180),body.contentType,meta.contentLength],
     );
+    await this.db.enqueueJob("message.attachment.scan",{attachmentId:result.rows[0].id},0);
     return result.rows[0];
   }
 
   @Get("attachments/:id/download")
   async attachmentDownload(@CurrentUser() user:UserRecord,@Param("id") id:string){
     const result=await this.db.query(
-      "SELECT a.storage_key FROM message_attachments a JOIN conversation_members cm ON cm.conversation_id=a.conversation_id WHERE a.id=$1 AND cm.user_id=$2",
+      "SELECT a.storage_key FROM message_attachments a JOIN conversation_members cm ON cm.conversation_id=a.conversation_id WHERE a.id=$1 AND cm.user_id=$2 AND a.scan_status='CLEAN'",
       [id,user.id],
     );
     if(!result.rows[0])return{error:"not_found"};

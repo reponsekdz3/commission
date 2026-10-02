@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException, UnauthorizedException, BadRequestException } from "@nestjs/common";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { createPaymentGateway } from "@imizi/payments";
 import { paymentIsAuthoritative, transitionPayment } from "@imizi/domain";
 import type { UserRecord } from "../../store/platform.store";
@@ -56,7 +56,9 @@ export class PaymentsService {
     const parsed=provider.parseWebhook(rawBody);
     const intent=await this.db.getPaymentByProviderReference(parsed.providerReference);
     if(!intent)throw new NotFoundException();
-    await this.db.addPaymentEvent(intent.id,parsed);
+    const eventHash=createHash("sha256").update(rawBody).digest("hex");
+    const inserted=await this.db.addPaymentEvent(intent.id,parsed,eventHash);
+    if(!inserted) return this.db.getPaymentIntent(intent.id);
     if(parsed.status==="SUCCEEDED"){
       await this.db.updatePaymentIntent(intent.id,{providerReference:parsed.providerReference});
       return this.db.settlePayment(intent.id);
@@ -89,7 +91,7 @@ export class PaymentsService {
     if(!intent.providerReference)throw new BadRequestException("This provider does not support automated refunds");
     if(!provider.refund)throw new BadRequestException("This provider does not support automated refunds");
     const external=await provider.refund!(intent.providerReference,amountMinor,intent.currency,reason);
-    return this.db.refundPayment(intentId,amountMinor,reason);
+    return this.db.refundPayment(intentId,amountMinor,reason,external.providerReference);
   }
 }
 

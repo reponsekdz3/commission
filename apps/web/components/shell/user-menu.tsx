@@ -1,1 +1,23 @@
-"use client";import Link from "next/link";import {DropdownMenu,DropdownMenuTrigger,DropdownMenuContent,DropdownMenuItem} from "../ui";export function UserMenu({user}:{user:{fullName?:string}|null}){const name=user?.fullName||"Account";return <DropdownMenu><DropdownMenuTrigger asChild><button className="avatar" aria-label="Open user menu">{name.slice(0,1).toUpperCase()}</button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem asChild><Link href="/workspace">Workspace</Link></DropdownMenuItem><DropdownMenuItem asChild><Link href="/favorites">Saved</Link></DropdownMenuItem><DropdownMenuItem onSelect={()=>{localStorage.removeItem("imizi_token");localStorage.removeItem("imizi_refresh");localStorage.removeItem("imizi_user");location.href="/"}}>Sign out</DropdownMenuItem></DropdownMenuContent></DropdownMenu>}
+"use client";
+import Link from "next/link";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "../ui";
+import { api } from "../../lib/api";
+
+export function UserMenu({user}:{user:{fullName?:string}|null}){
+  const name=user?.fullName||"Account";
+  async function signOut(){
+    try{await api("/auth/logout",{method:"POST"});}catch{}
+    localStorage.removeItem("imizi_token");
+    localStorage.removeItem("imizi_refresh");
+    localStorage.removeItem("imizi_user");
+    location.href="/";
+  }
+  return <DropdownMenu>
+    <DropdownMenuTrigger asChild><button className="avatar" aria-label="Open user menu">{name.slice(0,1).toUpperCase()}</button></DropdownMenuTrigger>
+    <DropdownMenuContent align="end">
+      <DropdownMenuItem asChild><Link href="/workspace">Workspace</Link></DropdownMenuItem>
+      <DropdownMenuItem asChild><Link href="/favorites">Saved</Link></DropdownMenuItem>
+      <DropdownMenuItem onSelect={()=>{void signOut();}}>Sign out</DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>;
+}

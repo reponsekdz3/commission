@@ -6,7 +6,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   Building2, Lock, Mail, ShieldCheck, Eye, EyeOff,
-  ArrowRight, Sparkles, MapPin, TrendingUp, Users,
+  ArrowRight, Sparkles, MapPin, BadgeCheck, MessageSquare,
 } from "lucide-react";
 import { api } from "../../lib/api";
 import { Input, Button } from "../../components/ui";
@@ -19,17 +19,13 @@ const schema = z.object({
 type F = z.infer<typeof schema>;
 
 const FEATURES = [
-  { icon: MapPin,      label: "200+ verified properties across Rwanda" },
-  { icon: ShieldCheck, label: "End-to-end secure RWF payments" },
-  { icon: TrendingUp,  label: "Real-time booking & analytics dashboard" },
-  { icon: Users,       label: "Connect with 5,000+ landlords & agents" },
+  { icon: MapPin, label: "Rwanda-aware property discovery and maps" },
+  { icon: ShieldCheck, label: "Authenticated bookings and payment workflows" },
+  { icon: BadgeCheck, label: "Verification, moderation and audit controls" },
+  { icon: MessageSquare, label: "Persistent messaging and property conversations" },
 ];
 
-const SOCIAL_PROOF = [
-  { stat: "12k+", label: "Active users" },
-  { stat: "98%",  label: "Satisfaction" },
-  { stat: "200+", label: "Listings" },
-];
+
 
 export default function Login() {
   const [msg, setMsg] = useState("");
@@ -61,11 +57,11 @@ export default function Login() {
       };
       if (v.mfaCode && /^\d{6}$/.test(v.mfaCode)) payload.mfaCode = v.mfaCode;
       const d = await api<{ accessToken: string; refreshToken: string; user: unknown }>(
-        "/auth/login", { method: "POST", body: JSON.stringify(payload) }
+        "/auth/login", { method: "POST", headers: {"X-Imizi-Session":"cookie"}, body: JSON.stringify(payload) }
       );
-      localStorage.setItem("imizi_token",   d.accessToken);
-      localStorage.setItem("imizi_refresh",  d.refreshToken);
-      localStorage.setItem("imizi_user",     JSON.stringify(d.user));
+      localStorage.removeItem("imizi_token");
+      localStorage.removeItem("imizi_refresh");
+      localStorage.setItem("imizi_user", JSON.stringify(d.user));
       location.href = "/dashboard";
     } catch (e) {
       const text = e instanceof Error ? e.message : "Sign in failed. Please try again.";
@@ -119,15 +115,7 @@ export default function Login() {
           </div>
         </div>
 
-        {/* Social proof strip */}
-        <div className="auth-social-proof">
-          {SOCIAL_PROOF.map(({ stat, label }) => (
-            <div key={label} className="auth-proof-item">
-              <strong>{stat}</strong>
-              <span>{label}</span>
-            </div>
-          ))}
-        </div>
+
       </div>
 
       {/* ── Right: Form Panel ── */}

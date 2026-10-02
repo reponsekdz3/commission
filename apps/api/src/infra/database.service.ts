@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { randomUUID } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "crypto";
 import { loadConfig } from "@imizi/config";
 import type { Role, RiskLevel } from "@imizi/types";
 import { matchesSavedSearch } from "@imizi/domain";
@@ -136,6 +136,10 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     await this.query("UPDATE sessions SET revoked_at=now() WHERE user_id=$1 AND revoked_at IS NULL",[userId]);
   }
 
+  async revokeRefreshToken(refreshHash:string){
+    await this.query("UPDATE sessions SET revoked_at=now() WHERE refresh_token_hash=$1 AND revoked_at IS NULL",[refreshHash]);
+  }
+
   async consumeRefreshToken(refreshHash: string) {
     const result = await this.query(
       "DELETE FROM sessions WHERE refresh_token_hash=$1 AND revoked_at IS NULL AND expires_at>now() RETURNING user_id",
@@ -190,7 +194,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     const config=loadConfig();
     const [amenities,media] = await Promise.all([
       this.query("SELECT amenity FROM property_amenities WHERE property_id=$1 ORDER BY amenity",[id]),
-      this.query("SELECT id,kind,storage_key,variants,sort_order FROM property_media WHERE property_id=$1 ORDER BY sort_order,id",[id]),
+      this.query("SELECT id,kind,storage_key,variants,sort_order FROM property_media WHERE property_id=$1 AND scan_status='CLEAN' ORDER BY sort_order,id",[id]),
     ]);
     return {
       id:String(row.id),ownerId:String(row.owner_id),organizationId:row.organization_id ?? undefined,title:String(row.title),
@@ -307,6 +311,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
   async createListing(input:{propertyId:string;unitId?:string;listingType:string;priceMinor:number;currency:string;availableFrom:string}) {
     const id=randomUUID();
     await this.transaction(async(client)=>{
+      if(input.unitId){
+        const unit=await client.query("SELECT id,property_id,status FROM property_units WHERE id=$1 FOR SHARE",[input.unitId]);
+        if(!unit.rows[0] || String(unit.rows[0].property_id)!==input.propertyId) throw new Error("listing_unit_property_mismatch");
+        if(["MAINTENANCE","OCCUPIED"].includes(String(unit.rows[0].status))) throw new Error("listing_unit_unavailable");
+      }
+      const property=await client.query("SELECT status FROM properties WHERE id=$1 FOR SHARE",[input.propertyId]);
+      if(!property.rows[0]) throw new Error("property_not_found");
       await client.query(
         "INSERT INTO property_listings(id,property_id,unit_id,listing_type,status,available_from) VALUES($1,$2,$3,$4,'ACTIVE',$5)",
         [id,input.propertyId,input.unitId ?? null,input.listingType,input.availableFrom],
@@ -469,7 +480,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
 
   async getPaymentByProviderReference(reference:string){const r=await this.query("SELECT * FROM payment_intents WHERE provider_reference=$1",[reference]);return r.rows[0]?this.mapPayment(r.rows[0]):undefined;}
   async getPaymentIntent(id:string){const r=await this.query("SELECT * FROM payment_intents WHERE id=$1",[id]);return r.rows[0]?this.mapPayment(r.rows[0]):undefined;}
-  async addPaymentEvent(intentId:string,payload:unknown){await this.query("INSERT INTO payment_events(intent_id,payload) VALUES($1,$2::jsonb)",[intentId,JSON.stringify(payload)]);}
+  async addPaymentEvent(intentId:string,payload:unknown,eventHash?:string){
+    const hash=eventHash ?? createHash("sha256").update(JSON.stringify(payload)).digest("hex");
+    const r=await this.query("INSERT INTO payment_events(intent_id,payload,event_hash) VALUES($1,$2::jsonb,$3) ON CONFLICT(intent_id,event_hash) DO NOTHING RETURNING id",[intentId,JSON.stringify(payload),hash]);
+    return Boolean(r.rows[0]);
+  }
 
   async settlePayment(intentId:string){
     return this.transaction(async(client)=>{
@@ -493,8 +508,12 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
           await this.ensureLedgerAccount(client,null,"PLATFORM_REVENUE",booking.currency);
           await this.ledger(client,booking.tenantId,"CUSTOMER","DEBIT",booking.amountMinor,booking.currency,booking.id);
           await this.ledger(client,null,"PLATFORM_HOLDING","CREDIT",booking.amountMinor,booking.currency,booking.id);
-          if(ownerId) await this.ledger(client,ownerId,"LANDLORD","CREDIT",landlord,booking.currency,booking.id);
-          await this.ledger(client,null,"PLATFORM_REVENUE","CREDIT",platform,booking.currency,booking.id);
+          if(ownerId){
+            await this.ledger(client,null,"PLATFORM_HOLDING","DEBIT",landlord,booking.currency,booking.id+":landlord");
+            await this.ledger(client,ownerId,"LANDLORD","CREDIT",landlord,booking.currency,booking.id+":landlord");
+          }
+          await this.ledger(client,null,"PLATFORM_HOLDING","DEBIT",platform,booking.currency,booking.id+":commission");
+          await this.ledger(client,null,"PLATFORM_REVENUE","CREDIT",platform,booking.currency,booking.id+":commission");
           await client.query(
             "INSERT INTO rental_agreements(booking_id,terms) VALUES($1,$2::jsonb) ON CONFLICT(booking_id) DO NOTHING",
             [booking.id,JSON.stringify({tenantId:booking.tenantId,landlordId:ownerId,listingId:booking.listingId,rent:booking.amountMinor,deposit:booking.depositMinor,startDate:booking.startDate,endDate:booking.endDate})],
@@ -512,7 +531,7 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
-  async refundPayment(intentId:string,amountMinor:number,reason:string){
+  async refundPayment(intentId:string,amountMinor:number,reason:string,providerReference?:string){
     return this.transaction(async(client)=>{
       const r=await client.query("SELECT * FROM payment_intents WHERE id=$1 FOR UPDATE",[intentId]);
       if(!r.rows[0]) return undefined;
@@ -521,7 +540,11 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
       const already=await client.query("SELECT COALESCE(SUM(amount_minor),0)::bigint total FROM payment_refunds WHERE intent_id=$1 AND status IN ('PENDING','COMPLETED')",[intentId]);
       const refunded=Number(already.rows[0].total);
       if(refunded+amountMinor>current.amountMinor) throw new Error("Refund exceeds remaining captured amount");
-      await client.query("INSERT INTO payment_refunds(intent_id,amount_minor,reason,status) VALUES($1,$2,$3,'PENDING')",[intentId,amountMinor,reason]);
+      await client.query("INSERT INTO payment_refunds(intent_id,amount_minor,reason,status,provider_reference) VALUES($1,$2,$3,'COMPLETED',$4)",[intentId,amountMinor,reason,providerReference ?? null]);
+      await this.ensureLedgerAccount(client,current.payerId,"CUSTOMER",current.currency);
+      await this.ensureLedgerAccount(client,null,"PLATFORM_HOLDING",current.currency);
+      await this.ledger(client,current.payerId,"CUSTOMER","CREDIT",amountMinor,current.currency,intentId+":refund");
+      await this.ledger(client,null,"PLATFORM_HOLDING","DEBIT",amountMinor,current.currency,intentId+":refund");
       const nextStatus=refunded+amountMinor>=current.amountMinor ? "REFUNDED" : "PARTIALLY_REFUNDED";
       await client.query("UPDATE payment_intents SET status=$2 WHERE id=$1",[intentId,nextStatus]);
       const fresh=await client.query("SELECT * FROM payment_intents WHERE id=$1",[intentId]);
@@ -607,13 +630,43 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  private mfaEncryptionKey(){
+    const raw=loadConfig().mfaEncryptionKey;
+    return /^[0-9a-fA-F]{64}$/.test(raw) ? Buffer.from(raw,"hex") : createHash("sha256").update(raw,"utf8").digest();
+  }
+
+  private encryptMfaSecret(secret:string){
+    const key=this.mfaEncryptionKey();
+    const iv=randomBytes(12);
+    const cipher=createCipheriv("aes-256-gcm",key,iv);
+    const ciphertext=Buffer.concat([cipher.update(secret,"utf8"),cipher.final()]);
+    const tag=cipher.getAuthTag();
+    return "enc:v1:"+iv.toString("base64url")+":"+tag.toString("base64url")+":"+ciphertext.toString("base64url");
+  }
+
+  private decryptMfaSecret(value:string){
+    if(!value.startsWith("enc:v1:"))return {secret:value,encrypted:false};
+    const [,version,ivRaw,tagRaw,dataRaw]=value.split(":");
+    if(version!=="v1"||!ivRaw||!tagRaw||!dataRaw)throw new Error("Invalid encrypted MFA secret");
+    const key=this.mfaEncryptionKey();
+    const iv=Buffer.from(ivRaw,"base64url");
+    const tag=Buffer.from(tagRaw,"base64url");
+    const ciphertext=Buffer.from(dataRaw,"base64url");
+    const decipher=createDecipheriv("aes-256-gcm",key,iv);
+    decipher.setAuthTag(tag);
+    return {secret:Buffer.concat([decipher.update(ciphertext),decipher.final()]).toString("utf8"),encrypted:true};
+  }
+
   async getMfaSecret(userId:string){
     const r=await this.query("SELECT mfa_secret,mfa_enabled FROM users WHERE id=$1",[userId]);
-    return r.rows[0] ? {secret:r.rows[0].mfa_secret ?? undefined,enabled:Boolean(r.rows[0].mfa_enabled)} : undefined;
+    if(!r.rows[0])return undefined;
+    const raw=r.rows[0].mfa_secret as string|undefined;
+    const decoded=raw ? this.decryptMfaSecret(raw) : {secret:undefined,encrypted:true};
+    return {secret:decoded.secret,enabled:Boolean(r.rows[0].mfa_enabled),encrypted:decoded.encrypted};
   }
 
   async setMfaSecret(userId:string,secret:string){
-    await this.query("UPDATE users SET mfa_secret=$2,updated_at=now() WHERE id=$1",[userId,secret]);
+    await this.query("UPDATE users SET mfa_secret=$2,updated_at=now() WHERE id=$1",[userId,this.encryptMfaSecret(secret)]);
   }
 
   async setMfaEnabled(userId:string,enabled:boolean){
@@ -707,9 +760,13 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return r.rows[0];
   }
 
-  async updateMediaVariants(id:string,variants:Record<string,string>,checksum?:string){
-    const r=await this.query("UPDATE property_media SET variants=$2::jsonb,checksum=COALESCE($3,checksum) WHERE id=$1 RETURNING *",[id,JSON.stringify(variants),checksum ?? null]);
+  async updateMediaVariants(id:string,variants:Record<string,string>,checksum?:string,scanStatus="CLEAN",scanResult?:string){
+    const r=await this.query("UPDATE property_media SET variants=$2::jsonb,checksum=COALESCE($3,checksum),scan_status=$4,scan_result=$5,scanned_at=now() WHERE id=$1 RETURNING *",[id,JSON.stringify(variants),checksum ?? null,scanStatus,scanResult ?? null]);
     return r.rows[0];
+  }
+
+  async markMediaScan(id:string,status:"CLEAN"|"INFECTED",result:string){
+    return this.query("UPDATE property_media SET scan_status=$2,scan_result=$3,scanned_at=now() WHERE id=$1 RETURNING *",[id,status,result]).then(r=>r.rows[0]);
   }
 
   async addDocument(propertyId:string,kind:string,key:string,expiresAt?:string){

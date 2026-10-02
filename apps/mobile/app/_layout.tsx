@@ -131,7 +131,16 @@ export default function Root() {
         <ThemeProvider>
           <PersistQueryClientProvider
             client={client}
-            persistOptions={{ persister: asyncStoragePersister, maxAge: 24 * 60 * 60 * 1000 }}
+            persistOptions={{
+              persister: asyncStoragePersister,
+              maxAge: 24 * 60 * 60 * 1000,
+              dehydrateOptions: {
+                shouldDehydrateQuery: (query) => {
+                  const root = String(query.queryKey?.[0] ?? "");
+                  return !["messages","message","bookings","booking","payments","payment","leases","lease","notifications","notification","admin","profile","user"].includes(root);
+                },
+              },
+            }}
           >
             <BiometricGate><><AppStack /><DebugPanel /></></BiometricGate>
           </PersistQueryClientProvider>

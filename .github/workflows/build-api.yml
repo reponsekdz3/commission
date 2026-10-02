@@ -22,8 +22,9 @@ env:
 
 jobs:
   build:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: read
       packages: write
@@ -35,8 +36,17 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
+      - name: Validate Docker Hub credentials
+        shell: bash
+        env:
+          DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "${DOCKER_USERNAME}" || { echo "DOCKER_USERNAME is required for image publishing"; exit 1; }
+          test -n "${DOCKER_PASSWORD}" || { echo "DOCKER_PASSWORD is required for image publishing"; exit 1; }
+
       - name: Log in to Docker Hub
-        if: github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -60,7 +70,7 @@ jobs:
         with:
           context: .
           file: infra/docker/api.Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
+          push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -68,7 +78,6 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    needs: build
     if: github.event_name == 'pull_request'
 
     services:
@@ -109,7 +118,10 @@ jobs:
       - name: Install dependencies
         run: npm install --frozen-lockfile
 
-      - name: Build packages
+      - name: Build workspace type packages
+        run: npm run build -w @imizi/types
+
+      - name: Build domain package
         run: npm run build -w @imizi/domain
 
       - name: Run tests

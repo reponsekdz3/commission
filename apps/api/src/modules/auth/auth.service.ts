@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException, ConflictException } from "@nestjs/common";
 import { JwtService } from "@nestjs/jwt";
-import { compareSync, hashSync } from "bcryptjs";
+import { compare, hash } from "bcryptjs";
 import { createHash, randomBytes, randomInt, randomUUID } from "crypto";
 import type { Role } from "@imizi/types";
 import { generateTotpSecret, otpauthUrl, verifyTotp } from "@imizi/auth";
@@ -18,7 +18,7 @@ export class AuthService {
     if (existing) throw new ConflictException("Account already exists");
     const user: UserRecord = {
       id: randomUUID(), email: input.email.toLowerCase(), phone: input.phone,
-      passwordHash: hashSync(input.password, 12), fullName: input.fullName, locale: input.locale ?? "rw",
+      passwordHash: await hash(input.password, 12), fullName: input.fullName, locale: input.locale ?? "rw",
       roles: ["USER" as Role], status: "ACTIVE", mfaEnabled: false, createdAt: new Date().toISOString(),
     };
     const created = await this.db.createUser(user);
@@ -28,7 +28,7 @@ export class AuthService {
 
   async login(identifier: string, password: string, mfaCode?: string, ip?: string, userAgent?: string) {
     const user = await this.db.findUserByIdentifier(identifier);
-    if (!user || !compareSync(password, user.passwordHash)) {
+    if (!user || !(await compare(password, user.passwordHash))) {
       await this.features.audit(undefined, "LOGIN_FAILED", "auth", identifier, undefined, undefined, ip);
       throw new UnauthorizedException("Invalid credentials");
     }
@@ -36,6 +36,7 @@ export class AuthService {
       if(!mfaCode) throw new UnauthorizedException({code:"MFA_REQUIRED",message:"Multi-factor authentication code required"});
       const secret=await this.db.getMfaSecret(user.id);
       if(!secret?.secret || !verifyTotp(secret.secret,mfaCode)) throw new UnauthorizedException("Invalid MFA code");
+      if(secret.encrypted===false) await this.db.setMfaSecret(user.id,secret.secret);
     }
     await this.features.audit(user.id, "LOGIN_SUCCESS", "user", user.id, undefined, undefined, ip);
     return this.issue(user, userAgent, ip);
@@ -61,7 +62,7 @@ export class AuthService {
     if(!challenge) throw new UnauthorizedException("Invalid or expired recovery code");
     const user=await this.db.findUserById(String(challenge.user_id));
     if(!user||user.status!=="ACTIVE") throw new UnauthorizedException("Account is unavailable");
-    await this.db.query("UPDATE users SET password_hash=$2,updated_at=now() WHERE id=$1",[user.id,hashSync(password,12)]);
+    await this.db.query("UPDATE users SET password_hash=$2,updated_at=now() WHERE id=$1",[user.id,await hash(password,12)]);
     await this.db.revokeAllSessions(user.id);
     await this.features.audit(user.id,"PASSWORD_RESET_COMPLETED","user",user.id);
     return {reset:true};
@@ -76,6 +77,7 @@ export class AuthService {
   async enableMfa(user:UserRecord,code:string){
     const secret=await this.db.getMfaSecret(user.id);
     if(!secret?.secret || !verifyTotp(secret.secret,code)) throw new UnauthorizedException("Invalid MFA code");
+    if(secret.encrypted===false) await this.db.setMfaSecret(user.id,secret.secret);
     await this.db.setMfaEnabled(user.id,true);
     await this.features.audit(user.id,"MFA_ENABLED","user",user.id);
     return {enabled:true};
@@ -84,6 +86,7 @@ export class AuthService {
   async disableMfa(user:UserRecord,code:string){
     const secret=await this.db.getMfaSecret(user.id);
     if(!secret?.secret || !verifyTotp(secret.secret,code)) throw new UnauthorizedException("Invalid MFA code");
+    if(secret.encrypted===false) await this.db.setMfaSecret(user.id,secret.secret);
     await this.db.setMfaEnabled(user.id,false);
     await this.db.setMfaSecret(user.id,"");
     await this.features.audit(user.id,"MFA_DISABLED","user",user.id);
@@ -91,7 +94,7 @@ export class AuthService {
   }
 
   async reauthenticate(user:UserRecord,password:string,action:string,mfaCode?:string){
-    if(!compareSync(password,user.passwordHash)) throw new UnauthorizedException("Invalid password");
+    if(!(await compare(password,user.passwordHash))) throw new UnauthorizedException("Invalid password");
     if(user.mfaEnabled){
       const secret=await this.db.getMfaSecret(user.id);
       if(!mfaCode || !secret?.secret || !verifyTotp(secret.secret,mfaCode)) throw new UnauthorizedException("Valid MFA code required");
@@ -111,6 +114,12 @@ export class AuthService {
   async sessions(user:UserRecord){return this.db.listSessions(user.id);}
   async revokeSession(user:UserRecord,id:string){return this.db.revokeSession(user.id,id);}
     
+  async logout(refreshToken:string){
+    const hash=createHash("sha256").update(refreshToken).digest("hex");
+    await this.db.revokeRefreshToken(hash);
+    return {ok:true};
+  }
+
   async refresh(refreshToken: string) {
     const hash = createHash("sha256").update(refreshToken).digest("hex");
     const userId = await this.db.consumeRefreshToken(hash);

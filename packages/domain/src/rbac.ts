@@ -135,6 +135,7 @@ export const SENSITIVE_ACTIONS = [
   "account:change-phone",
   "account:change-email",
   "ownership:change",
+  "account:delete",
 ] as const;
 
 export function requiresReauth(action: string): boolean {

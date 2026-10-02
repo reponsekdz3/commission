@@ -191,7 +191,7 @@ export class FeatureService {
       if(!existing.rows[0]) return undefined;
       const status=accept?"VERIFIED":"REJECTED";
       const updated=await client.query("UPDATE verification_requests SET status=$2,reviewer_id=$3,updated_at=now() WHERE id=$1 RETURNING *",[id,status,actorId]);
-      if(existing.rows[0].subject_type==="property" && accept) {
+      if(String(existing.rows[0].subject_type).toUpperCase()==="PROPERTY" && accept) {
         await client.query("UPDATE properties SET verification_status='VERIFIED',updated_at=now() WHERE id=$1",[existing.rows[0].subject_id]);
       }
       return updated.rows[0];
@@ -207,6 +207,7 @@ export class FeatureService {
   async createOffer(userId:string,input:{listingId:string;amountMinor:number;currency:string;message?:string}) {
     const listing=await this.db.getListing(input.listingId);
     if(!listing || listing.listingType!=="SALE") return {error:"sale_listing_required"};
+    if(input.currency!==listing.currency) return {error:"currency_mismatch"};
     const property=await this.db.getProperty(listing.propertyId);
     if(!property) return {error:"not_found"};
     if(property.ownerId===userId) return {error:"owner_cannot_offer_on_own_listing"};
@@ -257,6 +258,10 @@ export class FeatureService {
   }
 
   async requestViewing(userId:string,listingId:string,slotStart:string) {
+    const listing=await this.db.getListing(listingId);
+    if(!listing || listing.status!=="ACTIVE") return {error:"listing_unavailable"};
+    const parsed=new Date(slotStart);
+    if(!Number.isFinite(parsed.getTime()) || parsed.getTime()<Date.now()) return {error:"invalid_slot"};
     const duplicate=await this.db.query("SELECT 1 FROM viewing_appointments WHERE listing_id=$1 AND slot_start=$2::timestamptz AND status IN('REQUESTED','CONFIRMED')",[listingId,slotStart]);
     if(duplicate.rows[0]) return {error:"slot_unavailable"};
     const result=await this.db.query(
@@ -377,7 +382,11 @@ export class FeatureService {
     return {status:"scheduled"};
   }
 
-  async agencies() { return this.db.query("SELECT o.*,COALESCE(ARRAY_AGG(om.user_id),'{}') members FROM organizations o LEFT JOIN organization_members om ON om.organization_id=o.id GROUP BY o.id ORDER BY o.created_at DESC").then((r)=>r.rows); }
+  async agencies() {
+    return this.db.query(
+      "SELECT o.id,o.name,o.slug,o.kind,o.created_at FROM organizations o WHERE o.kind='AGENCY' ORDER BY o.created_at DESC"
+    ).then((r)=>r.rows);
+  }
 
   async agencyDashboard(userId:string) {
     const org=await this.db.query("SELECT o.id,o.name,o.slug,o.kind,ARRAY_AGG(om.user_id) members FROM organizations o JOIN organization_members om ON om.organization_id=o.id WHERE EXISTS(SELECT 1 FROM organization_members x WHERE x.organization_id=o.id AND x.user_id=$1) GROUP BY o.id",[userId]);
@@ -415,8 +424,9 @@ export class FeatureService {
     );
     const orgId=org.rows[0]?.organization_id;
     if(!orgId)return {error:"agency_admin_required"};
-    const target=await this.db.query("SELECT id FROM users WHERE id=$1",[targetUserId]);
+    const target=await this.db.query("SELECT id,organization_id FROM users WHERE id=$1",[targetUserId]);
     if(!target.rows[0])return {error:"user_not_found"};
+    if(target.rows[0].organization_id && String(target.rows[0].organization_id)!==String(orgId))return {error:"user_already_belongs_to_another_organization"};
     await this.db.transaction(async(client)=>{
       await client.query("INSERT INTO organization_members(organization_id,user_id,role) VALUES($1,$2,$3) ON CONFLICT(organization_id,user_id) DO UPDATE SET role=EXCLUDED.role",[orgId,targetUserId,role]);
       await client.query("UPDATE users SET organization_id=$2 WHERE id=$1",[targetUserId,orgId]);
@@ -431,8 +441,19 @@ export class FeatureService {
     if(!orgId)return {error:"not_an_agent"};
     const admin=await this.db.query("SELECT 1 FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role='AGENCY_ADMIN'",[orgId,actorId]);
     if(!admin.rows[0])return {error:"agency_admin_required"};
-    await this.db.query("DELETE FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role<>'AGENCY_ADMIN'",[orgId,targetUserId]);
-    await this.db.query("UPDATE users SET organization_id=NULL WHERE id=$1 AND id<>$2 AND organization_id=$3",[targetUserId,actorId,orgId]);
+    await this.db.transaction(async(client)=>{
+      await client.query("DELETE FROM organization_members WHERE organization_id=$1 AND user_id=$2 AND role<>'AGENCY_ADMIN'",[orgId,targetUserId]);
+      const other=await client.query("SELECT organization_id,role FROM organization_members WHERE user_id=$1 ORDER BY created_at LIMIT 1",[targetUserId]);
+      if(other.rows[0]){
+        await client.query("UPDATE users SET organization_id=$2 WHERE id=$1",[targetUserId,other.rows[0].organization_id]);
+      }else{
+        await client.query("UPDATE users SET organization_id=NULL WHERE id=$1 AND id<>$2 AND organization_id=$3",[targetUserId,actorId,orgId]);
+      }
+      const still=await client.query("SELECT 1 FROM organization_members WHERE user_id=$1 AND role=$2 LIMIT 1",[targetUserId,"AGENT"]);
+      const stillManager=await client.query("SELECT 1 FROM organization_members WHERE user_id=$1 AND role=$2 LIMIT 1",[targetUserId,"PROPERTY_MANAGER"]);
+      if(!still.rows[0]) await client.query("DELETE FROM user_roles WHERE user_id=$1 AND role='AGENT'",[targetUserId]);
+      if(!stillManager.rows[0]) await client.query("DELETE FROM user_roles WHERE user_id=$1 AND role='PROPERTY_MANAGER'",[targetUserId]);
+    });
     return {ok:true};
   }
 

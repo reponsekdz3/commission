@@ -9,6 +9,10 @@ export function loadConfig() {
   const isProduction = env === "production";
   const jwtAccessSecret = process.env.JWT_ACCESS_SECRET;
   const jwtRefreshSecret = process.env.JWT_REFRESH_SECRET;
+  const mfaEncryptionKey = process.env.MFA_ENCRYPTION_KEY;
+  if (isProduction && (!mfaEncryptionKey || !/^[0-9a-fA-F]{64}$/.test(mfaEncryptionKey))) {
+    throw new Error("MFA_ENCRYPTION_KEY must be a 32-byte hex key (64 hex characters) in production");
+  }
   if (isProduction && (!jwtAccessSecret || jwtAccessSecret.length < 32 || !jwtRefreshSecret || jwtRefreshSecret.length < 32)) {
     throw new Error("JWT_ACCESS_SECRET and JWT_REFRESH_SECRET must each be at least 32 characters in production");
   }
@@ -18,6 +22,7 @@ export function loadConfig() {
     apiPrefix: process.env.API_PREFIX ?? "/api/v1",
     jwtAccessSecret: jwtAccessSecret ?? "dev-access-secret-change-me-32chars",
     jwtRefreshSecret: jwtRefreshSecret ?? "dev-refresh-secret-change-me-32chars",
+    mfaEncryptionKey: mfaEncryptionKey ?? jwtAccessSecret ?? "dev-mfa-key-change-me-32chars",
     databaseUrl: process.env.DATABASE_URL,
     redisUrl: process.env.REDIS_URL ?? "redis://localhost:6379",
     opensearchUrl: process.env.OPENSEARCH_URL ?? "http://localhost:9200",
