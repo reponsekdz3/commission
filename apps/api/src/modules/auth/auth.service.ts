@@ -36,6 +36,7 @@ export class AuthService {
       if(!mfaCode) throw new UnauthorizedException({code:"MFA_REQUIRED",message:"Multi-factor authentication code required"});
       const secret=await this.db.getMfaSecret(user.id);
       if(!secret?.secret || !verifyTotp(secret.secret,mfaCode)) throw new UnauthorizedException("Invalid MFA code");
+      if(secret.encrypted===false) await this.db.setMfaSecret(user.id,secret.secret);
     }
     await this.features.audit(user.id, "LOGIN_SUCCESS", "user", user.id, undefined, undefined, ip);
     return this.issue(user, userAgent, ip);
@@ -76,6 +77,7 @@ export class AuthService {
   async enableMfa(user:UserRecord,code:string){
     const secret=await this.db.getMfaSecret(user.id);
     if(!secret?.secret || !verifyTotp(secret.secret,code)) throw new UnauthorizedException("Invalid MFA code");
+    if(secret.encrypted===false) await this.db.setMfaSecret(user.id,secret.secret);
     await this.db.setMfaEnabled(user.id,true);
     await this.features.audit(user.id,"MFA_ENABLED","user",user.id);
     return {enabled:true};
@@ -84,6 +86,7 @@ export class AuthService {
   async disableMfa(user:UserRecord,code:string){
     const secret=await this.db.getMfaSecret(user.id);
     if(!secret?.secret || !verifyTotp(secret.secret,code)) throw new UnauthorizedException("Invalid MFA code");
+    if(secret.encrypted===false) await this.db.setMfaSecret(user.id,secret.secret);
     await this.db.setMfaEnabled(user.id,false);
     await this.db.setMfaSecret(user.id,"");
     await this.features.audit(user.id,"MFA_DISABLED","user",user.id);
