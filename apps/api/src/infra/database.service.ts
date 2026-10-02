@@ -611,6 +611,8 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     return r.rows[0];
   }
 
+  async deleteMedia(id:string){await this.query("DELETE FROM property_media WHERE id=$1",[id]);return {deleted:true};}
+
   async addMedia(propertyId:string,kind:string,key:string){
     const id=randomUUID();
     const order=await this.query("SELECT COALESCE(MAX(sort_order),-1)+1 next FROM property_media WHERE property_id=$1",[propertyId]);
