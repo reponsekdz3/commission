@@ -172,8 +172,9 @@ export class JobsService implements OnModuleInit {
           const media=await this.db.getMedia(String(job.payload?.mediaId ?? ""));
           if(media){
             const input=await this.storage.readBuffer(String(media.storage_key));
+            const meta=await this.storage.headObject(String(media.storage_key));
             const scan=await this.malware.scan(input);
-            if(!scan.clean){throw new Error("Malware detected in uploaded media: "+scan.result);}
+            if(!scan.clean){await this.storage.deleteObject(String(media.storage_key)).catch(()=>undefined);await this.db.deleteMedia(media.id);throw new Error("Malware detected in uploaded media: "+scan.result);}
             const checksum=createHash("sha256").update(input).digest("hex");
             const dir=await mkdtemp(join(tmpdir(),"imizi-media-"));
             try{
@@ -223,9 +224,16 @@ export class JobsService implements OnModuleInit {
                 variants.width=String(width);
                 variants.height=String(height);
               } else {
-                variants.original=String(media.storage_key);
+                const contentType=meta.contentType?.split(";")[0].trim().toLowerCase()||"application/octet-stream";
+                const ext=contentType==="application/pdf"?".pdf":contentType==="image/png"?".png":contentType==="image/webp"?".webp":contentType.startsWith("image/")?".jpg":"";
+                const safeKey="property/"+media.property_id+"/optimized/"+media.id+"-original"+ext;
+                await this.storage.putBuffer("public/"+safeKey,contentType,input);
+                variants.original=safeKey;
               }
               await this.db.updateMediaVariants(media.id,variants,checksum);
+              if(String(media.storage_key).startsWith("private/")||String(media.storage_key).startsWith("private/quarantine/")||String(media.storage_key).startsWith("quarantine/")){
+                await this.storage.deleteObject(String(media.storage_key)).catch(()=>undefined);
+              }
             }finally{
               await rm(dir,{recursive:true,force:true}).catch(()=>undefined);
             }
