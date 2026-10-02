@@ -10,6 +10,7 @@ import { ThemeToggle } from "../theme-toggle";
 import { CommandPalette } from "./command-palette";
 import { NotificationsBell } from "./notifications-bell";
 import { UserMenu } from "./user-menu";
+import { restoreSession } from "../../lib/api";
 
 const NAV_LINKS = [
   { href: "/search",   label: "Discover",    icon: Search },
@@ -29,6 +30,9 @@ export function Topbar() {
 
   useEffect(() => {
     try { setU(JSON.parse(sessionStorage.getItem("imizi_user") || localStorage.getItem("imizi_user") || "null")); } catch {}
+    void restoreSession().then(() => {
+      try { setU(JSON.parse(sessionStorage.getItem("imizi_user") || "null")); } catch {}
+    });
     const onScroll = () => setScrolled(window.scrollY > 8);
     window.addEventListener("scroll", onScroll, { passive: true });
     return () => window.removeEventListener("scroll", onScroll);
