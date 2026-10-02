@@ -16,8 +16,8 @@ export class PrivacyController {
   @Post("delete")
   async delete(@CurrentUser() user:UserRecord,@Body() body:unknown){
     const data=z.object({reauthToken:z.string().min(32).max(128)}).parse(body);
-    if(requiresReauth("property:delete")){
-      const ok=await this.auth.consumeReauth(user,"property:delete",data.reauthToken);
+    if(requiresReauth("account:delete")){
+      const ok=await this.auth.consumeReauth(user,"account:delete",data.reauthToken);
       if(!ok)throw new ForbiddenException("Valid reauthentication is required before account deletion");
     }
     return this.features.deleteAccount(user.id);
