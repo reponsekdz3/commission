@@ -14,7 +14,7 @@ async function request<T>(path:string,init:RequestInit,headers:Record<string,str
 }
 export async function api<T>(path:string,init:RequestInit={}){return request<T>(path,init,{"content-type":"application/json",...(init.headers as Record<string,string>||{})})}
 
-async function refreshSession(){
+export async function restoreSession(){
   if(typeof window==="undefined")return null;
   if(refreshPromise)return refreshPromise;
   refreshPromise=request<{accessToken?:string;user?:unknown}>(
@@ -32,7 +32,7 @@ async function refreshSession(){
 export async function authApi<T>(path:string,init:RequestInit={},retry=true){
   if(typeof window==="undefined")throw new Error("Browser authentication required");
   let token=accessToken;
-  if(!token)token=await refreshSession();
+  if(!token)token=await restoreSession();
   const headers:Record<string,string>={
     ...(init.headers as Record<string,string>||{}),
     "content-type":"application/json",
@@ -42,7 +42,7 @@ export async function authApi<T>(path:string,init:RequestInit={},retry=true){
   try{return await request<T>(path,init,headers)}
   catch(e:any){
     if(e.status===401&&retry){
-      const next=await refreshSession();
+      const next=await restoreSession();
       if(next){
         return request<T>(path,init,{...headers,authorization:"Bearer "+next});
       }
