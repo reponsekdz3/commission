@@ -35,7 +35,7 @@ export default function Workspace() {
 
   useEffect(() => {
     try {
-      const x = JSON.parse(localStorage.getItem("imizi_user") || "null");
+      const x = JSON.parse(sessionStorage.getItem("imizi_user") || "null");
       setU(x);
       if (!x) return;
       load(x);
