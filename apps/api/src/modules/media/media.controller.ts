@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { Body, Controller, Post, BadRequestException } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { Throttle } from "@nestjs/throttler";
@@ -41,7 +42,7 @@ export class MediaController {
 
     const config=loadConfig();
     const safeName=data.filename.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,140);
-    const key="property/"+data.propertyId+"/original/"+user.id+"/"+crypto.randomUUID()+"-"+safeName;
+    const key="property/"+data.propertyId+"/original/"+user.id+"/"+randomUUID()+"-"+safeName;
     const maxBytes=data.kind==="VIDEO" ? Math.min(config.maxMediaBytes,500*1024*1024) : Math.min(config.maxMediaBytes,50*1024*1024);
     return {...this.storage.presignedPut("public/"+key,data.contentType),private:false,maxBytes,kind:data.kind,contentType:data.contentType};
   }
