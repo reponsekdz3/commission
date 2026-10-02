@@ -9,6 +9,7 @@ async function refreshSession(){
   const legacyRefresh=localStorage.getItem("imizi_refresh");
   refreshPromise=api<any>("/auth/refresh",{
     method:"POST",
+    headers:{"X-Imizi-Session":"cookie"},
     ...(legacyRefresh?{body:JSON.stringify({refreshToken:legacyRefresh})}:{})
   }).then(next=>{
     localStorage.removeItem("imizi_token");
