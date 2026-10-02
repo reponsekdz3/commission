@@ -18,5 +18,5 @@ export class CatalogController {
   @ApiBearerAuth() @Post("saved-searches") save(@CurrentUser() user:UserRecord,@Body() body:{name:string;criteria:Record<string,unknown>}){return this.features.saveSearch(user.id,body.name,body.criteria);}
   @ApiBearerAuth() @Delete("saved-searches/:id") remove(@CurrentUser() user:UserRecord,@Param("id") id:string){return this.features.deleteSavedSearch(user.id,id);}
   @Public() @Get("compare") compare(@Query("ids") ids?:string){return this.features.compare(ids?.split(",").map(x=>x.trim()).filter(Boolean));}
-  @ApiBearerAuth() @Get("admin/settings") settings(@CurrentUser() user:UserRecord){if(!hasPermission(user.roles,"admin:access"))return{error:"forbidden"};return{commissionsBps:Number(process.env.PLATFORM_COMMISSION_BPS ?? 500),environments:["development","staging","production"],backups:{daily:true,pitr:true,offsite:true}};}
+  @ApiBearerAuth() @Get("admin/settings") settings(@CurrentUser() user:UserRecord){if(!hasPermission(user.roles,"admin:access"))return{error:"forbidden"};return{commissionsBps:Number(process.env.PLATFORM_COMMISSION_BPS ?? 500),environments:["development","staging","production"]};}
 }
