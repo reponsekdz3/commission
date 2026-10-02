@@ -1,8 +1,10 @@
-const API=process.env.NEXT_PUBLIC_API_URL??"http://localhost:4000/api/v1";
+const configuredApi=process.env.NEXT_PUBLIC_API_URL?.trim();
+const API=configuredApi || (process.env.NODE_ENV==="development" ? "http://localhost:4000/api/v1" : "");
+function apiBase(){if(!API)throw new Error("NEXT_PUBLIC_API_URL is required outside development");return API;}
 let refreshPromise:Promise<string|null>|null=null;
 let accessToken:string|null=null;
 
-export function apiUrl(path:string){return API+(path.startsWith("/")?path:"/"+path)}
+export function apiUrl(path:string){return apiBase()+(path.startsWith("/")?path:"/"+path)}
 async function parse<T>(r:Response){const text=await r.text();let data:any;try{data=text?JSON.parse(text):null}catch{data=text}if(!r.ok)throw Object.assign(new Error(data?.message||data?.error||("API "+r.status)),{status:r.status,data});return data as T}
 async function request<T>(path:string,init:RequestInit,headers:Record<string,string>){
   const controller=new AbortController();const timer=setTimeout(()=>controller.abort(),15000);
