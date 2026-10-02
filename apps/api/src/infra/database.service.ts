@@ -212,17 +212,23 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     };
   }
 
-  async hydrateProperty(id: string) {
+  async hydrateProperty(id: string, publicView=false) {
     const property = await this.getProperty(id);
     if (!property) return undefined;
     const [units,listings,views] = await Promise.all([
-      this.query("SELECT id,property_id,label,bedrooms,bathrooms,parking,status FROM property_units WHERE property_id=$1 ORDER BY label",[id]),
+      this.query(
+        "SELECT id,property_id,label,bedrooms,bathrooms,parking,status FROM property_units WHERE property_id=$1 " +
+        (publicView ? "AND status='AVAILABLE' " : "") +
+        "ORDER BY label",[id],
+      ),
       this.query(
         "SELECT pl.id,pl.property_id,pl.unit_id,pl.listing_type,pl.status,pl.available_from,pl.created_at,pl.updated_at," +
         "COALESCE(pp.amount_minor,0) price_minor,COALESCE(pp.currency,'RWF') currency " +
         "FROM property_listings pl LEFT JOIN LATERAL " +
         "(SELECT amount_minor,currency FROM property_prices WHERE listing_id=pl.id AND effective_to IS NULL ORDER BY effective_from DESC LIMIT 1) pp ON TRUE " +
-        "WHERE pl.property_id=$1 ORDER BY pl.created_at DESC",[id],
+        "WHERE pl.property_id=$1 " +
+        (publicView ? "AND pl.status='ACTIVE' " : "") +
+        "ORDER BY pl.created_at DESC",[id],
       ),
       this.query("SELECT COUNT(*)::int count FROM property_views WHERE property_id=$1",[id]),
     ]);
