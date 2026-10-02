@@ -4,7 +4,6 @@ import { Reflector } from "@nestjs/core";
 import { IS_PUBLIC } from "./public.decorator";
 import { DatabaseService } from "../infra/database.service";
 
-@Injectable()
 function readCookie(header:string|undefined,name:string){
   if(!header)return undefined;
   const prefix=name+"=";
@@ -15,6 +14,7 @@ function readCookie(header:string|undefined,name:string){
   return undefined;
 }
 
+@Injectable()
 export class AuthGuard implements CanActivate {
   constructor(private readonly jwt: JwtService, private readonly reflector: Reflector, private readonly db: DatabaseService) {}
 
