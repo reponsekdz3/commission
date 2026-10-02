@@ -4,7 +4,7 @@ import { createPropertySchema, updatePropertySchema, unitCreateSchema } from "@i
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { PropertiesService } from "./properties.service";
-import { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 
 @ApiTags("properties")
 @Controller("properties")
