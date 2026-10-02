@@ -8,6 +8,7 @@ import { DatabaseService } from "../../infra/database.service";
 import { StorageService } from "../../infra/storage.service";
 import { loadConfig } from "@imizi/config";
 import { z } from "zod";
+import { matchesMagic } from "../../infra/file-validation";
 const mediaRequestSchema=z.object({propertyId:z.string().uuid(),filename:z.string().trim().min(1).max(180),contentType:z.string().trim().toLowerCase().max(100),kind:z.enum(["PHOTO","VIDEO","TOUR_360","FLOOR_PLAN","DOCUMENT"])});
 const allowedByKind:Record<string,string[]>={
   PHOTO:["image/jpeg","image/png","image/webp"],VIDEO:["video/mp4"],TOUR_360:["image/jpeg","image/png","image/webp"],FLOOR_PLAN:["image/jpeg","image/png","image/webp","application/pdf"],DOCUMENT:["application/pdf","image/jpeg","image/png","image/webp"],
@@ -20,6 +21,8 @@ export class MediaController {
     const d=mediaRequestSchema.parse(body); const property=await this.db.getProperty(d.propertyId); if(!property)throw new BadRequestException("Property not found");
     assertPropertyAccess(user,property,true);
     if(!(allowedByKind[d.kind]??[]).includes(d.contentType))throw new BadRequestException("file_type_rejected");
+    const signature=await this.storage.readPrefix(d.key,64);
+    if(!matchesMagic(signature,actualType)){await this.storage.deleteObject(d.key).catch(()=>undefined);throw new BadRequestException("uploaded_file_signature_rejected");}
     const maxBytes=d.kind==="VIDEO"?loadConfig().maxMediaBytes:Math.min(loadConfig().maxMediaBytes,50*1024*1024);
     const safeName=d.filename.replace(/[^a-zA-Z0-9._-]/g,"_").slice(0,180);
     const key="private/quarantine/property/"+d.propertyId+"/"+Date.now()+"-"+safeName;
@@ -29,7 +32,7 @@ export class MediaController {
   async complete(@CurrentUser() user:UserRecord,@Body() body:unknown){
     const d=z.object({propertyId:z.string().uuid(),key:z.string().min(10).max(1000),kind:z.enum(["PHOTO","VIDEO","TOUR_360","FLOOR_PLAN","DOCUMENT"])}).parse(body);
     const property=await this.db.getProperty(d.propertyId); if(!property)throw new BadRequestException("Property not found");
-    assertPropertyAccess(user,property,true); const expectedPrefix="public/property/"+d.propertyId+"/original/";
+    assertPropertyAccess(user,property,true); const expectedPrefix="private/quarantine/property/"+d.propertyId+"/";
     if(!d.key.startsWith(expectedPrefix)||d.key.includes(".."))throw new BadRequestException("invalid_key");
     const meta=await this.storage.headObject(d.key); const actualType=meta.contentType?.split(";")[0].trim().toLowerCase();
     if(!actualType||!(allowedByKind[d.kind]??[]).includes(actualType)){
