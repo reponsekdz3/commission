@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import { Pool, PoolClient } from "pg";
-import { createHash, randomUUID } from "crypto";
+import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID } from "crypto";
 import { loadConfig } from "@imizi/config";
 import type { Role, RiskLevel } from "@imizi/types";
 import { matchesSavedSearch } from "@imizi/domain";
@@ -630,13 +630,40 @@ export class DatabaseService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  private encryptMfaSecret(secret:string){
+    const key=Buffer.from(loadConfig().mfaEncryptionKey,"hex");
+    if(key.length!==32)throw new Error("Invalid MFA encryption key");
+    const iv=randomBytes(12);
+    const cipher=createCipheriv("aes-256-gcm",key,iv);
+    const ciphertext=Buffer.concat([cipher.update(secret,"utf8"),cipher.final()]);
+    const tag=cipher.getAuthTag();
+    return "enc:v1:"+iv.toString("base64url")+":"+tag.toString("base64url")+":"+ciphertext.toString("base64url");
+  }
+
+  private decryptMfaSecret(value:string){
+    if(!value.startsWith("enc:v1:"))return {secret:value,encrypted:false};
+    const [,version,ivRaw,tagRaw,dataRaw]=value.split(":");
+    if(version!=="v1"||!ivRaw||!tagRaw||!dataRaw)throw new Error("Invalid encrypted MFA secret");
+    const key=Buffer.from(loadConfig().mfaEncryptionKey,"hex");
+    if(key.length!==32)throw new Error("Invalid MFA encryption key");
+    const iv=Buffer.from(ivRaw,"base64url");
+    const tag=Buffer.from(tagRaw,"base64url");
+    const ciphertext=Buffer.from(dataRaw,"base64url");
+    const decipher=createDecipheriv("aes-256-gcm",key,iv);
+    decipher.setAuthTag(tag);
+    return {secret:Buffer.concat([decipher.update(ciphertext),decipher.final()]).toString("utf8"),encrypted:true};
+  }
+
   async getMfaSecret(userId:string){
     const r=await this.query("SELECT mfa_secret,mfa_enabled FROM users WHERE id=$1",[userId]);
-    return r.rows[0] ? {secret:r.rows[0].mfa_secret ?? undefined,enabled:Boolean(r.rows[0].mfa_enabled)} : undefined;
+    if(!r.rows[0])return undefined;
+    const raw=r.rows[0].mfa_secret as string|undefined;
+    const decoded=raw ? this.decryptMfaSecret(raw) : {secret:undefined,encrypted:true};
+    return {secret:decoded.secret,enabled:Boolean(r.rows[0].mfa_enabled),encrypted:decoded.encrypted};
   }
 
   async setMfaSecret(userId:string,secret:string){
-    await this.query("UPDATE users SET mfa_secret=$2,updated_at=now() WHERE id=$1",[userId,secret]);
+    await this.query("UPDATE users SET mfa_secret=$2,updated_at=now() WHERE id=$1",[userId,this.encryptMfaSecret(secret)]);
   }
 
   async setMfaEnabled(userId:string,enabled:boolean){
