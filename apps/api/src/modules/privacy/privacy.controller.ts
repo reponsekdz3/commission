@@ -1,7 +1,7 @@
 import { Body, Controller, ForbiddenException, Get, Post } from "@nestjs/common";
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { CurrentUser } from "../../common/current-user.decorator";
-import { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { requiresReauth } from "@imizi/domain";
 import { z } from "zod";
 import { AuthService } from "../auth/auth.service";
