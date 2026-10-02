@@ -917,3 +917,11 @@ body:has(.auth-page){padding-bottom:0!important}
 @media(prefers-reduced-motion:reduce){
   .searchMap,.searchList{scroll-behavior:auto}
 }
+
+.search-querybar{display:flex;align-items:center;gap:8px;max-width:760px;padding:5px 6px 5px 12px;border:1px solid var(--color-border);border-radius:15px;background:var(--color-surface-1);box-shadow:var(--shadow-1)}
+.search-querybar:focus-within{border-color:var(--color-primary);box-shadow:0 0 0 3px var(--color-focus),var(--shadow-2)}
+.search-querybar input{flex:1;min-width:0;border:0;outline:0;background:transparent;color:var(--color-fg);min-height:38px;font-size:13px}
+.search-querybar input::placeholder{color:var(--color-fg-subtle)}
+.search-querybar>button:not(.btn){display:grid;place-items:center;width:30px;height:30px;border:0;border-radius:9px;background:transparent;color:var(--color-fg-muted)}
+.search-querybar>button:not(.btn):hover{background:var(--color-surface-3);color:var(--color-fg)}
+@media(max-width:620px){.search-querybar{max-width:none}.search-querybar .btn{min-height:38px}.search-querybar input{font-size:12px}}
