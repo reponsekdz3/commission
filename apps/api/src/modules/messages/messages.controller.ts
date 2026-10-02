@@ -99,32 +99,39 @@ export class MessagesGateway {
   }
 
   @SubscribeMessage("join:conversation")
-  async joinConversation(@MessageBody() body:{conversationId:string},@ConnectedSocket() client:Socket) {
+  async joinConversation(@MessageBody() body:unknown,@ConnectedSocket() client:Socket) {
     const userId=client.data.userId as string | undefined;
-    if(!userId || !body?.conversationId) return {error:"unauthorized"};
-    const conversation=await this.features.getConversation(userId,body.conversationId);
-    if(!conversation) return {error:"forbidden"};
-    await client.join("conversation:"+body.conversationId);
+    if(!userId) return {error:"unauthorized"};
+    const parsed=z.object({conversationId:z.string().uuid()}).safeParse(body);
+    if(!parsed.success)return {error:"invalid_payload"};
+    const conversation=await this.features.getConversation(userId,parsed.data.conversationId);
+    if(!conversation)return {error:"forbidden"};
+    await client.join("conversation:"+parsed.data.conversationId);
     return {ok:true};
   }
 
   @SubscribeMessage("typing")
-  async typing(@MessageBody() body:{conversationId:string;active?:boolean},@ConnectedSocket() client:Socket){
+  async typing(@MessageBody() body:unknown,@ConnectedSocket() client:Socket){
     const userId=client.data.userId as string | undefined;
-    if(!userId || !body?.conversationId) return {error:"unauthorized"};
-    const conversation=await this.features.getConversation(userId,body.conversationId);
-    if(!conversation) return {error:"forbidden"};
-    client.to("conversation:"+body.conversationId).emit("typing",{conversationId:body.conversationId,userId,active:body.active!==false});
+    if(!userId)return {error:"unauthorized"};
+    const parsed=z.object({conversationId:z.string().uuid(),active:z.boolean().optional()}).safeParse(body);
+    if(!parsed.success)return {error:"invalid_payload"};
+    const conversation=await this.features.getConversation(userId,parsed.data.conversationId);
+    if(!conversation)return {error:"forbidden"};
+    client.to("conversation:"+parsed.data.conversationId).emit("typing",{conversationId:parsed.data.conversationId,userId,active:parsed.data.active!==false});
     return {ok:true};
   }
 
   @SubscribeMessage("message:send")
-  async send(@MessageBody() body:{conversationId?:string;recipientId?:string;propertyId?:string;bookingId?:string;offerId?:string;body:string;attachmentIds?:string[]},@ConnectedSocket() client:Socket){
+  async send(@MessageBody() body:unknown,@ConnectedSocket() client:Socket){
     const userId=client.data.userId as string | undefined;
-    if(!userId || !body?.body?.trim()) return {error:"unauthorized"};
-    const result=await this.features.sendMessage(userId,{...body,body:body.body.trim(),attachmentIds:body.attachmentIds});
+    if(!userId)return {error:"unauthorized"};
+    const parsed=messageSchema.safeParse(body);
+    if(!parsed.success)return {error:"invalid_payload"};
+    const data=parsed.data;
+    const result=await this.features.sendMessage(userId,{conversationId:data.conversationId,recipientId:data.recipientId,propertyId:data.propertyId,bookingId:data.bookingId,offerId:data.offerId,body:data.body,attachmentIds:data.attachmentIds});
     if((result as any)?.error) return result;
-    const conversationId=(result as any)?.conversation_id ?? (result as any)?.conversationId ?? body.conversationId;
+    const conversationId=(result as any)?.conversation_id ?? (result as any)?.conversationId ?? data.conversationId;
     if(conversationId) {
       await client.join("conversation:"+conversationId);
       this.server.to("conversation:"+conversationId).emit("message:new",result);
