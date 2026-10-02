@@ -126,7 +126,7 @@ export class MtnMoMoProvider implements PaymentProvider {
     return typeof value==="string"&&secretsEqual(value,configured);
   }
 
-  parseWebhook(rawBody:string){
+  parseWebhook(rawBody:string):{providerReference:string;status:PaymentStatus}{
     const body=JSON.parse(rawBody) as {referenceId?:string;status?:string;reference?:string;financialTransactionId?:string};
     const providerReference=body.referenceId ?? body.reference ?? body.financialTransactionId ?? "";
     const status=(body.status ?? "").toUpperCase();
