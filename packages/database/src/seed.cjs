@@ -100,7 +100,7 @@ async function main() {
         "INSERT INTO properties(id,owner_id,organization_id,title,description,property_type,status,country_code,verification_status,risk_level,risk_score,bedrooms,bathrooms,parking,area_value,area_unit,published_at) " +
         "VALUES($1,'11111111-1111-1111-1111-111111111111',$2,$3,$4,$5,'PUBLISHED','RW',$6,'LOW',4,$7,$8,$9,$10,'SQM',now()) " +
         "ON CONFLICT(id) DO UPDATE SET title=EXCLUDED.title,description=EXCLUDED.description,updated_at=now(),status='PUBLISHED'",
-        [p.id,p.id==="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" ? "55555555-5555-5555-5555-555555555555" : null,p.title,p.description,p.type,p.id==="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee" ? "UNVERIFIED" : "VERIFIED",p.bedrooms ?? null,p.bathrooms ?? null,p.parking ?? null,p.area ?? null],
+        [p.id,p.id==="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb" ? "55555555-5555-5555-5555-555555555555" : null,p.title,p.description,p.type,p.id==="eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee" ? "UNVERIFIED" : "VERIFIED",p.bedrooms ?? null,p.bathrooms ?? null,p.parking ?? 0,p.area ?? null],
       );
 
       await client.query(
