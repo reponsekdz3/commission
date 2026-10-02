@@ -5,7 +5,7 @@ import { initiatePaymentSchema, refundSchema } from "@imizi/validation";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { Public } from "../../common/public.decorator";
 import { PaymentsService } from "./payments.service";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import type { Request } from "express";
 import { requiresReauth } from "@imizi/domain";
 import { AuthService } from "../auth/auth.service";
