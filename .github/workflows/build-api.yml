@@ -18,7 +18,7 @@ on:
 
 env:
   REGISTRY: docker.io
-  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME }}/imizi-api
+  IMAGE_NAME: ${{ secrets.DOCKER_USERNAME || github.repository_owner }}/imizi-api
 
 jobs:
   build:
