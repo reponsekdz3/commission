@@ -67,10 +67,12 @@ export default function Property() {
   const offerMutation = useMutation({
     mutationFn: async () => {
       if (!l) throw new Error("Listing unavailable");
-      return api("/offers", {
-        method: "POST",
-        body: JSON.stringify({ listingId: l.id, amountMinor: Number(offer), currency: l.currency || "RWF" }),
-      }, true);
+      const amountMinor=Math.round(Number(offer)*100);
+    if(!Number.isFinite(amountMinor)||amountMinor<=0)throw new Error("Enter a valid RWF offer amount");
+    return api("/offers", {
+      method: "POST",
+      body: JSON.stringify({ listingId: l.id, amountMinor, currency: l.currency || "RWF" }),
+    }, true);
     },
     onSuccess: () => {
       setOffer("");
@@ -242,7 +244,7 @@ export default function Property() {
               {l.listingType === "SALE" && (
                 <View style={{ marginTop: 14 }}>
                   <Input
-                    label="Offer amount (RWF minor units)"
+                    label="Offer amount (RWF)"
                     value={offer}
                     onChangeText={v => setOffer(v.replace(/\D/g, ""))}
                     keyboardType="number-pad"
@@ -266,8 +268,15 @@ export default function Property() {
 
       {l && (
         <BookingBar
-          price={money(l.priceMinor) + (l.listingType === "RENT" ? "/mo" : "")}
-          onBook={() => router.push({ pathname: "/booking", params: { listingId: l.id } })}
+          price={money(l.priceMinor) + (l.listingType === "RENT" ? "/mo" : l.listingType === "SHORT_STAY" ? "/night" : "")}
+          onBook={() => {
+            if(l.listingType==="SALE"){
+              setOffer(String(Math.round(Number(l.priceMinor)/100)));
+              selection();
+              return;
+            }
+            router.push({ pathname: "/booking", params: { listingId: l.id } });
+          }}
         />
       )}
 
