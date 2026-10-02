@@ -34,7 +34,12 @@ export class PropertiesService {
     assertPropertyAccess(user, property, false);
     await this.db.insertView(id, user?.id);
     await this.features.track("property_viewed", user?.id, id);
-    return this.db.hydrateProperty(id);
+    const privileged=Boolean(user&&(
+      user.id===property.ownerId ||
+      (property.organizationId&&property.organizationId===user.organizationId) ||
+      user.roles.some(r=>["SUPER_ADMIN","ADMIN","MODERATOR","VERIFICATION_AGENT"].includes(r))
+    ));
+    return this.db.hydrateProperty(id,!privileged);
   }
 
   async update(id:string,user:UserRecord,patch:Record<string,any>) {
