@@ -29,7 +29,7 @@ export default function SearchScreen(){
  const queryString=useMemo(()=>{const p=new URLSearchParams();if(q.trim())p.set("q",q.trim());if(type)p.set("listingType",type);if(district.trim())p.set("district",district.trim());if(min)p.set("minPriceMinor",String(Math.round(Number(min)*100)));if(max)p.set("maxPriceMinor",String(Math.round(Number(max)*100)));if(verified)p.set("verifiedOnly","true");p.set("limit","60");return p.toString();},[q,type,district,min,max,verified]);
  async function run(nextQ=q){
    setLoading(true);setError("");
-   try{const qs=new URLSearchParams(queryString);const term=nextQ.trim();if(term)qs.set("q",term);else qs.delete("q");const data=await api<{items:SearchItem[]}>(("/search?"+qs.toString()).replace("/search?","/search?"));setItems(data.items??[]);await cacheJson("search:"+qs.toString(),data.items??[]);}
+   try{const qs=new URLSearchParams(queryString);const term=nextQ.trim();if(term)qs.set("q",term);else qs.delete("q");const data=await api<{items:SearchItem[]}>("/search?"+qs.toString());setItems(data.items??[]);await cacheJson("search:"+qs.toString(),data.items??[]);}
    catch(e){const cached=await readCached<SearchItem[]>("search:"+queryString);if(cached){setItems(cached);setError("Offline mode · showing cached results.");}else setError(e instanceof Error?e.message:"Search failed");}
    finally{setLoading(false);setRefreshing(false);}
  }
