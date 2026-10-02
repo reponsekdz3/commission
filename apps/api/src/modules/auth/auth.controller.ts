@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Post, Get, Req, Res } from "@nestjs/common";
+import { Body, Controller, Delete, Param, Post, Get, Req, Res, UnauthorizedException } from "@nestjs/common";
 import type { Request, Response } from "express";
 import { Throttle } from "@nestjs/throttler";
 import { ApiTags } from "@nestjs/swagger";
@@ -54,7 +54,7 @@ export class AuthController {
     const parsed=body && typeof body==="object" ? refreshSchema.safeParse(body) : {success:false as const};
     const legacyToken=parsed.success ? parsed.data.refreshToken : undefined;
     const token=legacyToken ?? this.readCookie(req,"imizi_refresh");
-    if(!token)throw new Error("Refresh token required");
+    if(!token)throw new UnauthorizedException("Refresh token required");
     const data=await this.auth.refresh(token);
     this.setSessionCookies(res,data);
     return data;
