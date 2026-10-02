@@ -2,7 +2,7 @@ import { Body, Controller, Get, Patch, Param, ForbiddenException } from "@nestjs
 import { ApiBearerAuth, ApiTags } from "@nestjs/swagger";
 import { profileUpdateSchema } from "@imizi/validation";
 import { CurrentUser } from "../../common/current-user.decorator";
-import type { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { AuthService } from "../auth/auth.service";
 import { DatabaseService } from "../../infra/database.service";
 import { requiresReauth } from "@imizi/domain";
