@@ -67,6 +67,7 @@ export const createPropertySchema = basePropertySchema.superRefine((v, ctx) => {
       ["districtId", "district"],
       ["sectorId", "sector"],
       ["cellId", "cell"],
+      ["villageId", "village"],
     ] as const) {
       if (!v[key]) {
         ctx.addIssue({
