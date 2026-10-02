@@ -4,7 +4,7 @@ import { createListingSchema } from "@imizi/validation";
 import { Public } from "../../common/public.decorator";
 import { CurrentUser } from "../../common/current-user.decorator";
 import { DatabaseService } from "../../infra/database.service";
-import { UserRecord } from "../../store/platform.store";
+import type { UserRecord } from "../../store/records";
 import { assertPropertyAccess } from "../../common/access";
 
 @ApiTags("listings")
