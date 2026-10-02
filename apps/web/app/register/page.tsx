@@ -114,7 +114,7 @@ export default function Register() {
             <span className="auth-brand-h2-accent">Unlimited possibilities.</span>
           </h2>
           <p className="auth-brand-lead">
-            Join thousands of Rwandans finding and managing property smarter, faster and more securely than ever.
+            Create one account for property discovery, saved homes, messaging, bookings, payments and property operations.
           </p>
 
           <div className="auth-features">
@@ -129,11 +129,7 @@ export default function Register() {
           </div>
         </div>
 
-        <div className="auth-social-proof">
-          <div className="auth-proof-item"><strong>Free</strong><span>Always</span></div>
-          <div className="auth-proof-item"><strong>60s</strong><span>Setup time</span></div>
-          <div className="auth-proof-item"><strong>5k+</strong><span>Members</span></div>
-        </div>
+
       </div>
 
       {/* ── Right: Form Panel ── */}
