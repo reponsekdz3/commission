@@ -187,7 +187,7 @@ export class FlutterwaveProvider implements PaymentProvider {
     const legacy=headers["verif-hash"];
     return typeof legacy==="string"&&secretsEqual(legacy,this.webhookSecret);
   }
-  parseWebhook(rawBody:string){
+  parseWebhook(rawBody:string):{providerReference:string;status:PaymentStatus}{
     const body=JSON.parse(rawBody) as {data?:{tx_ref?:string;status?:string;id?:number}};
     const state=String(body.data?.status??"").toLowerCase();
     return {providerReference:String(body.data?.id ?? body.data?.tx_ref ?? ""),status:state==="successful"?"SUCCEEDED":state==="failed"||state==="cancelled"?"FAILED":"PENDING_PROVIDER"};
@@ -199,7 +199,7 @@ export class CardProvider implements PaymentProvider {
   constructor(private readonly flutterwave:FlutterwaveProvider){}
   charge(request:PaymentChargeRequest){return this.flutterwave.charge({...request,paymentOptions:"card"});}
   verifyWebhook(headers:Record<string,string|string[]|undefined>,rawBody:string){return this.flutterwave.verifyWebhook(headers,rawBody);}
-  parseWebhook(rawBody:string){return this.flutterwave.parseWebhook(rawBody);}
+  parseWebhook(rawBody:string):{providerReference:string;status:PaymentStatus}{return this.flutterwave.parseWebhook(rawBody);}
   getStatus(providerReference:string){return this.flutterwave.getStatus?.(providerReference);}
   refund(providerReference:string,amountMinor:number,currency:string,reason:string){return this.flutterwave.refund(providerReference,amountMinor,currency,reason);}
 }
