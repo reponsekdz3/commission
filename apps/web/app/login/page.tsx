@@ -57,7 +57,7 @@ export default function Login() {
       };
       if (v.mfaCode && /^\d{6}$/.test(v.mfaCode)) payload.mfaCode = v.mfaCode;
       const d = await api<{ accessToken: string; refreshToken: string; user: unknown }>(
-        "/auth/login", { method: "POST", body: JSON.stringify(payload) }
+        "/auth/login", { method: "POST", headers: {"X-Imizi-Session":"cookie"}, body: JSON.stringify(payload) }
       );
       localStorage.removeItem("imizi_token");
       localStorage.removeItem("imizi_refresh");
